@@ -1,0 +1,61 @@
+# =============================================================================
+# WM Dataloader Config — Stage 1: Dynamics warmup
+# -----------------------------------------------------------------------------
+# 목적: random_2000 100% 로 broad dynamics(state transition / control-drift /
+#       mobility cooldown / invisible field drift)를 학습하기 위한 warmup stage.
+# 설계 근거: docs/WM_ARCHITECTURE_DESIGN.md §2.4, SESSION7_HANDOFF.md §9.2
+#
+# 학습 split: train / valid 만. test_id / ood_*는 코드 단계에서 차단됨.
+# =============================================================================
+
+name: wm_data_stage1
+description: "Stage 1 — Dynamics warmup. random_2000 100%."
+
+sources:
+  - name: random_2000
+    root: data/rg4f_random_2000
+    train_weight: 1.0
+    valid_weight: 1.0
+  - name: success_v5_2000
+    root: data/rg4f_success_curriculum_v5_2000
+    train_weight: 0.0      # stage1: success_v5는 사용 안 함 (warmup 명확화)
+    valid_weight: 0.0
+
+train:
+  chunk_len: 64                # debug capacity 기본값. medium에서는 별도 yaml에서 override.
+  batch_size: 8
+  chunks_per_epoch: 4096
+  seed: 42
+  num_workers: 0               # Windows + 안정성 우선
+  drop_last: false
+  shuffle_episodes: true
+
+valid:
+  # chunk_len / batch_size 미지정 시 train에서 상속. 명시적으로 dump하고 싶으면 아래 둘을 적는다.
+  chunks_per_epoch: 512
+  seed: 4242
+  num_workers: 0
+
+event_window:
+  enabled: true
+  window_radius: 16
+  change_point_prob: 0.25
+  shift_prob: 0.20
+  reveal_prob: 0.15
+  success_prob: 0.10
+  uniform_prob: 0.30
+  raw_eff_mismatch_subsample_max: 64
+
+sample_weight:
+  enabled: true
+  base_weight: 1.0
+  boost_radius: 8
+  change_point_boost: 5.0
+  shift_boost: 5.0
+  reveal_boost: 2.0
+  success_boost: 2.0
+  raw_eff_mismatch_boost: 1.5
+  weight_cap: 10.0
+
+target:
+  obs_recon_mode: next_step    # DreamerV3 표준: target = next_observations_*

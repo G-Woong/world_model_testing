@@ -1,0 +1,72 @@
+# =========================
+# Python / environment
+# =========================
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# =========================
+# OS / IDE
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# =========================
+# Large generated datasets
+# =========================
+data/
+*.npz
+*.npy
+*.pkl
+*.pickle
+
+# =========================
+# Training / evaluation outputs
+# =========================
+outputs/
+runs/
+wandb/
+mlruns/
+logs/
+*.log
+*.jsonl
+
+# =========================
+# Model checkpoints / weights
+# =========================
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+*.onnx
+*.gguf
+
+# =========================
+# Generated figures / temp artifacts
+# =========================
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.pdf
+*.csv
+
+# =========================
+# Secrets
+# =========================
+.env
+.env.*
+*.key
+*.pem
+secrets.*

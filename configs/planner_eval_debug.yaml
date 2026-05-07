@@ -1,0 +1,105 @@
+# =============================================================================
+# planner_eval_debug.yaml — Smoke test config (Cursor-runnable)
+# -----------------------------------------------------------------------------
+# 목적: import + checkpoint load + interface + 1~2 episode dry-run 검증.
+# Session 11-13에서 Cursor가 이 config로만 실행한다.
+# 실제 evaluation은 사용자가 main / ood config로 PowerShell에서 실행한다.
+#
+# 안전 가드:
+# - num_episodes <= 3
+# - seeds = [0]
+# - splits = [test_id]만
+# - planners = [reactive, fixed_k, ours_frc] 3종
+# - max_steps_per_episode = 60 (env default 600 대신 짧게)
+# =============================================================================
+
+meta:
+  name: planner_eval_debug
+  description: "Smoke test for planner interface, baselines, FRC-WM. Cursor-runnable."
+
+run:
+  debug: true
+  out_dir: outputs/planner_eval_debug
+  max_steps_per_episode: 60
+  save_traces: true
+  save_per_step_logs: false
+  skip_existing: false
+
+base_env_config: configs/dataset_default.yaml
+
+# -----------------------------------------------------------------------------
+# models — full / no_regime / no_change_point checkpoint 1개씩
+# (smoke 시에는 full만 빠르게 검증해도 충분)
+# -----------------------------------------------------------------------------
+models:
+  - name: full
+    checkpoint: outputs/wm_runs/wm_medium_full_v1/checkpoints/step_00030000.pt
+    wm_config: configs/wm_medium.yaml
+    variant: full_model
+
+# -----------------------------------------------------------------------------
+# planners — 3종 smoke
+# -----------------------------------------------------------------------------
+planners:
+  - name: reactive
+    kind: reactive
+    planner:
+      horizon: 1
+      candidate_action_count: 16
+      num_rollouts_per_candidate: 1
+      max_planning_calls_per_episode: 1000
+      compute_budget_total: 0
+      device: auto
+      sampling_seed: 0
+
+  - name: fixed_k
+    kind: fixed_k
+    planner:
+      horizon: 5
+      candidate_action_count: 8
+      num_rollouts_per_candidate: 1
+      max_planning_calls_per_episode: 1000
+      compute_budget_total: 0
+      device: auto
+      sampling_seed: 0
+    baseline:
+      fixed_k_period: 5
+
+  - name: ours_frc
+    kind: ours_frc
+    planner:
+      horizon: 5
+      candidate_action_count: 8
+      num_rollouts_per_candidate: 1
+      max_planning_calls_per_episode: 1000
+      compute_budget_total: 0
+      enable_alternative_rollout: true
+      num_alternative_samples: 4
+      alt_latent_perturb_std: 0.5
+      alt_regime_topk: 2
+      device: auto
+      sampling_seed: 0
+    frc:
+      falsification_threshold: 0.30
+      cp_logit_threshold: 1.26
+      mismatch_logit_threshold: -0.30
+      reveal_logit_threshold: -0.77
+      falsification_window: 5
+      relevance_threshold: 0.10
+      relevance_use_action_flip: true
+      relevance_value_gap_norm: 1.0
+      base_horizon: 3
+      extreme_horizon: 8
+      base_rollouts: 4
+      extreme_rollouts: 8
+      extreme_falsification: 0.70
+      avoid_risk_threshold: 0.85
+
+# -----------------------------------------------------------------------------
+# splits — test_id only (debug)
+# -----------------------------------------------------------------------------
+splits:
+  - name: test_id
+    num_episodes: 2
+    seeds: [0]
+    seed_base: 9000000

@@ -1,0 +1,128 @@
+# =============================================================================
+# RG-4F World Model Config (DEBUG) — RSSM/Dreamer-style backbone, debug scale
+# -----------------------------------------------------------------------------
+# 목적: shape sanity / overfit check / 500-episode subset / 단일 GPU 8GB 환경
+# 본 config는 논문 main 실험 결과로 인용하면 안 된다 (PART0 §1.4 same-backbone).
+# 메인 결과는 configs/wm_medium.yaml 위에서 학습한 checkpoint로만 보고한다.
+#
+# 본 yaml은 학습 loop를 정의하지 않는다 — Session 7은 architecture/contract만
+# 만든다. optimizer / scheduler / dataset mix는 Session 9에서 추가된다.
+# =============================================================================
+
+meta:
+  name: wm_debug
+  scale: debug
+  paper_main: false                  # 절대 false (debug용)
+  description: "RSSM/Dreamer-style WM. shape sanity / overfit check 전용."
+
+# -----------------------------------------------------------------------------
+# observation: dataset의 npz schema와 1:1 일치해야 한다 (변경 금지)
+# obs_local_shape = (H, W, C) = (5, 5, 10)  → falsifiable_regime_world_model.rg4f.dataset_io
+# obs_scalar_dim = 14
+# event_token vocab: 13 (EventToken enum 0..12)
+# action vocab: 16 (Action enum 0..15)
+# -----------------------------------------------------------------------------
+observation:
+  local_grid_size: 5
+  local_grid_channels: 10
+  scalar_dim: 14
+  event_vocab: 13
+  action_vocab: 16
+
+# -----------------------------------------------------------------------------
+# encoder: local_grid CNN + scalar MLP + event/action embedding → feature vector
+# -----------------------------------------------------------------------------
+encoder:
+  cnn_channels: [32, 64]            # 5x5 grid이라 2-layer로 충분
+  cnn_kernel: 3
+  cnn_padding: 1                     # spatial size 보존 (small map)
+  scalar_hidden: 128
+  event_embed_dim: 16
+  action_embed_dim: 16
+  feature_dim: 256                   # encoder 출력 e_t 차원 (RSSM posterior 입력)
+
+# -----------------------------------------------------------------------------
+# rssm: deterministic h + stochastic z (Dreamer 계열 표준)
+# -----------------------------------------------------------------------------
+rssm:
+  deter_dim: 256                     # debug: 256 (medium은 512)
+  stoch_dim: 64                      # debug: 64 (medium은 128 또는 256)
+  hidden_dim: 256                    # MLP 내부 hidden
+  num_rssm_layers: 1                 # GRU layer 수
+  min_std: 0.1                       # softplus(std)+min_std로 numerical stability
+  gru_input_action: true             # h_t = GRU(h_{t-1}, [z_{t-1}, action_emb_{t-1}])
+
+# -----------------------------------------------------------------------------
+# heads: 모든 prediction head는 features = concat(h, z) 위에서 정의됨
+# -----------------------------------------------------------------------------
+heads:
+  hidden_dim: 256
+  obs_recon_local: true              # local_grid 재구성
+  obs_recon_scalar: true             # scalar 재구성
+  reward: true                       # task+cost decomposed reward 예측
+  done: true                         # done flag (terminated || truncated)
+  state: true                        # 5-D true_state regression
+  regime: true                       # control_mode classification (5 classes)
+  change_point: true                 # change_point binary
+  reveal: true                       # reveal_event binary
+  shift: true                        # shift_event binary
+  raw_eff_mismatch: true             # action_raw != action_effective (control-drift aux)
+  # action_relevance / value head는 supervised proxy 수준으로만 둔다.
+  # 실제 planner용 action relevance(value gap / action flip)는 Session 13.
+  action_relevance_proxy: false      # debug에서는 끔. medium에서도 default off.
+
+# -----------------------------------------------------------------------------
+# regime: 현재 backbone supervision은 control_mode 5-class만 사용
+#  - Session 8 이후에 multi-factor regime (vision/mobility/...) 확장 후보
+# -----------------------------------------------------------------------------
+regime:
+  num_control_modes: 5               # IDENTITY / CW / LR / UD / REV (types.ControlMode)
+  multi_factor: false                # debug에서는 control-drift 단일 factor만
+
+# -----------------------------------------------------------------------------
+# loss: 가중치 + KL balancing (Dreamer 계열). 실제 학습 step은 Session 9.
+# -----------------------------------------------------------------------------
+loss:
+  lambda_obs_local: 1.0
+  lambda_obs_scalar: 1.0
+  lambda_reward: 1.0
+  lambda_done: 1.0
+  lambda_state: 1.0
+  lambda_regime: 1.0
+  lambda_change_point: 5.0           # tick-level positive 희소 → 큰 가중치
+  lambda_reveal: 1.0
+  lambda_shift: 5.0                  # change_point와 거의 같은 축 (분리 기록)
+  lambda_mismatch: 0.5               # auxiliary; main loss는 아님
+  beta_kl: 1.0
+  free_nats: 1.0                     # KL ≥ free_nats 까지는 0으로 clip
+  kl_balance: 0.8                    # posterior side(0.8) vs prior side(0.2) gradient
+  # change-point/shift imbalance 처리 옵션
+  cp_use_focal: false                 # debug: 우선 BCE+pos_weight만
+  cp_focal_gamma: 2.0
+  cp_pos_weight: 50.0                # event 평균 0.92/2000 ≈ 0.046% → 50배 정도
+  shift_pos_weight: 50.0
+  # reveal은 충분히 많으므로 별도 weighting 없음
+  reveal_pos_weight: 1.0
+
+# -----------------------------------------------------------------------------
+# trainer interface: Session 9에서 채울 placeholder. Session 7에서는 코드 없음.
+# -----------------------------------------------------------------------------
+trainer:
+  chunk_len: 64                      # backprop-through-time window
+  batch_size: 8                      # 8GB GPU 기준 안전치
+  device: cuda                       # 없으면 자동 cpu (Session 9 구현)
+  precision: fp32                    # debug는 fp32 안정성 우선
+  grad_clip: 100.0
+  # 실제 optimizer / lr / scheduler / step count는 Session 9에서 추가
+
+# -----------------------------------------------------------------------------
+# variants: 학습 ablation variant (Session 9에서 dispatch)
+#  - planner / fixed-k / always-plan / uncertainty gate 등은 학습 variant 아님.
+#    동일 checkpoint 위에서 Session 11+의 evaluation에서 swap.
+# -----------------------------------------------------------------------------
+variants:
+  full_model: { regime: true,  change_point: true,  reveal: true,  shift: true,  state: true }
+  no_regime:  { regime: false, change_point: true,  reveal: true,  shift: true,  state: true }
+  no_change_point: { regime: true, change_point: false, reveal: true, shift: true, state: true }
+  no_reveal:  { regime: true,  change_point: true,  reveal: false, shift: true,  state: true }
+  no_state_aux: { regime: true, change_point: true,  reveal: true,  shift: true,  state: false }
