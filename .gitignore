@@ -12,6 +12,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .ipynb_checkpoints/
+*.egg-info/
 
 # =========================
 # OS / IDE
@@ -24,7 +25,8 @@ Thumbs.db
 # =========================
 # Large generated datasets
 # =========================
-data/
+data/*
+!data/README.md
 *.npz
 *.npy
 *.pkl
@@ -33,7 +35,8 @@ data/
 # =========================
 # Training / evaluation outputs
 # =========================
-outputs/
+outputs/*
+!outputs/README.md
 runs/
 wandb/
 mlruns/
@@ -70,3 +73,17 @@ logs/
 *.key
 *.pem
 secrets.*
+*.token
+*.secret
+.mcp.secrets.json
+secrets/
+
+# =========================
+# Claude Code session temp
+# =========================
+.claude/.session_*.lock
+
+# =========================
+# P0 scaffold negations
+# (negations moved next to the ignored patterns above, per git requirement)
+# =========================

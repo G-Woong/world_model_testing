@@ -1,0 +1,40 @@
+# DO NOT FILL VALUES IN P0. CC-P3 populates these.
+# Source docs: paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md
+#              paper_context_ref/11_MODEL_DATASET_SCALE_AND_TRAINING_BUDGET_v1.md
+#              paper_context_ref/13_CLAUDE_CODE_EXECUTION_ROADMAP_v1.md §9
+#              paper_context_ref/14_TRD_TECHNICAL_REQUIREMENTS_DOCUMENT_v1.md §6.9
+#              paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md §17
+
+version: 0
+phase: CC-P3
+source_docs:
+  - paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md
+  - paper_context_ref/11_MODEL_DATASET_SCALE_AND_TRAINING_BUDGET_v1.md
+  - paper_context_ref/13_CLAUDE_CODE_EXECUTION_ROADMAP_v1.md
+  - paper_context_ref/14_TRD_TECHNICAL_REQUIREMENTS_DOCUMENT_v1.md
+  - paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md
+
+seed: null
+model_ckpt: null
+split: null
+metrics: null
+baselines: null
+compute_budget: null
+forbidden_fields:
+  - true_regime
+  - true_control_grammar
+  - true_change_point
+  - true_reveal_vs_shift
+  - true_wrong_hypothesis
+  - counterfactual_action_effects
+  - oracle_regime_action
+  - oracle_grammar_action
+  - split_id
+  - ood_type
+  - template_id
+  - seed
+  - policy_id
+report_path: null
+ablation: null
+version: null
+notes: "P0 skeleton. No values set."

@@ -1,0 +1,43 @@
+# DO NOT FILL VALUES IN P0. CC-P2 populates these.
+# Source docs: paper_context_ref/04_TEXT_ONLY_SMOKE_TESTBED.md
+#              paper_context_ref/12_DATA_COLLECTION_METHODOLOGY_v1.md
+#              paper_context_ref/06_DATA_SCHEMA_AND_LABELING.md
+#              paper_context_ref/13_CLAUDE_CODE_EXECUTION_ROADMAP_v1.md §8
+#              paper_context_ref/14_TRD_TECHNICAL_REQUIREMENTS_DOCUMENT_v1.md §6.3
+#              paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md §17
+
+version: 0
+phase: CC-P2
+source_docs:
+  - paper_context_ref/04_TEXT_ONLY_SMOKE_TESTBED.md
+  - paper_context_ref/12_DATA_COLLECTION_METHODOLOGY_v1.md
+  - paper_context_ref/06_DATA_SCHEMA_AND_LABELING.md
+  - paper_context_ref/13_CLAUDE_CODE_EXECUTION_ROADMAP_v1.md
+  - paper_context_ref/14_TRD_TECHNICAL_REQUIREMENTS_DOCUMENT_v1.md
+  - paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md
+
+seed: null
+output_path: null
+split: null
+task_families: null
+policy_mixture: null
+coverage_targets: null
+forbidden_fields:
+  - true_regime
+  - true_control_grammar
+  - true_change_point
+  - true_reveal_vs_shift
+  - true_wrong_hypothesis
+  - counterfactual_action_effects
+  - oracle_regime_action
+  - oracle_grammar_action
+  - split_id
+  - ood_type
+  - template_id
+  - seed
+  - policy_id
+dataset_version: null
+schema_version: null
+compute_budget: null
+ablation: null
+notes: "P0 skeleton. No values set."

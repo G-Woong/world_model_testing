@@ -1,0 +1,34 @@
+# DO NOT FILL VALUES IN P0. CC-P2/P3 populates these.
+# Source docs: paper_context_ref/04_TEXT_ONLY_SMOKE_TESTBED.md
+#              paper_context_ref/13_CLAUDE_CODE_EXECUTION_ROADMAP_v1.md §6, §8, §9
+#              paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md §17
+
+version: 0
+phase: CC-P2
+source_docs:
+  - paper_context_ref/04_TEXT_ONLY_SMOKE_TESTBED.md
+  - paper_context_ref/13_CLAUDE_CODE_EXECUTION_ROADMAP_v1.md
+  - paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md
+
+# 13 §21 explicit principles (P0: keys only, values null/UNKNOWN)
+seed: null
+data_path: null
+split: null
+forbidden_fields:
+  - true_regime
+  - true_control_grammar
+  - true_change_point
+  - true_reveal_vs_shift
+  - true_wrong_hypothesis
+  - counterfactual_action_effects
+  - oracle_regime_action
+  - oracle_grammar_action
+  - split_id
+  - ood_type
+  - template_id
+  - seed
+  - policy_id
+compute_budget: null
+ablation: null
+version: null
+notes: "P0 skeleton. No values set."
