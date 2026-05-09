@@ -57,6 +57,28 @@ $GITIGNORE_FILE = Join-Path $CLAUDE_ROOT  '.gitignore'
 $CLAUDE_BRANCH  = 'feat/p1-schema-visibility'
 $CODEX_BRANCH   = 'codex-work'
 
+# Resolve codex runner: on Windows npm installs codex as .cmd/.ps1 which
+# Start-Process cannot handle; resolve to node + codex.js directly.
+$_codexCmd = Get-Command 'codex' -ErrorAction SilentlyContinue
+if ($_codexCmd -and $_codexCmd.Source -match '\.ps1$|\.cmd$|\.sh$') {
+    # Unwrap: find the actual JS entry point from the npm shim's sibling node_modules
+    $_codexJs = Join-Path (Split-Path $_codexCmd.Source) 'node_modules\@openai\codex\bin\codex.js'
+    if (Test-Path $_codexJs) {
+        $CODEX_EXE  = (Get-Command 'node' -ErrorAction Stop).Source
+        $CODEX_ARGV_PREFIX = @($_codexJs)
+    } else {
+        # Fall back to cmd.exe wrapper
+        $CODEX_EXE  = $env:COMSPEC
+        $CODEX_ARGV_PREFIX = @('/c', $_codexCmd.Source)
+    }
+} elseif ($_codexCmd) {
+    $CODEX_EXE  = $_codexCmd.Source
+    $CODEX_ARGV_PREFIX = @()
+} else {
+    Write-Fail "codex not found in PATH — install @openai/codex globally"
+    exit 10
+}
+
 $REQUIRED_HEADERS = @(
     'TASK_NAME:',
     'BACKGROUND:',
@@ -390,7 +412,7 @@ function Invoke-Dispatch {
     )
 
     if ($DryRun) {
-        Write-Host "[DRY] codex $($codexArgs -join ' ')"
+        Write-Host "[DRY] $CODEX_EXE $($CODEX_ARGV_PREFIX -join ' ') $($codexArgs -join ' ')"
         Write-Host "[DRY] stdin from temp file (prompt length=$($prompt.Length) chars)"
         Write-Host "[DRY] stdout → $jsonlLog"
         Write-Host "[DRY] stderr → $errLog"
@@ -404,12 +426,15 @@ function Invoke-Dispatch {
     New-Item -ItemType File -Path $LOCK_FILE -Force | Out-Null
     Write-Step "Lock acquired: $LOCK_FILE"
 
+    # Combine argv: node_modules path prefix + codex subcommand args
+    $fullArgs = $CODEX_ARGV_PREFIX + $codexArgs
+
     $startTime = Get-Date
     $codexExit = -1
     $proc      = $null
     try {
-        $proc = Start-Process -FilePath 'codex' `
-            -ArgumentList $codexArgs `
+        $proc = Start-Process -FilePath $CODEX_EXE `
+            -ArgumentList $fullArgs `
             -RedirectStandardInput  $promptFile `
             -RedirectStandardOutput $jsonlLog `
             -RedirectStandardError  $errLog `
