@@ -12,4 +12,7 @@ Hard constraints (placeholder; implementation deferred to P3/P5):
 - Kill conditions: hidden field in batch, NaN loss, leakage report missing (TDD §14.3).
 - Training does not start with 7B/72B VLM (SYS-REQ-001, phase gate).
 """
-__all__: list[str] = []
+from frcgw.training.monitoring import PublicTraceLogger
+from frcgw.training.train_text import EpochResult, SmokeResult, run_smoke_train
+
+__all__ = ["EpochResult", "PublicTraceLogger", "SmokeResult", "run_smoke_train"]

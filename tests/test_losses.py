@@ -69,7 +69,7 @@ def _synthetic_outputs(batch_size: int = 2):
         make_target(),
         make_target(
             true_regime="modal_blocker",
-            true_control_grammar="close_modal_then_search",
+            true_control_grammar="modal_confirm_then_action",
             true_change_point="3",
             true_reveal_vs_shift="reveal",
             true_action_effect_type="reveal",

@@ -31,12 +31,12 @@ REGIME_VOCAB: dict[str, int] = {
 GRAMMAR_VOCAB: dict[str, int] = {
     "direct_search": 0,
     "required_dropdown_then_search": 1,
-    "close_modal_then_search": 2,
-    "scroll_then_click": 3,
-    "grant_permission_then_action": 4,
-    "expand_filter_then_apply": 5,
-    "paginate_then_select": 6,
-    "wait_then_retry": 7,
+    "modal_confirm_then_action": 2,
+    "container_scroll_then_select": 3,
+    "wait_until_enabled_then_click": 4,
+    "permission_accept_then_action": 5,
+    "filter_open_then_select": 6,
+    "pagination_or_infinite_scroll": 7,
 }
 
 REVEAL_SHIFT_VOCAB: dict[str, int] = {"none": 0, "reveal": 1, "shift": 2}
