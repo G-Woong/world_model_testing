@@ -133,6 +133,11 @@ function Get-NextTaskNumber {
 function Get-QueueMdPath   { param([int]$N, [string]$Name) Join-Path $QUEUE_DIR ("TASK_{0:D3}_{1}.md"         -f $N, $Name) }
 function Get-QueueMetaPath { param([int]$N, [string]$Name) Join-Path $QUEUE_DIR ("TASK_{0:D3}_{1}.meta.json" -f $N, $Name) }
 function Get-ResultPath    { param([int]$N, [string]$Name) Join-Path $DONE_DIR  ("TASK_{0:D3}_{1}_RESULT.md" -f $N, $Name) }
+# RESULT.md lives in the Codex worktree until prepare-merge brings it into Claude worktree
+function Get-CodexResultPath { param([int]$N, [string]$Name)
+    $codexDone = Join-Path $CODEX_ROOT '.agent_tasks\codex_done'
+    Join-Path $codexDone ("TASK_{0:D3}_{1}_RESULT.md" -f $N, $Name)
+}
 
 function Resolve-Ctx {
     # Return task context: first from script-level cache, then from meta file.
@@ -565,10 +570,10 @@ function Invoke-Verify {
     }
     Write-Step "Forbidden paths: clean"
 
-    # [4] RESULT.md must exist (Codex must have written it)
-    $resultPath = Get-ResultPath $num $name
+    # [4] RESULT.md must exist in Codex worktree (prepare-merge brings it to Claude worktree later)
+    $resultPath = Get-CodexResultPath $num $name
     if (-not (Test-Path $resultPath)) {
-        Write-Fail "RESULT.md not found: $resultPath"
+        Write-Fail "RESULT.md not found in codex worktree: $resultPath"
         exit 40
     }
     Write-Step "RESULT.md: found at $resultPath"
