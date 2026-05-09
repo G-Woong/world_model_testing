@@ -473,6 +473,16 @@ function Invoke-Verify {
     $baseSha = $ctx.BaseSha
     Write-Step "Mode: verify | task=$name | num=$num | base=$baseSha"
 
+    if ($DryRun) {
+        Write-Host "[DRY] git log ${baseSha}..${CODEX_BRANCH}  (check new commits)"
+        Write-Host "[DRY] git status --porcelain  (check clean worktree)"
+        Write-Host "[DRY] Test-ForbiddenPaths -BaseSha $baseSha"
+        $resultPath = Get-ResultPath $num $name
+        Write-Host "[DRY] Test-Path $resultPath  (check RESULT.md)"
+        Write-Step "verify PASSED (dry-run)."
+        return
+    }
+
     # [1] Codex commits must exist since BASE_SHA
     $newCommits = git -C $CODEX_ROOT log "${baseSha}..${CODEX_BRANCH}" --oneline
     if ($LASTEXITCODE -ne 0) {
