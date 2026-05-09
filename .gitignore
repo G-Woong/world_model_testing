@@ -104,3 +104,9 @@ secrets/
 .claude/
 CLAUDE.md
 .mcp.json
+
+# =========================
+# Agent task harness
+# =========================
+.agent_tasks/codex_logs/
+.agent_tasks/.lock
