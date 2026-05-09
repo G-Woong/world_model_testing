@@ -1,0 +1,8 @@
+﻿{
+    "task_number":  1000,
+    "task_name":  "C1_text_dataset_loader",
+    "task_file":  ".agent_tasks/codex_queue/TASK_1000_C1_text_dataset_loader.md",
+    "base_sha":  "703073f707af251c6c6faa1f71a75be44f419d3f",
+    "assigned_at":  "2026-05-09T17:12:50Z",
+    "assigned_by":  "claude"
+}

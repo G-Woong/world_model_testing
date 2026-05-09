@@ -127,7 +127,7 @@ function Get-NextTaskNumber {
     $numbers = $existing | ForEach-Object {
         if ($_.Name -match '^TASK_(\d+)_') { [int]$Matches[1] } else { 0 }
     }
-    return ($numbers | Measure-Object -Maximum).Maximum + 1
+    return [int](($numbers | Measure-Object -Maximum).Maximum) + 1
 }
 
 function Get-QueueMdPath   { param([int]$N, [string]$Name) Join-Path $QUEUE_DIR ("TASK_{0:D3}_{1}.md"         -f $N, $Name) }
