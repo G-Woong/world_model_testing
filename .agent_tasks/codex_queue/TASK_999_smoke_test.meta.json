@@ -1,0 +1,8 @@
+﻿{
+    "task_number":  999,
+    "task_name":  "smoke_test",
+    "task_file":  ".agent_tasks/codex_queue/TASK_999_smoke_test.md",
+    "base_sha":  "78f283f2a99694274481330a539567b406d8ce9b",
+    "assigned_at":  "2026-05-09T14:11:27Z",
+    "assigned_by":  "claude"
+}
