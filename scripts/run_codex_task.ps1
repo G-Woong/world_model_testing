@@ -35,7 +35,10 @@ param(
     [string]$CodexModel      = 'gpt-5.5',
     [string]$CodexSandbox    = 'workspace-write',
     [int]   $TimeoutMinutes  = 60,
-    [switch]$DryRun
+    [switch]$DryRun,
+    # Use only in local dev/smoke-test: bypasses all sandbox restrictions so
+    # Codex can write to git worktree metadata outside $CODEX_ROOT.
+    [switch]$BypassSandbox
 )
 
 Set-StrictMode -Version Latest
@@ -406,16 +409,29 @@ function Invoke-Dispatch {
     # also need write access to this metadata dir.
     $codexWorktreeMeta = Join-Path $CLAUDE_ROOT ".git\worktrees\$(Split-Path $CODEX_ROOT -Leaf)"
 
-    $codexArgs = @(
-        'exec',
-        '-C', $CODEX_ROOT,
-        '-s', $CodexSandbox,
-        '--add-dir', $codexWorktreeMeta,
-        '-m', $CodexModel,
-        '--json',
-        '-o', $lastMsg,
-        '-'                # read prompt from stdin
-    )
+    if ($BypassSandbox) {
+        Write-Warn "-BypassSandbox: using --dangerously-bypass-approvals-and-sandbox (dev/smoke-test only)"
+        $codexArgs = @(
+            'exec',
+            '-C', $CODEX_ROOT,
+            '--dangerously-bypass-approvals-and-sandbox',
+            '-m', $CodexModel,
+            '--json',
+            '-o', $lastMsg,
+            '-'
+        )
+    } else {
+        $codexArgs = @(
+            'exec',
+            '-C', $CODEX_ROOT,
+            '-s', $CodexSandbox,
+            '--add-dir', $codexWorktreeMeta,
+            '-m', $CodexModel,
+            '--json',
+            '-o', $lastMsg,
+            '-'                # read prompt from stdin
+        )
+    }
 
     if ($DryRun) {
         Write-Host "[DRY] $CODEX_EXE $($CODEX_ARGV_PREFIX -join ' ') $($codexArgs -join ' ')"
