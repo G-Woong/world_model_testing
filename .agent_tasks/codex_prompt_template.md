@@ -11,10 +11,11 @@ Hard constraints:
   secrets/, .env*, paper_context_ref/, scripts/run_codex_task.ps1.
 - Use the existing Python venv at .venv. Use `python -m pip`, not bare pip.
 - Run the targeted tests listed in REQUIRED_TESTS of the task file.
-- Commit ALL completed changes to branch codex-work.
 - Do not push. Do not amend. Do not rebase.
-- After committing, write a short summary to
+- Before committing, write a short summary to
   .agent_tasks/codex_done/TASK_{{TASK_NUMBER}}_{{TASK_NAME}}_RESULT.md
   including: files changed, tests run, pass/fail summary, blockers.
-- Use the COMMIT_MESSAGE field of the task file verbatim as the commit message.
+- Then git add ALL changed files including the RESULT.md above.
+- Then commit with the COMMIT_MESSAGE field of the task file verbatim.
+- The working tree must be clean after the commit (no untracked or modified files).
 - Stop after the commit completes. Do not continue to additional work.
