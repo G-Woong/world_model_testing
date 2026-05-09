@@ -401,10 +401,16 @@ function Invoke-Dispatch {
     $promptFile = [System.IO.Path]::GetTempFileName()
     Set-Content -Path $promptFile -Value $prompt -Encoding utf8
 
+    # Git worktrees store index/HEAD under the parent repo's .git/worktrees/<name>/.
+    # The codex sandbox only allows writes to CODEX_ROOT; git commits from a worktree
+    # also need write access to this metadata dir.
+    $codexWorktreeMeta = Join-Path $CLAUDE_ROOT ".git\worktrees\$(Split-Path $CODEX_ROOT -Leaf)"
+
     $codexArgs = @(
         'exec',
         '-C', $CODEX_ROOT,
         '-s', $CodexSandbox,
+        '--add-dir', $codexWorktreeMeta,
         '-m', $CodexModel,
         '--json',
         '-o', $lastMsg,
