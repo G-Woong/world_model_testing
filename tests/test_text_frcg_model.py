@@ -8,7 +8,8 @@ torch = pytest.importorskip("torch")
 
 from frcgw.models.encoders import HistoryEncoder, TextStateEncoder
 from frcgw.models.latent_heads import AuxHeads, LatentPosterior, LatentSample
-from frcgw.schemas.step_schema import PublicHistoryItem
+from frcgw.models.text_frcg_model import ModelOutput, TextFRCGModel
+from frcgw.schemas.step_schema import PublicHistoryItem, PublicObservation
 
 
 def test_text_state_encoder_shape() -> None:
@@ -89,3 +90,64 @@ def test_no_hidden_fields_required() -> None:
     for cls in (TextStateEncoder, HistoryEncoder, LatentPosterior):
         params = set(inspect.signature(cls.forward).parameters)
         assert hidden_fields.isdisjoint(params)
+
+
+def test_model_output_keys() -> None:
+    model = TextFRCGModel()
+    pub = PublicObservation(instruction="click button", history_public=[])
+    out = model(pub)
+    assert isinstance(out, ModelOutput)
+    assert out.z_state.shape[1] == 32
+    assert out.z_regime_logits.shape[1] == 8
+    assert out.z_grammar_logits.shape[1] == 8
+    assert out.z_change_logits.shape[1] == 12
+    assert out.z_reveal_shift_logits.shape[1] == 3
+    assert out.shared_h.shape[1] == 128
+    assert out.posterior_entropy.shape[0] == 1
+
+
+def test_world_model_heads_shape() -> None:
+    model = TextFRCGModel()
+    pub = PublicObservation(instruction="test", history_public=[])
+    out = model(pub)
+    result = model.world_model_heads.forward_given_action(out.shared_h, out.z_state, "click", 0)
+    assert result.effect_logits.shape == (1, 7)
+    assert result.progress_pred.shape == (1,)
+    assert result.failed_score.shape == (1,)
+
+
+def test_forward_batch() -> None:
+    model = TextFRCGModel()
+    pubs = [PublicObservation(instruction=f"action {i}", history_public=[]) for i in range(4)]
+    out = model(pubs)
+    assert out.z_state.shape == (4, 32)
+    assert out.posterior_entropy.shape == (4,)
+
+
+def test_forward_no_hidden_fields() -> None:
+    sig = inspect.signature(TextFRCGModel.forward)
+    assert "true_regime" not in sig.parameters
+    assert "true_control_grammar" not in sig.parameters
+
+
+def test_deterministic_model_seed() -> None:
+    model = TextFRCGModel()
+    pub = PublicObservation(instruction="test", history_public=[])
+    torch.manual_seed(42)
+    out1 = model(pub)
+    model.eval()
+    with torch.no_grad():
+        out2 = model(pub)
+    assert torch.allclose(out1.z_state.detach(), out2.z_state.detach())
+
+
+def test_action_embed_shape() -> None:
+    model = TextFRCGModel()
+    emb = model.action_embed("click")
+    assert emb.shape[-1] == 64
+
+
+def test_grammar_embed_shape() -> None:
+    model = TextFRCGModel()
+    emb = model.grammar_embed(0)
+    assert emb.shape[-1] == 32

@@ -13,11 +13,17 @@ Hard constraints (placeholder; implementation deferred to P3/P5):
 """
 from frcgw.models.encoders import HistoryEncoder, TextStateEncoder
 from frcgw.models.latent_heads import AuxHeads, LatentPosterior, LatentSample
+from frcgw.models.text_frcg_model import ModelOutput, TextFRCGModel
+from frcgw.models.world_model_heads import RolloutResult, WorldModelHeads
 
 __all__ = [
     "AuxHeads",
     "HistoryEncoder",
     "LatentPosterior",
     "LatentSample",
+    "ModelOutput",
+    "RolloutResult",
     "TextStateEncoder",
+    "TextFRCGModel",
+    "WorldModelHeads",
 ]
