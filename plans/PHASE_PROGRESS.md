@@ -16,7 +16,7 @@ gate 명령: `/frcgw-phase-check`
 | P1 | PASS | 2026-05-08 | schema/visibility guards complete — commit `b5e4777`, 53 tests pass |
 | P1.5 | PASS | 2026-05-08 | harness complete — 7 skills/7 agents/11 hooks/3 commands, sentinel P1.5.passed created |
 | P2 | PASS | 2026-05-08 | text-only data generator complete — 101 tests pass, coverage all thresholds met, leakage PASS, sentinel P2.passed created |
-| P3 | PENDING | — | text-only model + planner + ablations |
+| P3 | PASS | 2026-05-09 | tiny text FRCG model complete — 166 tests pass (65 new), leakage PASS, F_t/gate/rewrite/planner all implemented, sentinel P3.passed created |
 | P4 | PENDING | — | synthetic GUI MVE collector |
 | P5 | PENDING | — | frozen VLM MVE model |
 | P6 | PENDING | — | core baselines/ablations compute-matched |
