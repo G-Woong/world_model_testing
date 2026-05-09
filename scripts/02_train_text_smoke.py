@@ -1,21 +1,27 @@
-"""scripts/02_train_text_smoke.py — CC-P3 text-only model training entrypoint placeholder.
-
-Source docs:
-- paper_context_ref/13_CLAUDE_CODE_EXECUTION_ROADMAP_v1.md §9 (CC-P3)
-- paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md §18
-"""
+"""CLI entrypoint for the P3 text smoke training loop."""
 from __future__ import annotations
 
 import argparse
+from dataclasses import asdict
+import json
+
+from frcgw.training.train_text import run_smoke_train
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Train text-only FRCG model.")
-    parser.add_argument("--config", required=True)
-    parser.parse_known_args()
-    raise NotImplementedError(
-        "CC-P3: implementation deferred. See paper_context_ref/13 §9."
+    parser = argparse.ArgumentParser(description="Run P3 tiny text smoke training.")
+    parser.add_argument("--config", default="configs/train_text.yaml")
+    parser.add_argument("--model-config", default="configs/model_text.yaml")
+    parser.add_argument("--output-dir", default="outputs/runs/p3_smoke")
+    args = parser.parse_args()
+
+    result = run_smoke_train(
+        train_cfg_path=args.config,
+        model_cfg_path=args.model_config,
+        output_dir=args.output_dir,
     )
+    print(json.dumps(asdict(result), indent=2, sort_keys=True))
+    return 0
 
 
 if __name__ == "__main__":
