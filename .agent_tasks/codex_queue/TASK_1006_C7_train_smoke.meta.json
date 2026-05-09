@@ -1,0 +1,8 @@
+﻿{
+    "task_number":  1006,
+    "task_name":  "C7_train_smoke",
+    "task_file":  ".agent_tasks/codex_queue/TASK_1006_C7_train_smoke.md",
+    "base_sha":  "e0fb4d8686fa359623195b66418a219983b42d70",
+    "assigned_at":  "2026-05-09T17:55:25Z",
+    "assigned_by":  "claude"
+}
