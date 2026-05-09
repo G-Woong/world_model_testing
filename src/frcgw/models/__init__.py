@@ -11,4 +11,13 @@ Hard constraints (placeholder; implementation deferred to P3/P5):
 - 4-latent structure (z_state, z_regime, z_control_grammar, z_change_point) is a
   hypothesis to be validated by ablation, not a confirmed final design (TDD §11.3).
 """
-__all__: list[str] = []
+from frcgw.models.encoders import HistoryEncoder, TextStateEncoder
+from frcgw.models.latent_heads import AuxHeads, LatentPosterior, LatentSample
+
+__all__ = [
+    "AuxHeads",
+    "HistoryEncoder",
+    "LatentPosterior",
+    "LatentSample",
+    "TextStateEncoder",
+]
