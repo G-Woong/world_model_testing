@@ -15,6 +15,7 @@ Hard constraints:
 from .leakage_auditor import LeakageAuditor, AuditReport
 from .coverage_auditor import CoverageAuditor, CoverageReport, CoverageThresholds
 from .shard_exporter import ShardExporter
+from .text_dataset import BatchTargets, StepSample, TextStepDataset, build_dataloaders, collate_fn
 
 __all__ = [
     "LeakageAuditor",
@@ -23,4 +24,9 @@ __all__ = [
     "CoverageReport",
     "CoverageThresholds",
     "ShardExporter",
+    "BatchTargets",
+    "StepSample",
+    "TextStepDataset",
+    "build_dataloaders",
+    "collate_fn",
 ]
