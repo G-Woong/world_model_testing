@@ -12,4 +12,15 @@ Hard constraints (placeholder; implementation deferred to P3):
   used as inference input here (TDD §4).
 - Gate rule: F_t > tau_f AND delta_V_t > tau_v AND P(action_switch) > tau_a (TDD §13.4).
 """
-__all__: list[str] = []
+from frcgw.planning.alternative_proposer import HypothesisId, enumerate_hypotheses, log_prior, propose
+from frcgw.planning.falsification import FalsificationEvidence, falsification_score, log_likelihood
+
+__all__ = [
+    "FalsificationEvidence",
+    "HypothesisId",
+    "enumerate_hypotheses",
+    "falsification_score",
+    "log_likelihood",
+    "log_prior",
+    "propose",
+]
