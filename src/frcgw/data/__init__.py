@@ -13,5 +13,14 @@ Hard constraints:
 - data depends on schemas, logging, utils — not on model-specific code except collator (TDD §4).
 """
 from .leakage_auditor import LeakageAuditor, AuditReport
+from .coverage_auditor import CoverageAuditor, CoverageReport, CoverageThresholds
+from .shard_exporter import ShardExporter
 
-__all__ = ["LeakageAuditor", "AuditReport"]
+__all__ = [
+    "LeakageAuditor",
+    "AuditReport",
+    "CoverageAuditor",
+    "CoverageReport",
+    "CoverageThresholds",
+    "ShardExporter",
+]

@@ -87,3 +87,13 @@ secrets/
 # P0 scaffold negations
 # (negations moved next to the ignored patterns above, per git requirement)
 # =========================
+
+# =========================
+# P2 additions
+# =========================
+# Keep phase gate sentinels (zero-byte marker files)
+!outputs/phase_gates/
+!outputs/phase_gates/*.passed
+!outputs/test_reports/
+!outputs/review_reports/
+!outputs/eval_reports/
