@@ -161,10 +161,11 @@ function Resolve-Ctx {
 }
 
 function Test-ForbiddenPaths {
-    param([string]$BaseSha)
+    # Use three-dot diff (merge-base..CODEX_BRANCH) so we only check what Codex
+    # added on top of the Claude branch — Claude's own commits are excluded.
     Push-Location $CODEX_ROOT
     try {
-        $changed = git diff --name-only "${BaseSha}..${CODEX_BRANCH}"
+        $changed = git diff --name-only "${CLAUDE_BRANCH}...${CODEX_BRANCH}"
         if ($LASTEXITCODE -ne 0) { throw "git diff --name-only failed (exit $LASTEXITCODE)" }
     } finally {
         Pop-Location
