@@ -1,0 +1,8 @@
+﻿{
+    "task_number":  1005,
+    "task_name":  "C6_gate_rewrite_planner",
+    "task_file":  ".agent_tasks/codex_queue/TASK_1005_C6_gate_rewrite_planner.md",
+    "base_sha":  "91029a2c81bb749edb94cfd02348826b64011f9c",
+    "assigned_at":  "2026-05-09T17:50:12Z",
+    "assigned_by":  "claude"
+}
