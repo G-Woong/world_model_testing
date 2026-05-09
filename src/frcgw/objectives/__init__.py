@@ -1,12 +1,35 @@
-"""frcgw.objectives — Losses, rewards, and loss weight scheduling.
+"""frcgw.objectives -- Losses, rewards, and loss weight scheduling.
 
 Source docs:
 - paper_context_ref/08_LOSS_REWARD_TRAINING_OBJECTIVE.md
-- paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md §12
-
-Hard constraints (placeholder; implementation deferred to P3):
-- Reward must be connected to the training/planning path, not metric-only (TRAIN-REQ-008).
-- Valid switch reward applies only when all 4 conditions are satisfied (TRAIN-REQ-007).
-- objectives depends on models, schemas — not on data generation (TDD §4).
+- paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md section 12
 """
-__all__: list[str] = []
+from frcgw.objectives.losses import (
+    DEFAULT_WEIGHTS,
+    EFFECT_TYPE_VOCAB,
+    GRAMMAR_VOCAB,
+    REGIME_VOCAB,
+    REVEAL_SHIFT_VOCAB,
+    LossDict,
+    compute_total_loss,
+)
+from frcgw.objectives.rewards import (
+    R_compute_cost,
+    R_failed_action_penalty,
+    R_progress,
+    R_repeated_failure_penalty,
+)
+
+__all__ = [
+    "DEFAULT_WEIGHTS",
+    "EFFECT_TYPE_VOCAB",
+    "GRAMMAR_VOCAB",
+    "REGIME_VOCAB",
+    "REVEAL_SHIFT_VOCAB",
+    "LossDict",
+    "compute_total_loss",
+    "R_compute_cost",
+    "R_failed_action_penalty",
+    "R_progress",
+    "R_repeated_failure_penalty",
+]
