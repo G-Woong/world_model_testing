@@ -555,7 +555,8 @@ function Invoke-Verify {
     Write-Step "Working tree: clean"
 
     # [3] Forbidden path check (BASE_SHA-anchored)
-    $violations = Test-ForbiddenPaths -BaseSha $baseSha
+    # Wrap in @() so that empty return from Test-ForbiddenPaths stays an array in PS5.1
+    $violations = @(Test-ForbiddenPaths -BaseSha $baseSha)
     if ($violations.Count -gt 0) {
         Write-Fail "Forbidden paths modified by Codex:"
         $violations | ForEach-Object { Write-Fail "  $_" }
