@@ -1,4 +1,4 @@
-# =========================
+﻿# =========================
 # Python / environment
 # =========================
 .venv/
@@ -97,3 +97,10 @@ secrets/
 !outputs/test_reports/
 !outputs/review_reports/
 !outputs/eval_reports/
+
+# =========================
+# Claude / MCP local-only tooling
+# =========================
+.claude/
+CLAUDE.md
+.mcp.json
