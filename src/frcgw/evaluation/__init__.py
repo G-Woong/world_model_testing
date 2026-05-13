@@ -16,6 +16,7 @@ Hard constraints (placeholder; implementation deferred to P3/P6):
 - Fake numbers must never be output (EVAL-REQ-016).
 """
 from frcgw.evaluation.compute_budget import ComputeBudgetLog
+from frcgw.evaluation.ablations import ABLATION_REGISTRY, AblationConfig, apply_ablation
 from frcgw.evaluation.eval_runner import EvaluationResult, EvaluationRunner
 from frcgw.evaluation.baselines import (
     AlwaysPlanAgent,
@@ -46,6 +47,9 @@ from frcgw.evaluation.metrics import (
 
 __all__ = [
     "ComputeBudgetLog",
+    "ABLATION_REGISTRY",
+    "AblationConfig",
+    "apply_ablation",
     "EvaluationResult",
     "EvaluationRunner",
     "FORBIDDEN_AGENT_KEYS",
