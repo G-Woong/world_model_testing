@@ -18,6 +18,7 @@ Hard constraints (placeholder; implementation deferred to P3/P6):
 from frcgw.evaluation.compute_budget import ComputeBudgetLog
 from frcgw.evaluation.ablations import ABLATION_REGISTRY, AblationConfig, apply_ablation
 from frcgw.evaluation.eval_runner import EvaluationResult, EvaluationRunner
+from frcgw.evaluation.reporter import EvalReporter, GateCheckResult
 from frcgw.evaluation.baselines import (
     AlwaysPlanAgent,
     BaselineAgent,
@@ -52,6 +53,8 @@ __all__ = [
     "apply_ablation",
     "EvaluationResult",
     "EvaluationRunner",
+    "EvalReporter",
+    "GateCheckResult",
     "FORBIDDEN_AGENT_KEYS",
     "BaselineAgent",
     "FrozenBaseAgent",
