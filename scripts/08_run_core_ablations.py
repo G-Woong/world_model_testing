@@ -29,6 +29,7 @@ def main() -> int:
     from frcgw.evaluation.ablations import ABLATION_REGISTRY, apply_ablation
     from frcgw.evaluation.baselines import FrozenBaseAgent
     from frcgw.evaluation.eval_runner import EvaluationRunner
+    from frcgw.evaluation.frcg_agent import TextFRCGModelAgent
 
     config = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
     if args.split:
@@ -50,7 +51,16 @@ def main() -> int:
     report_dir = Path(config.get("report_path", "outputs/runs/p3_ablations"))
     report_dir.mkdir(parents=True, exist_ok=True)
 
-    all_results = []
+    # Also include FRCG-FULL baseline in ablation results for G3/G4 comparison
+    _ckpt = config.get("model_ckpt") or "outputs/runs/p3_smoke/checkpoint_ep0.pt"
+    frcg_agent = TextFRCGModelAgent(ckpt_path=_ckpt if Path(_ckpt).exists() else None)
+    frcg_results = []
+    for seed in config.get("seeds", [0]):
+        frcg_agent.reset()
+        r = runner.run(frcg_agent, shard_path, split, seed)
+        frcg_results.append({"ablation_id": "FRCG-FULL", "seed": seed, "split": split, "metrics": r.metrics})
+
+    all_results = list(frcg_results)
     base_agent = FrozenBaseAgent()
     for ablation_id, abl_config in ABLATION_REGISTRY.items():
         ablated_agent = apply_ablation(base_agent, abl_config)

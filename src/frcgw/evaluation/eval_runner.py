@@ -108,6 +108,10 @@ class EvaluationRunner:
                     predicted_wrong_val = bool(agent.last_predicted_wrong)
                 else:
                     predicted_wrong_val = bool(step.get("predicted_wrong", False))
+                if hasattr(agent, "last_wrong_prob"):
+                    wrong_prob_val = float(agent.last_wrong_prob)
+                else:
+                    wrong_prob_val = float(step.get("wrong_prob") or 0.0)
 
                 eval_labels = dict(step.get("evaluation_labels") or step.get("eval_labels") or {})
                 targets = dict(step.get("training_labels") or step.get("targets") or {})
@@ -128,7 +132,7 @@ class EvaluationRunner:
                         "failed": bool(targets.get("true_failed_action", False)),
                         "eval_labels": eval_labels,
                         "predicted_wrong": predicted_wrong_val,
-                        "wrong_prob": float(step.get("wrong_prob") or 0.0),
+                        "wrong_prob": wrong_prob_val,
                         "progress_delta": float(targets.get("progress_delta") or 0.0),
                         "planning_events": planning_events,
                     }

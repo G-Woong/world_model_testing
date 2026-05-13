@@ -31,6 +31,7 @@ def main() -> int:
         VerifierOnlyAgent,
     )
     from frcgw.evaluation.eval_runner import EvaluationRunner
+    from frcgw.evaluation.frcg_agent import TextFRCGModelAgent
 
     config = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
     if args.split:
@@ -52,7 +53,12 @@ def main() -> int:
         print(f"[SKIP] no shard for split={split}")
         return 0
 
+    # FRCG-FULL agent: load checkpoint if available, else random-init
+    _ckpt = config.get("model_ckpt") or "outputs/runs/p3_smoke/checkpoint_ep0.pt"
+    frcg_agent = TextFRCGModelAgent(ckpt_path=_ckpt if Path(_ckpt).exists() else None)
+
     agents = [
+        frcg_agent,
         FrozenBaseAgent(),
         ReactiveAgent(),
         RetryAfterFailureAgent(),

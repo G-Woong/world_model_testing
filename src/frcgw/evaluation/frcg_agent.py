@@ -6,10 +6,11 @@ Source MDs:
 """
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import replace  # used for always_plan gate_mode override
 from pathlib import Path
 
 import torch
+import torch.nn.functional as F
 
 from frcgw.evaluation.baselines import BaselineAgent, _noop_action
 from frcgw.evaluation.compute_budget import ComputeBudgetLog
@@ -51,34 +52,49 @@ class TextFRCGModelAgent(BaselineAgent):
             state_dict = ckpt.get("model_state_dict", ckpt)
             self.model.load_state_dict(state_dict)
 
-        # tau_f=0.5 requires a meaningful falsification signal to trigger planning.
         self.gate_config = gate_config or GateConfig(tau_f=0.5)
+        # Threshold for grammar uncertainty: if max P(grammar) < 0.4, predict wrong hypothesis.
+        # For default n_grammars=8, uniform gives max=0.125 (always predicts wrong).
+        # A trained model concentrating on 1 grammar gives max≈1.0 (predicts correct).
+        self._confidence_threshold: float = 0.4
         self._planner_state = PlannerState()
         self._step_idx = 0
         self._last_F_t: float = 0.0
         self._last_predicted_wrong: bool = False
+        self._last_wrong_prob: float = 0.5
 
     def reset(self) -> None:
         self._planner_state = PlannerState()
         self._step_idx = 0
         self._last_F_t = 0.0
         self._last_predicted_wrong = False
+        self._last_wrong_prob = 0.5
 
     def act(
         self,
         obs: PublicObservation,
-        eval_labels: dict | None = None,
+        eval_labels: dict | None = None,  # never used; accepted for API compatibility
     ) -> tuple[CandidateAction, ComputeBudgetLog]:
         candidates = list(obs.candidate_actions_public)
         if not candidates:
             candidates = [_noop_action()]
 
         self.model.eval()
+        # For always_plan: bypass the early F_t <= tau_f check by setting tau_f=-inf
         plan_gate_config = self.gate_config
         if self.gate_config.gate_mode == "always_plan":
             plan_gate_config = replace(self.gate_config, tau_f=float("-inf"))
 
         with torch.no_grad():
+            # Forward pass to get posterior for falsification signal
+            model_out = self.model.forward(obs)
+            # wrong_prob = 1 - max P(grammar): low max confidence → likely wrong hypothesis
+            max_grammar_prob = float(
+                F.softmax(model_out.z_grammar_logits, dim=-1).max().item()
+            )
+            self._last_wrong_prob = 1.0 - max_grammar_prob
+            self._last_predicted_wrong = max_grammar_prob < self._confidence_threshold
+
             action, plan_meta = text_frcg_plan(
                 obs,
                 self._step_idx,
@@ -89,14 +105,14 @@ class TextFRCGModelAgent(BaselineAgent):
             )
 
         self._last_F_t = float(plan_meta.F_t)
-        self._last_predicted_wrong = self._last_F_t > self.gate_config.tau_f
         self._step_idx += 1
 
         planned = plan_meta.planned
+        # When not planning: model forward = 1 unit; when planning: forward + k rollouts
         compute_log = ComputeBudgetLog(
             planning_calls=1 if planned else 0,
             rollout_steps=3 if planned else 0,
-            candidate_actions_scored=len(candidates),
+            candidate_actions_scored=len(candidates) if planned else 1,
             top_k_alternatives=3 if planned else 0,
             wall_clock_seconds=0.0,
         )
@@ -105,6 +121,11 @@ class TextFRCGModelAgent(BaselineAgent):
     @property
     def last_predicted_wrong(self) -> bool:
         return self._last_predicted_wrong
+
+    @property
+    def last_wrong_prob(self) -> float:
+        """P(wrong hypothesis) = 1 - max P(grammar) from model posterior."""
+        return self._last_wrong_prob
 
     @property
     def last_F_t(self) -> float:
