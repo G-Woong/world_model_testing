@@ -38,7 +38,10 @@ param(
     [switch]$DryRun,
     # Use only in local dev/smoke-test: bypasses all sandbox restrictions so
     # Codex can write to git worktree metadata outside $CODEX_ROOT.
-    [switch]$BypassSandbox
+    [switch]$BypassSandbox,
+    # Override the Claude-side branch Codex should merge into.
+    # Falls back to $env:FRCGW_CLAUDE_BRANCH, then 'solo/p3-final-boss-cleared'.
+    [string]$ClaudeBranch    = ''
 )
 
 Set-StrictMode -Version Latest
@@ -57,7 +60,10 @@ $LOCK_FILE      = Join-Path $AGENT_TASKS  '.lock'
 $TEMPLATE_FILE  = Join-Path $AGENT_TASKS  'codex_prompt_template.md'
 $GITIGNORE_FILE = Join-Path $CLAUDE_ROOT  '.gitignore'
 
-$CLAUDE_BRANCH  = 'feat/p1-schema-visibility'
+if (-not $ClaudeBranch) {
+    $ClaudeBranch = if ($env:FRCGW_CLAUDE_BRANCH) { $env:FRCGW_CLAUDE_BRANCH } else { 'solo/p3-final-boss-cleared' }
+}
+$CLAUDE_BRANCH  = $ClaudeBranch
 $CODEX_BRANCH   = 'codex-work'
 
 # Resolve codex runner: on Windows npm installs codex as .cmd/.ps1 which
