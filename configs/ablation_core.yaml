@@ -1,10 +1,4 @@
-# DO NOT FILL VALUES IN P0. CC-P3/P6 populates these.
-# Source docs: paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md
-#              paper_context_ref/13_CLAUDE_CODE_EXECUTION_ROADMAP_v1.md §12
-#              paper_context_ref/14_TRD_TECHNICAL_REQUIREMENTS_DOCUMENT_v1.md §6.9
-#              paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md §17
-
-version: 0
+version: 1
 phase: CC-P3
 source_docs:
   - paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md
@@ -12,22 +6,95 @@ source_docs:
   - paper_context_ref/14_TRD_TECHNICAL_REQUIREMENTS_DOCUMENT_v1.md
   - paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md
 
-seed: null
-split: null
+seeds: [0, 1, 2, 3, 4]
+split: text_ood_grammar
+splits:
+  - text_id
+  - text_ood_grammar
+  - text_noisy
+report_path: outputs/runs/p3_ablations/
+compute_budget:
+  planning_calls_cap: 5
+  rollout_steps_cap: 10
 ablations:
-  - no_control_grammar
-  - merged_regime_control_grammar
-  - collapsed_latent
-  - no_falsification
-  - uncertainty_instead_of_falsification
-  - no_alternative_hypothesis
-  - random_alternative
-  - no_rollout
-  - no_rewrite
-  - always_plan_no_gate
-  - no_progress_reward
-  - no_compute_penalty
-compute_budget: null
+  - id: no_control_grammar
+    tdd_ref: ABL-002
+    severity: CRITICAL
+    description: "Remove control-grammar head; agent uses uniform random action selection"
+    expected_collapse:
+      wrong_control_grammar_persistence: increase
+      task_success_rate_text_ood_grammar: decrease
+  - id: merged_regime_control_grammar
+    tdd_ref: ABL-003
+    severity: CRITICAL
+    description: "Merge regime and grammar representations"
+    expected_collapse:
+      task_success_rate_text_ood_grammar: decrease
+  - id: collapsed_latent
+    tdd_ref: ABL-006
+    severity: CRITICAL
+    description: "Use zero/uniform latent representation"
+    expected_collapse:
+      falsification_precision_recall_f1: decrease
+  - id: no_falsification
+    tdd_ref: ABL-016
+    severity: CRITICAL
+    description: "Remove falsification scoring; agent never detects wrong hypothesis"
+    expected_collapse:
+      falsification_precision_recall_f1: decrease
+      false_planning_call_rate: increase
+  - id: uncertainty_instead_of_falsification
+    tdd_ref: ABL-023
+    severity: CRITICAL
+    description: "Replace falsification with uncertainty threshold"
+    expected_collapse:
+      false_planning_call_rate: increase
+  - id: no_alternative_hypothesis
+    tdd_ref: ABL-024
+    severity: CRITICAL
+    description: "No alternative hypothesis proposal; always uses current grammar"
+    expected_collapse:
+      recovery_delay: increase
+      task_success_rate: decrease
+  - id: random_alternative
+    tdd_ref: ABL-025
+    severity: standard
+    description: "Pick random alternative hypothesis instead of proposed"
+    expected_collapse:
+      recovery_delay: increase
+  - id: no_rollout
+    tdd_ref: ABL-026
+    severity: standard
+    description: "Skip rollout; use 0 rollout steps in planning"
+    expected_collapse:
+      task_success_rate: decrease
+  - id: no_rewrite
+    tdd_ref: ABL-035
+    severity: CRITICAL
+    description: "Skip action-interface rewrite"
+    expected_collapse:
+      failed_action_repetition_rate: increase
+      action_switch_delay: increase
+  - id: always_plan_no_gate
+    tdd_ref: ABL-034
+    severity: CRITICAL
+    description: "Always plan; no decision gate"
+    expected_collapse:
+      progress_per_compute: decrease
+      false_planning_call_rate: increase
+  - id: no_progress_reward
+    tdd_ref: ABL-019
+    severity: standard
+    description: "Remove progress signal from scoring"
+    expected_collapse:
+      progress_per_compute: decrease
+  - id: no_compute_gate
+    tdd_ref: ABL-033
+    severity: CRITICAL
+    description: "No compute gate; always allocate full budget"
+    expected_collapse:
+      false_planning_call_rate: increase
+      progress_per_compute: decrease
 forbidden_fields:
   - true_regime
   - true_control_grammar
@@ -42,5 +109,4 @@ forbidden_fields:
   - template_id
   - seed
   - policy_id
-version: null
-notes: "P0 skeleton. Ablation names fixed per TDD §15.3 and research_context_rules.md."
+notes: "CC-P3 ablation config. CRITICAL ablations must show expected_collapse; else claim blocked."
