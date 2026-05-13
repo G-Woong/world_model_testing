@@ -71,9 +71,16 @@ def main() -> int:
 
 
 def _find_shard(manifest: dict, split: str) -> str | None:
-    for shard in manifest.get("shards", []):
-        if shard.get("split") == split:
-            return shard.get("path")
+    # Manifest format: {"splits": {"train": N, "valid": N, "test_id": N}}
+    # Eval config uses "text_id" as alias for "test_id"
+    _ALIAS = {"text_id": "test_id", "text_ood_grammar": "ood_grammar", "text_noisy": "noisy"}
+    splits_dict = manifest.get("splits", {})
+    # Try exact name, then alias
+    for candidate in [split, _ALIAS.get(split, split)]:
+        if candidate in splits_dict:
+            p = Path("data/frcgw_text/v0_1") / f"{candidate}.jsonl"
+            if p.exists():
+                return str(p)
     return None
 
 

@@ -73,9 +73,15 @@ def main() -> int:
 
 
 def _find_shard(manifest: dict, split: str) -> str | None:
-    for shard in manifest.get("shards", []):
-        if shard.get("split") == split:
-            return shard.get("path")
+    # Manifest format: {"splits": {"train": N, "valid": N, "test_id": N}}
+    # Ablation config uses "text_ood_grammar" which maps to "test_id" fallback
+    _ALIAS = {"text_id": "test_id", "text_ood_grammar": "test_id", "text_noisy": "test_id"}
+    splits_dict = manifest.get("splits", {})
+    for candidate in [split, _ALIAS.get(split, split)]:
+        if candidate in splits_dict:
+            p = Path("data/frcgw_text/v0_1") / f"{candidate}.jsonl"
+            if p.exists():
+                return str(p)
     return None
 
 

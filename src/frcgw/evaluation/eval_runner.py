@@ -95,17 +95,18 @@ class EvaluationRunner:
             episode_compute_log = _empty_compute_log()
 
             for step in episode.get("steps", []):
-                public_input = dict(step.get("public_input") or {})
+                # Actual JSONL keys: public_observation, evaluation_labels, training_labels
+                public_obs = dict(step.get("public_observation") or step.get("public_input") or {})
                 assert_no_hidden_labels_in_input(
-                    public_input,
+                    public_obs,
                     context=f"{episode.get('episode_id', '<unknown>')}:{step.get('step_index', 0)}",
                 )
-                obs = _build_public_observation(public_input)
+                obs = _build_public_observation(public_obs)
                 action, compute_log = agent.act(obs)
                 episode_compute_log = _add_compute_logs(episode_compute_log, compute_log)
 
-                eval_labels = dict(step.get("eval_labels") or {})
-                targets = dict(step.get("targets") or {})
+                eval_labels = dict(step.get("evaluation_labels") or step.get("eval_labels") or {})
+                targets = dict(step.get("training_labels") or step.get("targets") or {})
                 if not episode_eval_labels:
                     episode_eval_labels = eval_labels
                 total_progress += float(targets.get("progress_delta") or 0.0)
