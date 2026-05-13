@@ -104,6 +104,10 @@ class EvaluationRunner:
                 obs = _build_public_observation(public_obs)
                 action, compute_log = agent.act(obs)
                 episode_compute_log = _add_compute_logs(episode_compute_log, compute_log)
+                if hasattr(agent, "last_predicted_wrong"):
+                    predicted_wrong_val = bool(agent.last_predicted_wrong)
+                else:
+                    predicted_wrong_val = bool(step.get("predicted_wrong", False))
 
                 eval_labels = dict(step.get("evaluation_labels") or step.get("eval_labels") or {})
                 targets = dict(step.get("training_labels") or step.get("targets") or {})
@@ -123,12 +127,15 @@ class EvaluationRunner:
                         "action_params": action.action_params,
                         "failed": bool(targets.get("true_failed_action", False)),
                         "eval_labels": eval_labels,
-                        "predicted_wrong": bool(step.get("predicted_wrong", False)),
+                        "predicted_wrong": predicted_wrong_val,
                         "wrong_prob": float(step.get("wrong_prob") or 0.0),
+                        "progress_delta": float(targets.get("progress_delta") or 0.0),
                         "planning_events": planning_events,
                     }
                 )
 
+            episode_ts = _compute_episode_timestamps(step_results)
+            episode_eval_labels.update(episode_ts)
             scored_episodes.append(
                 {
                     "episode_id": episode.get("episode_id"),
@@ -238,6 +245,43 @@ def _build_public_observation(public_input: dict[str, Any]) -> PublicObservation
     )
 
 
+def _compute_episode_timestamps(step_results: list[dict]) -> dict:
+    """Compute episode-level eval timestamps from step sequence.
+
+    evidence_timestamp: first step where true_wrong_hypothesis=True
+    hypothesis_update_timestamp: first step where true_wrong_hypothesis
+        transitions True->False after evidence_timestamp
+    recovery_timestamp: first step where progress_delta > 0 after evidence_timestamp
+    """
+    evidence_ts = None
+    hypothesis_update_ts = None
+    recovery_ts = None
+    was_wrong = False
+
+    for sr in step_results:
+        idx = sr.get("step_index", 0)
+        el = sr.get("eval_labels", {}) or {}
+        tw = el.get("true_wrong_hypothesis")
+        pd = float(sr.get("progress_delta", 0.0))
+
+        if tw is True:
+            if evidence_ts is None:
+                evidence_ts = idx
+            was_wrong = True
+
+        if was_wrong and tw is False and hypothesis_update_ts is None:
+            hypothesis_update_ts = idx
+
+        if was_wrong and pd > 0 and recovery_ts is None:
+            recovery_ts = idx
+
+    return {
+        "evidence_timestamp": evidence_ts,
+        "hypothesis_update_timestamp": hypothesis_update_ts,
+        "recovery_timestamp": recovery_ts,
+    }
+
+
 def _empty_compute_log() -> ComputeBudgetLog:
     return ComputeBudgetLog(0, 0, 0, 0, 0.0)
 
@@ -282,4 +326,4 @@ def _result_to_dict(result: EvaluationResult, report_path: str) -> dict[str, Any
     return data
 
 
-__all__ = ["EvaluationResult", "EvaluationRunner"]
+__all__ = ["EvaluationResult", "EvaluationRunner", "_compute_episode_timestamps"]
