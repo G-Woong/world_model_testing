@@ -16,6 +16,19 @@ Hard constraints (placeholder; implementation deferred to P3/P6):
 - Fake numbers must never be output (EVAL-REQ-016).
 """
 from frcgw.evaluation.compute_budget import ComputeBudgetLog
+from frcgw.evaluation.baselines import (
+    AlwaysPlanAgent,
+    BaselineAgent,
+    FORBIDDEN_AGENT_KEYS,
+    FrozenBaseAgent,
+    NextStateWMOnlyAgent,
+    OracleAgent,
+    RandomAlternativePlannerAgent,
+    ReactiveAgent,
+    RetryAfterFailureAgent,
+    UncertaintyGatedAgent,
+    VerifierOnlyAgent,
+)
 from frcgw.evaluation.metrics import (
     action_switch_delay,
     assert_no_hidden_labels_in_input,
@@ -32,6 +45,17 @@ from frcgw.evaluation.metrics import (
 
 __all__ = [
     "ComputeBudgetLog",
+    "FORBIDDEN_AGENT_KEYS",
+    "BaselineAgent",
+    "FrozenBaseAgent",
+    "ReactiveAgent",
+    "RetryAfterFailureAgent",
+    "VerifierOnlyAgent",
+    "NextStateWMOnlyAgent",
+    "AlwaysPlanAgent",
+    "UncertaintyGatedAgent",
+    "RandomAlternativePlannerAgent",
+    "OracleAgent",
     "task_success_rate",
     "normalized_return",
     "wrong_control_grammar_persistence",
