@@ -1,0 +1,215 @@
+"""Evaluation metrics for FRCG-WM.
+
+Sources:
+- paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md lines 151-179
+- paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md lines 976-991
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any
+
+from frcgw.evaluation.compute_budget import ComputeBudgetLog
+
+FORBIDDEN_AGENT_KEYS = {
+    "true_regime",
+    "true_control_grammar",
+    "true_change_point",
+    "true_reveal_vs_shift",
+    "true_wrong_hypothesis",
+    "counterfactual_action_effects",
+    "oracle_regime_action",
+    "oracle_grammar_action",
+    "oracle_best_action",
+    "split_id",
+    "ood_type",
+    "template_id",
+    "seed",
+    "policy_id",
+    "audit_metadata",
+}
+
+
+def _field(obj: Any, key: str, default: Any = None) -> Any:
+    if obj is None:
+        return default
+    if isinstance(obj, Mapping):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+
+def _mean(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    return sum(values) / len(values)
+
+
+def assert_no_hidden_labels_in_input(obs_dict: dict, context: str = "") -> None:
+    """Raise AssertionError if any FORBIDDEN_AGENT_KEY is in obs_dict."""
+    forbidden = sorted(FORBIDDEN_AGENT_KEYS.intersection(obs_dict))
+    if forbidden:
+        suffix = f" in {context}" if context else ""
+        raise AssertionError(f"Forbidden agent observation keys{suffix}: {forbidden}")
+
+
+def task_success_rate(episodes: list[dict]) -> float:
+    if not episodes:
+        return 0.0
+    return sum(1 for episode in episodes if bool(_field(episode, "success", False))) / len(episodes)
+
+
+def normalized_return(
+    episodes: list[dict],
+    task_min: float = 0.0,
+    task_max: float = 1.0,
+) -> float:
+    if not episodes:
+        return 0.0
+    denom = task_max - task_min + 1e-8
+    values = []
+    for episode in episodes:
+        total_return = float(_field(episode, "total_return", 0.0))
+        normalized = (total_return - task_min) / denom
+        values.append(min(1.0, max(0.0, normalized)))
+    return _mean(values)
+
+
+def wrong_control_grammar_persistence(episodes: list[dict]) -> float:
+    values = []
+    for episode in episodes:
+        labels = _field(episode, "eval_labels")
+        evidence_timestamp = _field(labels, "evidence_timestamp")
+        update_timestamp = _field(labels, "hypothesis_update_timestamp")
+        if evidence_timestamp is None or update_timestamp is None:
+            continue
+        persistence = update_timestamp - evidence_timestamp
+        if persistence >= 0:
+            values.append(float(persistence))
+    return _mean(values)
+
+
+def failed_action_repetition_rate(episodes: list[dict]) -> float:
+    repetitions = 0
+    failure_opportunities = 0
+    for episode in episodes:
+        previous_failed_action: tuple[Any, Any] | None = None
+        for step in _field(episode, "steps", []) or []:
+            failed = bool(_field(step, "failed", False))
+            if not failed:
+                previous_failed_action = None
+                continue
+            failure_opportunities += 1
+            action = (_field(step, "action_type"), _field(step, "action_params", {}))
+            if previous_failed_action == action:
+                repetitions += 1
+            previous_failed_action = action
+    return repetitions / max(1, failure_opportunities)
+
+
+def recovery_delay(episodes: list[dict]) -> float:
+    values = []
+    for episode in episodes:
+        labels = _field(episode, "eval_labels")
+        evidence_timestamp = _field(labels, "evidence_timestamp")
+        recovery_timestamp = _field(labels, "recovery_timestamp")
+        if evidence_timestamp is None or recovery_timestamp is None:
+            continue
+        delay = recovery_timestamp - evidence_timestamp
+        if delay >= 0:
+            values.append(float(delay))
+    return _mean(values)
+
+
+def falsification_precision_recall(episodes: list[dict]) -> dict[str, float]:
+    true_positives = 0
+    false_positives = 0
+    false_negatives = 0
+    for episode in episodes:
+        for step in _field(episode, "steps", []) or []:
+            labels = _field(step, "eval_labels")
+            true_wrong = _field(labels, "true_wrong_hypothesis")
+            if true_wrong is None:
+                continue
+            predicted_wrong = bool(_field(step, "predicted_wrong", False))
+            true_wrong = bool(true_wrong)
+            if predicted_wrong and true_wrong:
+                true_positives += 1
+            elif predicted_wrong and not true_wrong:
+                false_positives += 1
+            elif not predicted_wrong and true_wrong:
+                false_negatives += 1
+
+    precision_denom = true_positives + false_positives
+    recall_denom = true_positives + false_negatives
+    precision = true_positives / precision_denom if precision_denom else 0.0
+    recall = true_positives / recall_denom if recall_denom else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+    return {"precision": precision, "recall": recall, "f1": f1}
+
+
+def falsification_calibration(episodes: list[dict], n_bins: int = 10) -> float:
+    if n_bins <= 0:
+        raise ValueError("n_bins must be positive")
+
+    examples: list[tuple[float, float]] = []
+    for episode in episodes:
+        for step in _field(episode, "steps", []) or []:
+            labels = _field(step, "eval_labels")
+            true_wrong = _field(labels, "true_wrong_hypothesis")
+            if true_wrong is None:
+                continue
+            wrong_prob = min(1.0, max(0.0, float(_field(step, "wrong_prob", 0.0))))
+            examples.append((wrong_prob, 1.0 if bool(true_wrong) else 0.0))
+
+    if not examples:
+        return 0.0
+
+    total = len(examples)
+    ece = 0.0
+    for bin_index in range(n_bins):
+        lower = bin_index / n_bins
+        upper = (bin_index + 1) / n_bins
+        if bin_index == n_bins - 1:
+            bin_examples = [(conf, acc) for conf, acc in examples if lower <= conf <= upper]
+        else:
+            bin_examples = [(conf, acc) for conf, acc in examples if lower <= conf < upper]
+        if not bin_examples:
+            continue
+        mean_confidence = sum(conf for conf, _ in bin_examples) / len(bin_examples)
+        mean_accuracy = sum(acc for _, acc in bin_examples) / len(bin_examples)
+        ece += (len(bin_examples) / total) * abs(mean_confidence - mean_accuracy)
+    return ece
+
+
+def progress_per_compute(episodes: list[dict], compute_logs: list[ComputeBudgetLog]) -> float:
+    total_progress = sum(float(_field(episode, "total_progress", 0.0)) for episode in episodes)
+    total_compute = sum(log.total_compute_units() for log in compute_logs)
+    return total_progress / max(1, total_compute)
+
+
+def false_planning_call_rate(episodes: list[dict]) -> float:
+    false_calls = 0
+    total_calls = 0
+    for episode in episodes:
+        for event in _field(episode, "planning_events", []) or []:
+            total_calls += 1
+            if not bool(_field(event, "action_changed", False)) and not bool(
+                _field(event, "progress_changed", False)
+            ):
+                false_calls += 1
+    return false_calls / max(1, total_calls)
+
+
+def action_switch_delay(episodes: list[dict]) -> float:
+    values = []
+    for episode in episodes:
+        labels = _field(episode, "eval_labels")
+        evidence_timestamp = _field(labels, "evidence_timestamp")
+        rewrite_timestamp = _field(episode, "rewrite_timestamp")
+        if evidence_timestamp is None or rewrite_timestamp is None:
+            continue
+        delay = rewrite_timestamp - evidence_timestamp
+        if delay >= 0:
+            values.append(float(delay))
+    return _mean(values)

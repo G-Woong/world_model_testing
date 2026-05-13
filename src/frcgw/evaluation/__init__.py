@@ -15,4 +15,32 @@ Hard constraints (placeholder; implementation deferred to P3/P6):
   used as evaluation inputs (TDD §4).
 - Fake numbers must never be output (EVAL-REQ-016).
 """
-__all__: list[str] = []
+from frcgw.evaluation.compute_budget import ComputeBudgetLog
+from frcgw.evaluation.metrics import (
+    action_switch_delay,
+    assert_no_hidden_labels_in_input,
+    failed_action_repetition_rate,
+    false_planning_call_rate,
+    falsification_calibration,
+    falsification_precision_recall,
+    normalized_return,
+    progress_per_compute,
+    recovery_delay,
+    task_success_rate,
+    wrong_control_grammar_persistence,
+)
+
+__all__ = [
+    "ComputeBudgetLog",
+    "task_success_rate",
+    "normalized_return",
+    "wrong_control_grammar_persistence",
+    "failed_action_repetition_rate",
+    "recovery_delay",
+    "falsification_precision_recall",
+    "falsification_calibration",
+    "progress_per_compute",
+    "false_planning_call_rate",
+    "action_switch_delay",
+    "assert_no_hidden_labels_in_input",
+]
