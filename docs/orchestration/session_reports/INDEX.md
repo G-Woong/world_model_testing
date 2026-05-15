@@ -12,6 +12,7 @@
 |---|---|---|---|---|---|---|
 | (초기값) | 2026-05-15 | orchestration/redesign | full | Phase 3 orchestration protocol runtime adoption | (이 파일) | 0 |
 | 20260515-001 | 2026-05-15 | orchestration/redesign | full | Phase 3B→4 boundary: STEP 1 Decision Lock-in (DEC_001~006 LOCKED) | session_reports/2026-05/2026-05-15_step1_decision_lockin.md | 0 |
+| 20260515-002 | 2026-05-15 | solo/p3-final-boss-cleared | full | STEP 2 orchestration/redesign merge (Phase 3B integration, DEC_001 EXECUTED) | session_reports/2026-05/2026-05-15_step2_orchestration_merge.md | 0 |
 
 ---
 

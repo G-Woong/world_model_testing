@@ -10,7 +10,7 @@
 
 | decision_id | date | session | type | subject | selected | status | execution_step |
 |---|---|---|---|---|---|---|---|
-| DEC_2026-05_001 | 2026-05-15 | 20260515-001 | HUMAN_APPROVAL_REQUEST | orchestration/redesign merge | A | LOCKED | STEP 2 |
+| DEC_2026-05_001 | 2026-05-15 | 20260515-001 | HUMAN_APPROVAL_REQUEST | orchestration/redesign merge | A | EXECUTED | STEP 2 |
 | DEC_2026-05_002 | 2026-05-15 | 20260515-001 | HUMAN_APPROVAL_REQUEST | cleanup 방식 (NC-1 우선 + atomic PR) | B | LOCKED | STEP 9 |
 | DEC_2026-05_003 | 2026-05-15 | 20260515-001 | HUMAN_APPROVAL_REQUEST | Codex fast-forward 시점 | A | LOCKED | STEP 7 |
 | DEC_2026-05_004 | 2026-05-15 | 20260515-001 | HUMAN_APPROVAL_REQUEST | MCP scaffold 생성 | A | LOCKED | STEP 3 |

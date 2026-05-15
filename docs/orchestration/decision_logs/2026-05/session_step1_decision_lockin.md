@@ -28,6 +28,9 @@ risk: MED
 reasoning: orchestration/redesign이 main 대비 43 commits ahead; 문서 공유 및 다음 세션 bootstrap 안정성 확보를 위해 merge 필요
 approval: HUMAN_APPROVED
 outcome: LOCKED — 실 merge는 STEP 2에서 별도 PLAN→승인→APPLY 사이클로 진행
+executed_at: 2026-05-15T12:00:00+09:00
+executed_commit: d41b372
+executed_session: 20260515-002
 ```
 
 ---
