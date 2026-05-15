@@ -36,8 +36,7 @@ INDEX (이 파일):
 | feedback_id | date | related_decision_id | topic | user_response | interpreted_action | status | linked_session |
 |---|---|---|---|---|---|---|---|
 | HF_20260515_001 | 2026-05-15 | DEC_2026-05_011 | STEP 5 MCP 등록 범위 | Option B (신규 설치 0건, Context7 verify only) | .mcp.json 미수정, DEFER 4건 기록 | RESOLVED | 20260515-005 |
-
-*다음 feedback: STEP 5a (uv install 승인) / STEP 6 (hook redirect 승인) 등*
+| HF_20260515_002 | 2026-05-15 | DEC_2026-05_012 | STEP 5-REAL MCP 실제 설치 범위 (Option A) | Option A (uv + arXiv + SS FujishigeTemma + ctx7 유지, GitHub 보류) + settings.local.json enabledMcpjsonServers 수정 1회 명시 승인 | 3서버 설치, .mcp.json + enabledMcpjsonServers 업데이트, 하네스 audit 수행 | RESOLVED | 20260515-006 |
 
 ---
 

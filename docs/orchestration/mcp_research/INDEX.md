@@ -35,8 +35,7 @@ INDEX (이 파일):
 | query_id | date | server | agent | topic | cross_check_status | report_path | action_required |
 |---|---|---|---|---|---|---|---|
 | MCP_20260515_001 | 2026-05-15 | Context7 | Main Claude (STEP 5) | Context7 status verify + external candidate evaluation | VERIFIED | mcp_research/2026-05/MCP_20260515_001.md | none |
-
-*다음 query log: Phase 4 arXiv/Semantic Scholar 등록 후 (STEP 5b/5c)*
+| MCP_20260515_002 | 2026-05-15 | arxiv + semantic-scholar + context7 | Main Claude (STEP 5-REAL) | STEP 5-REAL install smoke tests: arxiv 0.4.12 PASS, SS 0.1.0 PARTIAL (429), ctx7 re-VERIFIED | PARTIAL | mcp_research/2026-05/MCP_20260515_002.md | SS API key 취득 권장 (rate limit 회피) |
 
 ---
 

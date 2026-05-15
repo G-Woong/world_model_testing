@@ -16,6 +16,8 @@
 | 20260515-003 | 2026-05-15 | solo/p3-final-boss-cleared | compact | STEP 3 scaffold creation (DEC_004 EXECUTED) | session_reports/2026-05/2026-05-15_step3_scaffold_creation.md | 0 |
 | 20260515-004 | 2026-05-15 | solo/p3-final-boss-cleared | full | STEP 4 R4 sandbox policy runtime enforcement (DEC_005 EXECUTED) | session_reports/2026-05/2026-05-15_step4_r4_sandbox_policy.md | 0 |
 | 20260515-005 | 2026-05-15 | solo/p3-final-boss-cleared | full | STEP 5 MCP install plan: Context7 verify + defer arXiv/SS/citation/GitHub (DEC_011 EXECUTED, R2 LOCK held) | session_reports/2026-05/2026-05-15_step5_mcp_installation.md | 0 |
+| 20260515-006 | 2026-05-15 | solo/p3-final-boss-cleared | full | STEP 5-REAL MCP real install: uv+arxiv+SS(FujishigeTemma)+ctx7 유지 (DEC_012 EXECUTED, Gate PARTIAL) | session_reports/2026-05/2026-05-15_step5_real_mcp_installation.md | 0 |
+| 20260515-007 | 2026-05-15 | solo/p3-final-boss-cleared | full | STEP 1~5 harness audit: 7 layers PASS, MCP layer PARTIAL (SS 429), Phase 4 진입 조건 충족 | session_reports/2026-05/2026-05-15_step1_to_step5_harness_audit.md | 0 |
 
 ---
 
