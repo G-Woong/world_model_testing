@@ -397,6 +397,31 @@ function Invoke-Dispatch {
         Write-Fail "Prompt template missing: $TEMPLATE_FILE — run 'init' first"
         exit 10
     }
+
+    # ─── SANDBOX_MODE consistency check (04 §5, R4) ───
+    # Parse SANDBOX_MODE from TASK file (default: 'default' if missing — backward compat with P3 tasks).
+    # If -BypassSandbox is passed, TASK file must declare SANDBOX_MODE: bypass.
+    $taskMdPath = Get-QueueMdPath $num $name
+    if (-not (Test-Path $taskMdPath)) {
+        Write-Fail "TASK file missing for SANDBOX_MODE check: $taskMdPath"
+        exit 10
+    }
+    $taskMdContent = Get-Content $taskMdPath -Raw
+    $sandboxModeMatch = [regex]::Match($taskMdContent, '(?im)^SANDBOX_MODE:\s*(default|bypass)\b')
+    $taskSandboxMode = if ($sandboxModeMatch.Success) { $sandboxModeMatch.Groups[1].Value.ToLower() } else { 'default' }
+    Write-Step "TASK SANDBOX_MODE: $taskSandboxMode (from $taskMdPath)"
+
+    if ($BypassSandbox -and $taskSandboxMode -ne 'bypass') {
+        Write-Fail "TASK file declares SANDBOX_MODE: $taskSandboxMode but -BypassSandbox was passed."
+        Write-Fail "Set SANDBOX_MODE: bypass in TASK file, or remove -BypassSandbox switch."
+        Write-Fail "Reference: docs/orchestration/04_CODEX_FEEDBACK_LOOP_PROTOCOL.md §5"
+        exit 20
+    }
+    if (-not $BypassSandbox -and $taskSandboxMode -eq 'bypass') {
+        Write-Warn "TASK file declares SANDBOX_MODE: bypass but -BypassSandbox switch not passed."
+        Write-Warn "Falling back to sandbox mode (workspace-write). To enable bypass, re-run with -BypassSandbox."
+    }
+
     $taskFileRel = ".agent_tasks/codex_queue/TASK_{0:D3}_{1}.md" -f $num, $name
     $prompt = (Get-Content $TEMPLATE_FILE -Raw) `
         -replace '\{\{TASK_FILE\}\}',   $taskFileRel `

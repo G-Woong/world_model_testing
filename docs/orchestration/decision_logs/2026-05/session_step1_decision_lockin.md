@@ -134,6 +134,9 @@ risk: LOW
 reasoning: R1~R3는 이미 APPLIED; R4(-BypassSandbox 정책)부터 순차적으로 처리하는 것이 논리적 순서
 approval: HUMAN_APPROVED
 outcome: LOCKED — R4 atomic PR은 STEP 4에서 STEP 2/3 완료 후 시작
+executed_at: 2026-05-15T00:00:00+09:00
+executed_commit: (STEP 4 commit)
+executed_session: 20260515-004
 ```
 
 ---

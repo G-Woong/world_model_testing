@@ -176,7 +176,8 @@ Master Orchestration Plan — 운영 통합 Source-of-Truth
 | R1 | `Bash(cmd *)`, `Bash(powershell *)`, `PowerShell(Remove-Item *)` 제거 | ✅ APPLIED | settings.local.json (local) |
 | R2 | `enableAllProjectMcpServers: false` | ✅ APPLIED (R2 LOCK) | settings.local.json (local) |
 | R3 | `Skill(update-config)` 제거 | ✅ APPLIED | settings.local.json (local) |
-| R4~R14 | MED/LOW risk items | CARRY-FORWARD | PHASE2_GATE §R-table |
+| R4 | `-BypassSandbox` 정책 runtime enforce (SANDBOX_MODE 파싱 + 일관성 검증) | ✅ APPLIED | scripts/run_codex_task.ps1 (tracked) |
+| R5~R14 | MED/LOW risk items | CARRY-FORWARD | PHASE2_GATE §R-table |
 
 ### Local-only vs Tracked 구분
 
