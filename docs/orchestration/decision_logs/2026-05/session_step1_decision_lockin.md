@@ -80,6 +80,9 @@ risk: MED
 reasoning: codex-work HEAD a55cb33이 ba204a8 대비 2-commit lag; P4 task 직전 ff로 최신 상태에서 Codex 실행 보장
 approval: HUMAN_APPROVED
 outcome: LOCKED — fast-forward는 STEP 7에서 clean worktree 조건 확인 후 ff-only 실행
+executed_at: 2026-05-16T00:00:00+09:00
+executed_commit: 5e77f1b
+executed_session: 20260516-012
 ```
 
 ---

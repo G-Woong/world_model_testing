@@ -20,6 +20,7 @@
 | DEC_2026-05_012 | 2026-05-15 | 20260515-006 | HUMAN_APPROVAL_REQUEST | STEP 5-REAL MCP 실제 설치 범위 (uv+arXiv+SS+하네스 audit) | A | EXECUTED | STEP 5-REAL |
 | DEC_2026-05_013 | 2026-05-16 | 20260516-008 | HUMAN_APPROVAL_REQUEST | GitHub MCP v1.0.4 실제 활성화 (Option A+ — Docker, read-only+lockdown) | A+ | EXECUTED | STEP 5-REAL-GITHUB |
 | DEC_2026-05_014 | 2026-05-16 | 20260516-011 | SELF_EVOLUTION_PROPOSE | pre_compact hook redirect (Option A dual-write, SEV_2026-05_001 ADOPTION) | A | EXECUTED | STEP 6 |
+| DEC_2026-05_003 | 2026-05-16 | 20260516-012 | HUMAN_APPROVAL_REQUEST | Codex fast-forward 실행 (Q1-A+Q2-A, ff-only 5e77f1b, exit 0) | A | EXECUTED | STEP 7 |
 
 ---
 
