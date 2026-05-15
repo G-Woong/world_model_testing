@@ -99,6 +99,44 @@ plugin/MCP 설치 전 심사 결과를 기록한다.
 
 ---
 
+### semantic-scholar-mcp (FujishigeTemma)
+
+- audited: 2026-05-16
+- source: github.com/FujishigeTemma/semantic-scholar-mcp (commit ead98e8)
+- version: 0.1.0
+- official status: community (not official Semantic Scholar vendor)
+- installed: `uv tool install git+https://github.com/FujishigeTemma/semantic-scholar-mcp` → `C:\Users\computer\.local\bin\semantic-scholar-mcp`
+- network: yes (api.semanticscholar.org HTTPS)
+- file write: no (stdio MCP, no local file I/O)
+- secret: `SEMANTIC_SCHOLAR_API_KEY` — env-injected via `.mcp.json` env 블록 (`.gitignore` 라인 108에서 `.mcp.json` untracked → git 노출 없음)
+- hook conflict: none (stdio MCP, no hooks)
+- rate-limit: **caller-enforced 1 RPS** (도구 내부 retry/back-off 없음 — `.claude/rules/mcp_rate_limit_rules.md` 정책 준수)
+- Windows compatibility: uv-managed python 환경, 확인 완료
+- 10-item checklist:
+  - 1-Official=community ✓
+  - 2-Source=known (FujishigeTemma, git commit ead98e8) ✓
+  - 3-Issues=minor (FujishigeTemma는 소규모 repo) ✓
+  - 4-Manifest=slim (serve/stdio 전용) ✓
+  - 5-Hook=none ✓
+  - 6-MCP=SemanticScholar API only ✓
+  - 7-File-write=none ✓
+  - 8-Scope=project (enabledMcpjsonServers 명시 승인) ✓
+  - 9-Uninstall=`uv tool uninstall semantic-scholar-mcp` ✓
+  - 10-ALL-GREEN ✓
+- smoke test: 3a auth check PASS, 3b HTTP 200 PASS, 3c rate-limit 2-call PASS (interval=2.078s, 429=0)
+- **verdict: ACCEPTED**
+- reason: 10-item checklist ALL GREEN. secret은 env-injected로 git 비노출. network은 HTTPS only. rate-limit는 caller-side 정책으로 강제. 인증 호출 검증 완료 (MCP_20260516_004 PASS).
+- **[2026-05-16 패치노트]** cli.py 패치 적용 (session 20260516-010):
+  - 원인 RC-001: Windows cp949 UnicodeEncodeError (✓ 문자) → .mcp.json PYTHONUTF8=1+PYTHONIOENCODING=utf-8 추가로 해결
+  - 원인 RC-002: banner 14개 click.echo가 stdout 출력 → MCP stdio 규약 위반 → err=True 추가로 stderr redirect
+  - stdio 4a 검증: stdout JSON-only, stderr banner, UnicodeEncodeError 없음 PASS
+  - MCP stdio 연결: HTTPS-only PARTIAL → full-MCP PASS (DEC_012 addendum_002)
+- **[upgrade guard]** `uv tool upgrade semantic-scholar-mcp` 실행 시 cli.py 패치 덮어쓰여짐 주의.
+  - 재적용 runbook: `docs/orchestration/session_reports/2026-05/2026-05-16_semantic_scholar_mcp_connection_fix.md` § Patch reapplication runbook
+  - 패치 검증: `Select-String -Pattern 'err=True' cli.py | Measure-Object` → 14건 기대
+
+---
+
 ## Pending Re-Audits
 
 | Candidate | Trigger Condition |

@@ -60,6 +60,67 @@ executed_session: 20260515-006
 
 ---
 
+## DEC_2026-05_012 Addendum
+
+```yaml
+addendum_id: DEC_2026-05_012_addendum_001
+timestamp: 2026-05-16T00:00:00+09:00
+subject: Semantic Scholar API 키 활성화 + 1 RPS rate-limit 정책 도입
+outcome_update: PARTIAL → PASS
+evidence:
+  - ".mcp.json env.SEMANTIC_SCHOLAR_API_KEY 주입 완료 (commit: solo/p3-final-boss-cleared HEAD)"
+  - "3a auth check: x-api-key 헤더 전송 확인"
+  - "3b data fetch: HTTP 200, 5 results, first=[2025] WebEvolver: Enhancing Web Agent Self-Improvement with Coevolving World Model"
+  - "3c rate-limit test: 2 calls, interval=2.078s >= 1.0s, 429=0"
+  - "rate-limit policy: .claude/rules/mcp_rate_limit_rules.md (1 RPS, sequential only, 429 stop condition)"
+  - "call log: docs/orchestration/mcp_research/_call_log/semantic_scholar_2026-05-16.tsv"
+  - "MCP query log: MCP_20260516_004.md (supersedes MCP_20260515_002)"
+verdict: PASS
+executed_at: 2026-05-16T00:00:00+09:00
+executed_session: 20260516-009
+```
+
+---
+
+## DEC_2026-05_012 Addendum 002
+
+```yaml
+addendum_id: DEC_2026-05_012_addendum_002
+timestamp: 2026-05-16T00:00:00+09:00
+subject: Semantic Scholar MCP stdio 연결 실패 근본 원인 해결 (cp949 crash + banner-on-stdout 규약 위반)
+prior_verdict_correction: >
+  addendum_001의 PASS 판정은 HTTPS direct API 동작만 검증한 것이었다.
+  MCP stdio 핸드셰이크 (Claude Code ↔ semantic-scholar-mcp stdio)는 단 한 번도 성공한 적이 없었다.
+  본 addendum_002가 실질적인 MCP stdio PASS를 달성한다.
+root_causes_fixed:
+  - id: RC-001
+    title: Windows cp949 console에서 ✓ 문자 UnicodeEncodeError crash
+    location: "cli.py:66  click.echo('✓ Semantic Scholar API key configured')"
+    fix: ".mcp.json env 블록에 PYTHONUTF8=1, PYTHONIOENCODING=utf-8 추가"
+  - id: RC-002
+    title: banner 출력이 stdout으로 전송되어 MCP stdio JSON-RPC 규약 위반
+    location: "cli.py lines 63,66,68-70,74-78,81-83,104-106 (14개 click.echo 호출)"
+    fix: "모든 14개 click.echo에 err=True 추가 → stderr로 redirect"
+files_modified:
+  - "C:/Users/computer/Desktop/ICLR_WM_claude-code/.mcp.json (args: serve→serve stdio, env: +PYTHONUTF8+PYTHONIOENCODING)"
+  - "C:/Users/computer/AppData/Roaming/uv/tools/semantic-scholar-mcp/Lib/site-packages/semantic_scholar_mcp/cli.py (14개 err=True)"
+verification_4a:
+  stdout_first_line: JSON-RPC (no banner)
+  stderr_has_banner: true
+  unicode_error: none
+  result: PASS
+upgrade_guard: >
+  uv tool upgrade semantic-scholar-mcp 실행 시 cli.py 패치가 덮어쓰여진다.
+  패치 재적용 runbook: docs/orchestration/session_reports/2026-05/2026-05-16_semantic_scholar_mcp_connection_fix.md
+  mcp_rate_limit_rules.md에 reminder 추가됨.
+verdict: PASS (HTTPS-only PARTIAL → full-MCP PASS)
+executed_at: 2026-05-16T00:00:00+09:00
+executed_session: 20260516-010
+mcp_query_log: docs/orchestration/mcp_research/2026-05/MCP_20260516_005.md
+```
+
+---
+
 ## Cross-link
 
 - Session report: `docs/orchestration/session_reports/2026-05/2026-05-15_step5_real_mcp_installation.md`

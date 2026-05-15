@@ -37,6 +37,8 @@ INDEX (이 파일):
 | MCP_20260515_001 | 2026-05-15 | Context7 | Main Claude (STEP 5) | Context7 status verify + external candidate evaluation | VERIFIED | mcp_research/2026-05/MCP_20260515_001.md | none |
 | MCP_20260515_002 | 2026-05-15 | arxiv + semantic-scholar + context7 | Main Claude (STEP 5-REAL) | STEP 5-REAL install smoke tests: arxiv 0.4.12 PASS, SS 0.1.0 PARTIAL (429), ctx7 re-VERIFIED | PARTIAL | mcp_research/2026-05/MCP_20260515_002.md | SS API key 취득 권장 (rate limit 회피) |
 | MCP_20260516_003 | 2026-05-16 | GitHub MCP v1.0.4 (ghcr.io/github/github-mcp-server) | Main Claude (STEP 5-REAL-GITHUB) | Docker pull + smoke 5건: --version PASS, --help PASS, init log PASS (readOnly+lockdown), list-scopes PASS (19 read-only tools), PAT auth PARTIAL | VERIFIED | mcp_research/2026-05/MCP_20260516_003.md | none (PASS gate) |
+| MCP_20260516_004 | 2026-05-16 | SemanticScholar (authenticated, x-api-key) | Main Claude (STEP 5-REAL SS-KEY-ACTIVATION) | API 키 주입 + auth check (x-api-key) + data fetch (world model agent, 200 OK, 5 results) + rate-limit test (2 calls, interval=2.078s, 429=0) | VERIFIED | mcp_research/2026-05/MCP_20260516_004.md | HTTPS-only; MCP stdio fix는 MCP_005 |
+| MCP_20260516_005 | 2026-05-16 | SemanticScholar MCP stdio (PYTHONUTF8=1, banner→stderr) | Main Claude (20260516-010 MCP-STDIO-FIX) | stdio handshake 검증: stdout JSON-only, stderr banner, UnicodeEncodeError 없음, 4a PASS | VERIFIED | mcp_research/2026-05/MCP_20260516_005.md | none (full-MCP PASS; DEC_012 addendum_002) |
 
 ---
 
