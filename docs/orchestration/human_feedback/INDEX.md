@@ -35,9 +35,9 @@ INDEX (이 파일):
 
 | feedback_id | date | related_decision_id | topic | user_response | interpreted_action | status | linked_session |
 |---|---|---|---|---|---|---|---|
-| (no entries yet) | — | — | — | — | — | — | — |
+| HF_20260515_001 | 2026-05-15 | DEC_2026-05_011 | STEP 5 MCP 등록 범위 | Option B (신규 설치 0건, Context7 verify only) | .mcp.json 미수정, DEFER 4건 기록 | RESOLVED | 20260515-005 |
 
-*Phase 4 이후 DEC_NNN 해소 시 행 추가*
+*다음 feedback: STEP 5a (uv install 승인) / STEP 6 (hook redirect 승인) 등*
 
 ---
 

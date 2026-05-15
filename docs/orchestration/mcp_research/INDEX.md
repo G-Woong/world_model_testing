@@ -34,9 +34,9 @@ INDEX (이 파일):
 
 | query_id | date | server | agent | topic | cross_check_status | report_path | action_required |
 |---|---|---|---|---|---|---|---|
-| (no entries yet) | — | — | — | — | — | — | — |
+| MCP_20260515_001 | 2026-05-15 | Context7 | Main Claude (STEP 5) | Context7 status verify + external candidate evaluation | VERIFIED | mcp_research/2026-05/MCP_20260515_001.md | none |
 
-*Phase 4 STEP 5 (MCP 설치) 이후 첫 query log 생성 시 행 추가*
+*다음 query log: Phase 4 arXiv/Semantic Scholar 등록 후 (STEP 5b/5c)*
 
 ---
 

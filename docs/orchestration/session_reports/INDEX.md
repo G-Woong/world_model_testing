@@ -15,6 +15,7 @@
 | 20260515-002 | 2026-05-15 | solo/p3-final-boss-cleared | full | STEP 2 orchestration/redesign merge (Phase 3B integration, DEC_001 EXECUTED) | session_reports/2026-05/2026-05-15_step2_orchestration_merge.md | 0 |
 | 20260515-003 | 2026-05-15 | solo/p3-final-boss-cleared | compact | STEP 3 scaffold creation (DEC_004 EXECUTED) | session_reports/2026-05/2026-05-15_step3_scaffold_creation.md | 0 |
 | 20260515-004 | 2026-05-15 | solo/p3-final-boss-cleared | full | STEP 4 R4 sandbox policy runtime enforcement (DEC_005 EXECUTED) | session_reports/2026-05/2026-05-15_step4_r4_sandbox_policy.md | 0 |
+| 20260515-005 | 2026-05-15 | solo/p3-final-boss-cleared | full | STEP 5 MCP install plan: Context7 verify + defer arXiv/SS/citation/GitHub (DEC_011 EXECUTED, R2 LOCK held) | session_reports/2026-05/2026-05-15_step5_mcp_installation.md | 0 |
 
 ---
 
