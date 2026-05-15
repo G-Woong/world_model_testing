@@ -106,6 +106,9 @@ risk: LOW
 reasoning: MCP 설치 전에 연구 결과 저장 디렉터리 scaffold가 선행되어야 함; 디렉터리 구조만 생성하므로 위험 없음
 approval: HUMAN_APPROVED
 outcome: LOCKED — scaffold 생성은 STEP 3에서 STEP 2 merge 완료 후 실행
+executed_at: 2026-05-15T00:00:00+09:00
+executed_commit: (STEP 3 commit — 확정 후 갱신)
+executed_session: 20260515-003
 ```
 
 ---
