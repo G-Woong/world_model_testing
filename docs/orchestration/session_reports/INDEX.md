@@ -11,6 +11,7 @@
 | session_id | date | branch | mode | summary | report_path | blocker_count |
 |---|---|---|---|---|---|---|
 | (초기값) | 2026-05-15 | orchestration/redesign | full | Phase 3 orchestration protocol runtime adoption | (이 파일) | 0 |
+| 20260515-001 | 2026-05-15 | orchestration/redesign | full | Phase 3B→4 boundary: STEP 1 Decision Lock-in (DEC_001~006 LOCKED) | session_reports/2026-05/2026-05-15_step1_decision_lockin.md | 0 |
 
 ---
 
