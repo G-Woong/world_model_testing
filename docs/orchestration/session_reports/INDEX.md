@@ -18,6 +18,7 @@
 | 20260515-005 | 2026-05-15 | solo/p3-final-boss-cleared | full | STEP 5 MCP install plan: Context7 verify + defer arXiv/SS/citation/GitHub (DEC_011 EXECUTED, R2 LOCK held) | session_reports/2026-05/2026-05-15_step5_mcp_installation.md | 0 |
 | 20260515-006 | 2026-05-15 | solo/p3-final-boss-cleared | full | STEP 5-REAL MCP real install: uv+arxiv+SS(FujishigeTemma)+ctx7 유지 (DEC_012 EXECUTED, Gate PARTIAL) | session_reports/2026-05/2026-05-15_step5_real_mcp_installation.md | 0 |
 | 20260515-007 | 2026-05-15 | solo/p3-final-boss-cleared | full | STEP 1~5 harness audit: 7 layers PASS, MCP layer PARTIAL (SS 429), Phase 4 진입 조건 충족 | session_reports/2026-05/2026-05-15_step1_to_step5_harness_audit.md | 0 |
+| 20260516-008 | 2026-05-16 | solo/p3-final-boss-cleared | full | STEP 5-REAL-GITHUB: GitHub MCP v1.0.4 활성화 (DEC_013 EXECUTED, Gate PASS, 4서버 active) | session_reports/2026-05/2026-05-16_step5_real_github_mcp.md | 0 |
 
 ---
 

@@ -263,7 +263,11 @@ synthesis: docs/orchestration/agent_reports/synthesis/YYYY-MM/<topic>_<id>.md
 
 `09_MCP_RESEARCH_STACK.md` + `10_MCP_SECURITY_POLICY.md` 요약.
 
-**현재 활성 MCP**: Context7 (`.mcp.json` 등록, Tier 2 read-only)
+**현재 활성 MCP** (4개):
+- Context7 (http, Tier 2 read-only) — STEP 5 ACTIVE
+- arxiv (stdio, uv, Tier 2) — STEP 5-REAL ACTIVE
+- semantic-scholar (stdio, uv, Tier 2, PARTIAL: 429) — STEP 5-REAL ACTIVE
+- **github (stdio, Docker, ghcr.io/github/github-mcp-server:latest v1.0.4, Tier 2 read-only+lockdown)** — STEP 5-REAL-GITHUB ACTIVE ← NEW (DEC_013, 2026-05-16)
 
 **R2 LOCK**: `enableAllProjectMcpServers: false` — 절대 복구 금지 (10 §2)
 

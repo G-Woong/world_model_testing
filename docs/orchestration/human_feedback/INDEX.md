@@ -37,6 +37,7 @@ INDEX (이 파일):
 |---|---|---|---|---|---|---|---|
 | HF_20260515_001 | 2026-05-15 | DEC_2026-05_011 | STEP 5 MCP 등록 범위 | Option B (신규 설치 0건, Context7 verify only) | .mcp.json 미수정, DEFER 4건 기록 | RESOLVED | 20260515-005 |
 | HF_20260515_002 | 2026-05-15 | DEC_2026-05_012 | STEP 5-REAL MCP 실제 설치 범위 (Option A) | Option A (uv + arXiv + SS FujishigeTemma + ctx7 유지, GitHub 보류) + settings.local.json enabledMcpjsonServers 수정 1회 명시 승인 | 3서버 설치, .mcp.json + enabledMcpjsonServers 업데이트, 하네스 audit 수행 | RESOLVED | 20260515-006 |
+| HF_20260516_003 | 2026-05-16 | DEC_2026-05_013 | GitHub MCP v1.0.4 실제 활성화 (Option A+) | 명시 지시 (플랜 Implement) + .env alias 추가 완료 | Docker pull, .mcp.json github 엔트리 추가, enabledMcpjsonServers 업데이트, smoke 4 PASS + 1 PARTIAL | RESOLVED | 20260516-008 |
 
 ---
 
