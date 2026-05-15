@@ -54,3 +54,4 @@ gate 명령: `/frcgw-phase-check`
 ## Compaction Handoff Log
 
 (pre_compact_phase_handoff.ps1가 자동 append)
+- 2026-05-16T03:07:46Z | branch: memory-redesign-2026-05-16 | passed_gates: P1.5, P1, P2, P3, P3_EVAL | SoT: docs/orchestration/session_reports/2026-05/2026-05-16_precompact_handoff.md
