@@ -293,7 +293,7 @@ synthesis: docs/orchestration/agent_reports/synthesis/YYYY-MM/<topic>_<id>.md
 ### Self-Evolution (05 + 12 bridge)
 
 9-step procedure (`05 §3`). SEV 후보는 session report `self_evolution_candidates` 필드에서 수집.  
-현재 PENDING: SEV_2026-05_001 (pre_compact hook redirect — Phase 4 human approval 필요)
+SEV_2026-05_001 ADOPTED (DEC_014, STEP 6, 2026-05-16): PreCompact hook = dual-write (session_reports primary, PHASE_PROGRESS legacy pointer)
 
 ### Human Feedback (12, Phase 4 dir 생성)
 
@@ -366,7 +366,7 @@ Phase 4 cleanup 후보:
 금지 4: Codex forbidden paths 수정 (04 §4.1)
 금지 5: Agent Team 코드 직접 편집 (06 §2)
 금지 6: 미승인 branch 삭제 또는 force push
-금지 7: 미승인 hook redirect 실 적용 (SEV_2026-05_001 PENDING)
+금지 7: 미승인 hook redirect 실 적용 (SEV_2026-05_001 ADOPTED 2026-05-16 — 추가 hook 변경 시 새 SEV 필요)
 금지 8: 이전 세션 승인을 현재 세션에 자동 이전
 금지 9: paper_context_ref/ 무승인 수정
 금지 10: fake metric / placeholder result를 phase gate에 사용

@@ -54,11 +54,11 @@ HUMAN — `.claude/hooks/` 수정은 Phase 3 §4.2 절대 수정 금지 목록�
 
 ## ADOPTION_STATUS
 
-PENDING
+ADOPTED
 
 ## ADOPTED_IN_BRANCH
 
-none
+memory-redesign-2026-05-16 (local, 2026-05-16, DEC_2026-05_014, STEP 6)
 
 ## ROLLBACK_METHOD
 

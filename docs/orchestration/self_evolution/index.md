@@ -10,7 +10,7 @@
 
 | evolution_id | date | trigger | component | status | summary |
 |---|---|---|---|---|---|
-| SEV_2026-05_001 | 2026-05-15 | AGENT_REPORT | settings (hook) | PENDING | pre_compact hook 출력 경로를 session_reports/로 redirect 제안 |
+| SEV_2026-05_001 | 2026-05-15 | AGENT_REPORT | settings (hook) | ADOPTED | pre_compact hook dual-write 전환: session_reports primary + PHASE_PROGRESS legacy pointer (DEC_014, STEP 6, branch: memory-redesign-2026-05-16) |
 
 ---
 

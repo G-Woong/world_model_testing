@@ -21,6 +21,7 @@
 | 20260516-008 | 2026-05-16 | solo/p3-final-boss-cleared | full | STEP 5-REAL-GITHUB: GitHub MCP v1.0.4 활성화 (DEC_013 EXECUTED, Gate PASS, 4서버 active) | session_reports/2026-05/2026-05-16_step5_real_github_mcp.md | 0 |
 | 20260516-009 | 2026-05-16 | solo/p3-final-boss-cleared | full | Semantic Scholar API 키 활성화: .mcp.json 주입 + 1 RPS 정책 + auth검증(HTTP 200, 429=0) (DEC_012 PARTIAL→PASS) | session_reports/2026-05/2026-05-16_semantic_scholar_api_key_activation.md | 0 |
 | 20260516-010 | 2026-05-16 | solo/p3-final-boss-cleared | full | Semantic Scholar MCP stdio 연결 실패 근본 원인 해결: cp949 crash + banner-on-stdout 규약 위반 fix (DEC_012 addendum_002, full-MCP PASS) | session_reports/2026-05/2026-05-16_semantic_scholar_mcp_connection_fix.md | 0 |
+| 20260516-011 | 2026-05-16 | memory-redesign-2026-05-16 | full | STEP 6 precompact hook redirect (SEV_2026-05_001 ADOPTED, dual-write): session_reports primary + PHASE_PROGRESS legacy pointer | session_reports/2026-05/2026-05-16_step6_precompact_hook_redirect.md | 0 |
 
 ---
 
