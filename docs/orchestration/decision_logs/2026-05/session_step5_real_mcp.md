@@ -54,7 +54,7 @@ outcome: >
   Gate Verdict: PARTIAL.
   GitHub MCP: PAT 미제공으로 DEFERRED.
 executed_at: 2026-05-15T00:00:00+09:00
-executed_commit: (STEP 5-REAL commit — see session 20260515-006 §8)
+executed_commit: 4c4355c
 executed_session: 20260515-006
 ```
 
