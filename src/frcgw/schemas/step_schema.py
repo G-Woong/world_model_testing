@@ -40,6 +40,12 @@ class ActionRecord:
     action_type: str
     action_params: dict = field(default_factory=dict)
     rewritten: bool = False
+    # Run 4B — predicted hypothesis trace (NOT oracle label).
+    # is_oracle_label=False always. Separate from EvaluationLabels.h_exec_id (oracle-aligned).
+    selected_hypothesis_id: str | None = None
+    selected_hypothesis_type: str | None = None
+    selected_hypothesis_confidence: float | None = None
+    selected_hypothesis_source: str | None = None
 
 
 @dataclass

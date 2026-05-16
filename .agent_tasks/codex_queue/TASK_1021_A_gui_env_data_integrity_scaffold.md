@@ -139,8 +139,6 @@ COMMIT_MESSAGE: |
   - leakage_audit.py: forbidden field audit (extends visibility.py contract)
   - tests: 3 new test files, all green
 
-SANDBOX_MODE: bypass
-
 STOP_CONDITION: |
   3개 신규 테스트 파일 중 하나라도 pytest FAIL 시 중단.
   FILES_FORBIDDEN 경로 수정 시 즉시 중단.

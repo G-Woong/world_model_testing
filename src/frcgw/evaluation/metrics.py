@@ -213,3 +213,77 @@ def action_switch_delay(episodes: list[dict]) -> float:
         if delay >= 0:
             values.append(float(delay))
     return _mean(values)
+
+
+def compute_wrong_grammar_persistence_v1(episodes: list) -> dict:
+    """MET-PERSIST-001: first_falsifying_evidence_t 이후 correct grammar switch까지 step 수.
+
+    paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md:155 SSoT.
+
+    inference-safe input: action.selected_hypothesis_id, step_index
+    eval-only label: evaluation_labels.evidence_timestamp, evaluation_labels.correct_hypothesis_id
+
+    Returns:
+        dict with keys: mean_persistence, median, count_blocked, count_episodes, status
+        count_blocked: evidence_timestamp/correct_hypothesis_id 누락 에피소드 수
+        status: "OK" or "BLOCKED"
+    """
+    persistence_values = []
+    blocked = 0
+    for episode in episodes:
+        eval_labels = getattr(episode, "evaluation_labels", None) if not isinstance(episode, dict) else None
+        evidence_t = getattr(eval_labels, "evidence_timestamp", None) if eval_labels is not None else None
+        correct_id = getattr(eval_labels, "correct_hypothesis_id", None) if eval_labels is not None else None
+        if evidence_t is None or correct_id is None:
+            blocked += 1
+            continue
+
+        steps = getattr(episode, "steps", []) or []
+        switch_step = None
+        for step in steps:
+            step_idx = getattr(step, "step_index", None)
+            if step_idx is None or step_idx < evidence_t:
+                continue
+            predicted = getattr(getattr(step, "action", None), "selected_hypothesis_id", None)
+            if predicted == correct_id:
+                switch_step = step_idx
+                break
+
+        if switch_step is None:
+            persistence_values.append(max(0, len(steps) - evidence_t))
+        else:
+            persistence_values.append(max(0, switch_step - evidence_t))
+
+    if not persistence_values:
+        return {
+            "mean_persistence": None,
+            "median": None,
+            "count_blocked": blocked,
+            "count_episodes": len(episodes),
+            "status": "BLOCKED",
+        }
+    sorted_vals = sorted(persistence_values)
+    return {
+        "mean_persistence": sum(persistence_values) / len(persistence_values),
+        "median": sorted_vals[len(sorted_vals) // 2],
+        "count_blocked": blocked,
+        "count_episodes": len(episodes),
+        "status": "OK",
+    }
+
+
+def compute_h_exec_null_rate(episodes: list) -> float | None:
+    """C1 supporting metric: 전체 step 중 selected_hypothesis_id=None 비율.
+
+    inference-safe input: action.selected_hypothesis_id only.
+    """
+    total = 0
+    null_count = 0
+    for episode in episodes:
+        steps = getattr(episode, "steps", []) or []
+        for step in steps:
+            total += 1
+            predicted = getattr(getattr(step, "action", None), "selected_hypothesis_id", None)
+            if predicted is None:
+                null_count += 1
+    return null_count / total if total > 0 else None

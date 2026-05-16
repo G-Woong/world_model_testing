@@ -369,7 +369,7 @@ Phase 4 cleanup 후보:
 금지 7: 미승인 hook redirect 실 적용 (SEV_2026-05_001 ADOPTED 2026-05-16 — 추가 hook 변경 시 새 SEV 필요)
 금지 8: 이전 세션 승인을 현재 세션에 자동 이전
 금지 9: paper_context_ref/ 무승인 수정
-금지 10: fake metric / placeholder result를 phase gate에 사용
+금지 10: fake metric / unsubstantiated result를 phase gate에 사용
 ```
 
 ---

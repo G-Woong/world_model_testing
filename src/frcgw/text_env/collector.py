@@ -279,6 +279,12 @@ def collect_episode(
             action_type=action_type,
             action_params={},
             rewritten=False,
+            # Run 4B: populate predicted hypothesis trace from policy belief.
+            # NOT oracle label — EvaluationLabels.h_exec_id is separate and unchanged.
+            selected_hypothesis_id=getattr(policy, "last_selected_hypothesis_id", None),
+            selected_hypothesis_type=getattr(policy, "last_selected_hypothesis_type", None),
+            selected_hypothesis_confidence=getattr(policy, "last_selected_hypothesis_confidence", None),
+            selected_hypothesis_source=getattr(policy, "last_selected_hypothesis_source", None),
         )
 
         # 3. Apply grammar engine to hidden state

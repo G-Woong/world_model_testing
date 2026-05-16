@@ -17,6 +17,12 @@ from frcgw.text_env.state import TextEpisodeSpec, TextState
 
 class Policy(ABC):
     policy_id: str
+    # Run 4B — predicted hypothesis trace populated after each select() call.
+    # NOT oracle labels — each policy records its own grammar belief.
+    last_selected_hypothesis_id: str | None = None
+    last_selected_hypothesis_type: str | None = None
+    last_selected_hypothesis_confidence: float | None = None
+    last_selected_hypothesis_source: str | None = None
 
     @abstractmethod
     def select(
@@ -35,6 +41,12 @@ class OraclePolicy(Policy):
     policy_id = "oracle"
 
     def select(self, obs, history, state, engine, rng):
+        # Run 5 Phase 0: record policy belief tag (NOT oracle label).
+        # Constant string — hidden state values are forbidden as trace ID.
+        self.last_selected_hypothesis_id = "oracle_best_action_proxy"
+        self.last_selected_hypothesis_type = "oracle"
+        self.last_selected_hypothesis_confidence = 1.0
+        self.last_selected_hypothesis_source = "oracle_policy"
         recovery = engine.label_recovery_action(state._hidden_preconditions)
         if recovery and recovery in {a.action_type for a in obs.candidate_actions_public}:
             return recovery
@@ -52,6 +64,11 @@ class WrongGrammarPolicy(Policy):
     def select(self, obs, history, state, engine, rng):
         rules = engine._rules
         final = rules["final_action"]
+        # Record policy's own grammar belief — NOT true_control_grammar
+        self.last_selected_hypothesis_id = f"wrong_{final}"
+        self.last_selected_hypothesis_type = "wrong_grammar"
+        self.last_selected_hypothesis_confidence = 0.5
+        self.last_selected_hypothesis_source = "wrong_grammar_policy"
         if final in {a.action_type for a in obs.candidate_actions_public}:
             return final
         return rng.choice(obs.candidate_actions_public).action_type
@@ -62,6 +79,10 @@ class RetryPolicy(Policy):
     policy_id = "retry"
 
     def select(self, obs, history, state, engine, rng):
+        self.last_selected_hypothesis_id = "retry_same_grammar"
+        self.last_selected_hypothesis_type = "retry"
+        self.last_selected_hypothesis_confidence = 0.3
+        self.last_selected_hypothesis_source = "retry_policy"
         if history:
             last = history[-1].action_summary
             if last in {a.action_type for a in obs.candidate_actions_public}:
@@ -85,10 +106,18 @@ class RecoveryPolicy(Policy):
             if h.effect_summary == "no_state_change"
         )
         if failed_count < self._switch_after:
-            # Wrong grammar phase
+            # Wrong grammar phase — record as such
+            self.last_selected_hypothesis_id = "wrong_grammar_recovery_phase1"
+            self.last_selected_hypothesis_type = "wrong_grammar"
+            self.last_selected_hypothesis_confidence = 0.5
+            self.last_selected_hypothesis_source = "recovery_policy_phase1"
             wp = WrongGrammarPolicy()
             return wp.select(obs, history, state, engine, rng)
-        # Recovery phase — switch to oracle
+        # Recovery phase — record switch hypothesis
+        self.last_selected_hypothesis_id = "recovery_grammar_phase2"
+        self.last_selected_hypothesis_type = "recovery"
+        self.last_selected_hypothesis_confidence = 0.7
+        self.last_selected_hypothesis_source = "recovery_policy_phase2"
         op = OraclePolicy()
         return op.select(obs, history, state, engine, rng)
 
@@ -98,6 +127,10 @@ class RandomConstrainedPolicy(Policy):
     policy_id = "random_constrained"
 
     def select(self, obs, history, state, engine, rng):
+        self.last_selected_hypothesis_id = "random_alt"
+        self.last_selected_hypothesis_type = "random"
+        self.last_selected_hypothesis_confidence = 0.1
+        self.last_selected_hypothesis_source = "random_constrained_policy"
         return rng.choice(obs.candidate_actions_public).action_type
 
 

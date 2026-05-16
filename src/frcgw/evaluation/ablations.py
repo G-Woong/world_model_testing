@@ -245,6 +245,84 @@ class NoComputeGateAblation(AblatedAgent):
         )
 
 
+class NoRegimeAblationAgent(AblatedAgent):
+    """ABL-001: Remove regime latent to test C2 regime/control-grammar separability.
+
+    Locatello impossibility risk: without separate regime latent,
+    regime and grammar representations may collapse.
+    """
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        return _first_candidate(obs), _budget(
+            planning_calls=0,
+            rollout_steps=0,
+            candidate_actions_scored=1 if obs.candidate_actions_public else 0,
+        )
+
+
+class NoIntentActionMappingAblationAgent(AblatedAgent):
+    """ABL-017: Remove training-time intent-to-action mapping loss.
+
+    Distinct from ABL-035 (no_rewrite): ABL-035 removes the inference-time
+    rewrite module; ABL-017 removes the training-time L_intent_action_mapping loss.
+    At inference, manifests as random candidate selection.
+    """
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        return _random_public_candidate(obs, salt=self.ablation_id), _budget(
+            planning_calls=0,
+            rollout_steps=0,
+            candidate_actions_scored=len(obs.candidate_actions_public),
+        )
+
+
+class NoFalsificationScoreGateAblationAgent(AblatedAgent):
+    """ABL-022: Remove F_t > tau_f inference gate.
+
+    Distinct from ABL-016 (no_falsification): ABL-016 removes the training-time
+    falsification loss; ABL-022 removes the inference-time score gate.
+    Without the gate, the agent always attempts to plan.
+    """
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        return _first_candidate(obs), _budget(
+            planning_calls=1,
+            rollout_steps=0,
+            candidate_actions_scored=1 if obs.candidate_actions_public else 0,
+        )
+
+
+class NoCounterfactualTargetAblationAgent(AblatedAgent):
+    """ABL-036: Remove counterfactual supervision target.
+
+    Without counterfactual targets, alternative rollout fidelity degrades;
+    the agent still plans but picks randomly among candidates.
+    """
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        return _random_public_candidate(obs, salt=self.ablation_id), _budget(
+            planning_calls=1,
+            rollout_steps=0,
+            candidate_actions_scored=len(obs.candidate_actions_public),
+        )
+
+
 ABLATION_REGISTRY: dict[str, AblationConfig] = {
     "no_control_grammar": AblationConfig(
         ablation_id="no_control_grammar",
@@ -357,6 +435,38 @@ ABLATION_REGISTRY: dict[str, AblationConfig] = {
         },
         masking={"disable_compute_gate": True, "rollout_steps": 10},
     ),
+    "no_regime": AblationConfig(
+        ablation_id="no_regime",
+        tdd_ref="ABL-001",
+        severity="CRITICAL",
+        description="Remove regime latent dimension to test C2 regime/control-grammar separation. Locatello impossibility risk.",
+        expected_collapse={"regime_shift_f1": "decrease", "recovery_delay": "increase"},
+        masking={"regime_latent": "zeroed"},
+    ),
+    "no_intent_action_mapping": AblationConfig(
+        ablation_id="no_intent_action_mapping",
+        tdd_ref="ABL-017",
+        severity="CRITICAL",
+        description="Remove training-time L_intent_action_mapping loss (C5). ABL-035 removes inference rewrite; this removes training-time mapping loss.",
+        expected_collapse={"rewrite_success_rate": "decrease", "failed_repetition_rate": "increase"},
+        masking={"disable_intent_action_mapping_loss": True},
+    ),
+    "no_falsification_score_gate": AblationConfig(
+        ablation_id="no_falsification_score_gate",
+        tdd_ref="ABL-022",
+        severity="CRITICAL",
+        description="Remove F_t > tau_f inference gate (C1+C3). ABL-016 removes falsification loss; this removes inference gate.",
+        expected_collapse={"falsification_precision_recall_f1": "decrease", "wrong_control_grammar_persistence": "increase"},
+        masking={"disable_falsification_gate": True},
+    ),
+    "no_counterfactual_target": AblationConfig(
+        ablation_id="no_counterfactual_target",
+        tdd_ref="ABL-036",
+        severity="HIGH",
+        description="Remove counterfactual supervision target; alternative rollout fidelity degraded (C4).",
+        expected_collapse={"rollout_fidelity": "decrease", "alternative_adoption_rate": "decrease"},
+        masking={"disable_counterfactual_target": True},
+    ),
 }
 
 
@@ -373,6 +483,10 @@ _WRAPPERS: dict[str, type[AblatedAgent]] = {
     "always_plan_no_gate": AlwaysPlanNoGateAblation,
     "no_progress_reward": NoProgressRewardAblation,
     "no_compute_gate": NoComputeGateAblation,
+    "no_regime": NoRegimeAblationAgent,
+    "no_intent_action_mapping": NoIntentActionMappingAblationAgent,
+    "no_falsification_score_gate": NoFalsificationScoreGateAblationAgent,
+    "no_counterfactual_target": NoCounterfactualTargetAblationAgent,
 }
 
 

@@ -126,7 +126,7 @@ Phase 3B 목적 — MCP research stack / MCP security / session report runtime /
 | C9-1 | paper_context_ref/ 이번 turn 미수정 | PASS | 금지 행동 준수 |
 | C9-2 | control grammar 등 8개 용어 임의 변형 없음 | PASS | research_context_rules §"Terms Must Be Preserved" |
 | C9-3 | Baselines/Ablations 목록 유지 | PASS | 13 §14 금지 행동 명시 |
-| C9-4 | fake metric / placeholder result 없음 | PASS | 실험 결과 없는 문서 작업만 |
+| C9-4 | fake metric / unsubstantiated result 없음 | PASS | 실험 결과 없는 문서 작업만 |
 | C9-5 | UNKNOWN 항목 숨김 없음 | PASS | 각 문서 NEEDS_CONFIRMATION 명시 |
 
 ### [C10] Phase 4 진입 가능 여부 (5항)

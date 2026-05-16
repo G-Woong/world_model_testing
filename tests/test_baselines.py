@@ -6,6 +6,9 @@ from frcgw.evaluation.baselines import (
     FORBIDDEN_AGENT_KEYS,
     AlwaysPlanAgent,
     BaselineAgent,
+    CATTSStyleUncertaintyGateAgent,
+    ComputeMatchedRandomAgent,
+    CUWMStyleCandidateSimulationAgent,
     FrozenBaseAgent,
     NextStateWMOnlyAgent,
     OracleAgent,
@@ -14,6 +17,10 @@ from frcgw.evaluation.baselines import (
     RetryAfterFailureAgent,
     UncertaintyGatedAgent,
     VerifierOnlyAgent,
+    VerifierRecoveryAgent,
+    VLAALoopHeuristicAgent,
+    WACStyleConsequenceCorrectionAgent,
+    WebWorldStyleSearchAgent,
 )
 from frcgw.evaluation.compute_budget import ComputeBudgetLog
 from frcgw.schemas.step_schema import CandidateAction, PublicHistoryItem, PublicObservation
@@ -29,6 +36,14 @@ AGENT_CASES: list[tuple[type[BaselineAgent], str, int, int]] = [
     (UncertaintyGatedAgent, "BASE-012", 1, 0),
     (RandomAlternativePlannerAgent, "BASE-014", 1, 0),
     (OracleAgent, "BASE-016/017", 0, 0),
+    # Run 5 direct-threat baselines
+    (VerifierRecoveryAgent, "BASE-006", 0, 0),
+    (ComputeMatchedRandomAgent, "BASE-015", 1, 0),
+    (WACStyleConsequenceCorrectionAgent, "BASE-026", 1, 1),
+    (CUWMStyleCandidateSimulationAgent, "BASE-027", 1, 2),
+    (WebWorldStyleSearchAgent, "BASE-028", 1, 2),
+    (CATTSStyleUncertaintyGateAgent, "BASE-012-CATTS", 1, 0),
+    (VLAALoopHeuristicAgent, "BASE-003+008-VLAA", 0, 0),
 ]
 
 
@@ -135,3 +150,34 @@ def test_frozen_base_agent_has_zero_planning_budget() -> None:
     _action, log = FrozenBaseAgent().act(_obs())
 
     assert log.planning_calls == 0
+
+
+def test_catts_and_vlaa_do_not_import_lr_scorer() -> None:
+    import ast
+    import inspect
+
+    import frcgw.evaluation.baselines as baselines_mod
+
+    source = inspect.getsource(baselines_mod)
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            assert "lr_scorer" not in module, f"lr_scorer imported via 'from' in baselines: {module}"
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                assert "lr_scorer" not in alias.name, f"lr_scorer imported in baselines: {alias.name}"
+
+
+def test_direct_threat_baselines_do_not_read_forbidden_eval_labels() -> None:
+    direct_threat_agents = [
+        WACStyleConsequenceCorrectionAgent(),
+        CUWMStyleCandidateSimulationAgent(),
+        WebWorldStyleSearchAgent(),
+    ]
+    hidden_labels = {k: "hidden_value" for k in FORBIDDEN_AGENT_KEYS}
+    for agent in direct_threat_agents:
+        action, log = agent.act(_obs(), eval_labels=hidden_labels)
+        assert isinstance(action, CandidateAction)
+        assert isinstance(log, ComputeBudgetLog)
+        assert FORBIDDEN_AGENT_KEYS.isdisjoint(vars(agent))

@@ -25,10 +25,16 @@ REQUIRED_ABLATION_IDS = {
     "always_plan_no_gate",
     "no_progress_reward",
     "no_compute_gate",
+    # Run 5 additions
+    "no_regime",
+    "no_intent_action_mapping",
+    "no_falsification_score_gate",
+    "no_counterfactual_target",
 }
 
 CRITICAL_ABLATION_IDS = {
     "no_control_grammar",
+    "merged_regime_control_grammar",  # severity=CRITICAL; asymmetry fixed in Run 5
     "collapsed_latent",
     "no_falsification",
     "uncertainty_instead_of_falsification",
@@ -36,6 +42,10 @@ CRITICAL_ABLATION_IDS = {
     "no_rewrite",
     "always_plan_no_gate",
     "no_compute_gate",
+    # Run 5 additions (ABL-036 no_counterfactual_target is HIGH, excluded)
+    "no_regime",
+    "no_intent_action_mapping",
+    "no_falsification_score_gate",
 }
 
 
@@ -60,9 +70,9 @@ def _obs() -> PublicObservation:
     )
 
 
-def test_ablation_registry_has_all_12_ids() -> None:
+def test_ablation_registry_has_all_16_ids() -> None:
     assert set(ABLATION_REGISTRY) == REQUIRED_ABLATION_IDS
-    assert len(ABLATION_REGISTRY) == 12
+    assert len(ABLATION_REGISTRY) == 16
 
 
 def test_ablation_config_fields_are_populated() -> None:
@@ -70,7 +80,7 @@ def test_ablation_config_fields_are_populated() -> None:
         assert isinstance(config, AblationConfig)
         assert config.ablation_id == ablation_id
         assert config.tdd_ref.startswith("ABL-")
-        assert config.severity in {"CRITICAL", "standard"}
+        assert config.severity in {"CRITICAL", "HIGH", "standard"}
         assert config.description
         assert config.expected_collapse
         assert config.masking

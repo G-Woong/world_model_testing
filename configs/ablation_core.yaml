@@ -95,6 +95,35 @@ ablations:
     expected_collapse:
       false_planning_call_rate: increase
       progress_per_compute: decrease
+  # Run 5 additions: C1/C2/C3/C4/C5 reviewer-attack defense
+  - id: no_regime
+    tdd_ref: ABL-001
+    severity: CRITICAL
+    description: "Remove regime latent dimension to test C2 regime/control-grammar separation. Locatello impossibility risk."
+    expected_collapse:
+      regime_shift_f1: decrease
+      recovery_delay: increase
+  - id: no_intent_action_mapping
+    tdd_ref: ABL-017
+    severity: CRITICAL
+    description: "Remove training-time L_intent_action_mapping loss (C5). Distinct from ABL-035 inference rewrite removal."
+    expected_collapse:
+      rewrite_success_rate: decrease
+      failed_repetition_rate: increase
+  - id: no_falsification_score_gate
+    tdd_ref: ABL-022
+    severity: CRITICAL
+    description: "Remove F_t > tau_f inference gate (C1+C3). Distinct from ABL-016 falsification loss removal."
+    expected_collapse:
+      falsification_precision_recall_f1: decrease
+      wrong_control_grammar_persistence: increase
+  - id: no_counterfactual_target
+    tdd_ref: ABL-036
+    severity: HIGH
+    description: "Remove counterfactual supervision target; alternative rollout fidelity degraded (C4)."
+    expected_collapse:
+      rollout_fidelity: decrease
+      alternative_adoption_rate: decrease
 forbidden_fields:
   - true_regime
   - true_control_grammar

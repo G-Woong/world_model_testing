@@ -261,6 +261,218 @@ class OracleAgent(BaselineAgent):
         )
 
 
+class VerifierRecoveryAgent(BaselineAgent):
+    """BASE-006: Verifier + heuristic recovery (VeriGUI direct-threat defense).
+
+    Detects failures via public effect summary, then selects alternative candidate.
+    No grammar posterior; no LR/F_t usage.
+    """
+
+    baseline_id = "BASE-006"
+    paper_ssot_id = "BASE-006 (Verifier + heuristic recovery)"
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        last_effect = ""
+        if obs.history_public:
+            last_effect = obs.history_public[-1].effect_summary or ""
+        if "fail" in last_effect.lower() and len(obs.candidate_actions_public) > 1:
+            action = obs.candidate_actions_public[1]
+        else:
+            action = _first_candidate(obs)
+        return action, _budget(
+            planning_calls=0,
+            rollout_steps=0,
+            candidate_actions_scored=len(obs.candidate_actions_public),
+        )
+
+
+class ComputeMatchedRandomAgent(BaselineAgent):
+    """BASE-015: Compute-matched random reallocation (C6 compute-matching defense).
+
+    Matches FRCG-WM planning_calls=1 budget but selects randomly.
+    """
+
+    baseline_id = "BASE-015"
+    paper_ssot_id = "BASE-015 (compute-matched random reallocation)"
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        if not obs.candidate_actions_public:
+            return _noop_action(), _budget(
+                planning_calls=1,
+                rollout_steps=0,
+                candidate_actions_scored=0,
+            )
+        seed = f"base-015|{obs.instruction}|{len(obs.history_public)}|{len(obs.candidate_actions_public)}"
+        rng = random.Random(seed)
+        action = rng.choice(obs.candidate_actions_public)
+        return action, _budget(
+            planning_calls=1,
+            rollout_steps=0,
+            candidate_actions_scored=len(obs.candidate_actions_public),
+        )
+
+
+class WACStyleConsequenceCorrectionAgent(BaselineAgent):
+    """BASE-026: WAC-style consequence correction (WAC direct-threat defense).
+
+    Public consequence heuristic-based correction. No grammar posterior.
+    """
+
+    baseline_id = "BASE-026"
+    paper_ssot_id = "BASE-026 (WAC-style consequence correction)"
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        last_effect = ""
+        if obs.history_public:
+            last_effect = obs.history_public[-1].effect_summary or ""
+        if "fail" in last_effect.lower() and len(obs.candidate_actions_public) > 1:
+            action = obs.candidate_actions_public[1]
+        else:
+            action = _first_candidate(obs)
+        return action, _budget(
+            planning_calls=1,
+            rollout_steps=1,
+            candidate_actions_scored=len(obs.candidate_actions_public),
+        )
+
+
+class CUWMStyleCandidateSimulationAgent(BaselineAgent):
+    """BASE-027: CUWM-style candidate simulation (CUWM direct-threat defense).
+
+    Compares frozen-base candidates via public heuristic. No grammar posterior.
+    """
+
+    baseline_id = "BASE-027"
+    paper_ssot_id = "BASE-027 (CUWM-style candidate simulation)"
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        action = _heuristic_best_action(obs)
+        n = len(obs.candidate_actions_public)
+        return action, _budget(
+            planning_calls=1,
+            rollout_steps=n,
+            candidate_actions_scored=n,
+        )
+
+
+class WebWorldStyleSearchAgent(BaselineAgent):
+    """BASE-028: WebWorld-style simulator search (WebWorld direct-threat defense).
+
+    Next-state heuristic + action search. No control-grammar posterior.
+    Full WebWorld reconstruction is infeasible; this uses a heuristic proxy.
+    """
+
+    baseline_id = "BASE-028"
+    paper_ssot_id = "BASE-028 (WebWorld-style simulator search)"
+    approximation_level = "heuristic next-state proxy; full WebWorld reconstruction infeasible"
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        action = _heuristic_best_action(obs)
+        n = len(obs.candidate_actions_public)
+        top_k = min(3, n)
+        return action, _budget(
+            planning_calls=1,
+            rollout_steps=n,
+            candidate_actions_scored=n,
+            top_k_alternatives=top_k,
+        )
+
+
+class CATTSStyleUncertaintyGateAgent(BaselineAgent):
+    """BASE-012-CATTS: Uncertainty-gated planner, CATTS variant (CATTS defense).
+
+    Vote-entropy proxy from public candidate distribution. LR/F_t usage forbidden
+    by construction — no falsification.falsification or lr_scorer import.
+    """
+
+    baseline_id = "BASE-012-CATTS"
+    paper_ssot_id = "BASE-012 (uncertainty-gated planner, CATTS variant)"
+    approximation_level = "CATTS-equivalent uncertainty gate; LR/F_t usage forbidden by construction"
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        n = len(obs.candidate_actions_public)
+        # Entropy proxy: uniform over n candidates → H = log(n); normalized to [0,1]
+        entropy_proxy = 1.0 / (n + 1) if n > 0 else 0.0
+        should_plan = len(obs.history_public) % 3 == 0 or entropy_proxy < 0.4
+        if should_plan:
+            return _heuristic_best_action(obs), _budget(
+                planning_calls=1,
+                rollout_steps=0,
+                candidate_actions_scored=n,
+            )
+        return _first_candidate(obs), _budget(
+            planning_calls=0,
+            rollout_steps=0,
+            candidate_actions_scored=1 if obs.candidate_actions_public else 0,
+        )
+
+
+class VLAALoopHeuristicAgent(BaselineAgent):
+    """BASE-003+008-VLAA: VLAA-loop style composite (VLAA-loop defense).
+
+    Retry + rule-based blocker recovery composite. LR/F_t usage forbidden.
+    Uses repeat count and effect_summary hash proxy for loop breaking.
+    """
+
+    baseline_id = "BASE-003+008-VLAA"
+    paper_ssot_id = "BASE-003 + BASE-008 composite (VLAA-loop style)"
+    approximation_level = "Retry + rule-based blocker recovery composite; LR/F_t usage forbidden"
+
+    def __init__(self) -> None:
+        self._repeat_count: dict[str, int] = {}
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        if not obs.candidate_actions_public:
+            return _noop_action(), _budget(
+                planning_calls=0,
+                rollout_steps=0,
+                candidate_actions_scored=0,
+            )
+        first = obs.candidate_actions_public[0]
+        repeat_count = self._repeat_count.get(first.action_type, 0)
+        if repeat_count > 1 and len(obs.candidate_actions_public) > 1:
+            action = obs.candidate_actions_public[1]
+        else:
+            action = first
+        self._repeat_count[action.action_type] = self._repeat_count.get(action.action_type, 0) + 1
+        return action, _budget(
+            planning_calls=0,
+            rollout_steps=0,
+            candidate_actions_scored=2,
+        )
+
+    def reset(self) -> None:
+        self._repeat_count = {}
+
+
 __all__ = [
     "FORBIDDEN_AGENT_KEYS",
     "BaselineAgent",
@@ -273,4 +485,11 @@ __all__ = [
     "UncertaintyGatedAgent",
     "RandomAlternativePlannerAgent",
     "OracleAgent",
+    "VerifierRecoveryAgent",
+    "ComputeMatchedRandomAgent",
+    "WACStyleConsequenceCorrectionAgent",
+    "CUWMStyleCandidateSimulationAgent",
+    "WebWorldStyleSearchAgent",
+    "CATTSStyleUncertaintyGateAgent",
+    "VLAALoopHeuristicAgent",
 ]
