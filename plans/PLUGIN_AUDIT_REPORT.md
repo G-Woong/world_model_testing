@@ -41,8 +41,42 @@ plugin/MCP 설치 전 심사 결과를 기록한다.
 - secret risk: GITHUB_PERSONAL_ACCESS_TOKEN required; no gh CLI passthrough; PAT must live in env
 - Windows: Docker required for local; or npm binary
 - scope: user scope possible but PAT in OS env still required
-- **verdict: REJECT**
+- **verdict: REJECT** *(superseded — see re-audit 2026-05-17 below)*
 - reason: Project policy forbids PAT in project files. No gh CLI passthrough support. All GitHub operations covered by `gh` CLI via Bash.
+
+### github MCP (github/github-mcp-server) — 재심사 2026-05-17
+
+- re-audited: 2026-05-17
+- source: github.com/github/github-mcp-server (same binary, ghcr.io/github/github-mcp-server)
+- previous verdict: **REJECT** (2026-05-08)
+- **new verdict: ACCEPTED**
+- current `.mcp.json` config:
+  - transport: `docker run -i --rm` (ephemeral, no persistent container)
+  - PAT: `--env-file C:/Users/computer/Desktop/ICLR_WM_claude-code/.env` — `.env` is gitignored (`.gitignore` line 1 + line 73); PAT NOT in project files
+  - `GITHUB_READ_ONLY=1` env flag enforced
+  - `GITHUB_LOCKDOWN_MODE=1` env flag enforced
+  - `GITHUB_TOOLSETS=repos,issues,pull_requests` — toolset restricted (no admin, discussions, code, search)
+- 10-item checklist (re-evaluation):
+  - 1-Official=official-vendor (GitHub Inc.) ✓
+  - 2-Source=ghcr.io/github/github-mcp-server (official GitHub registry) ✓
+  - 3-Issues=none blocking ✓
+  - 4-Manifest=toolset-restricted (repos/issues/pull_requests only) ✓
+  - 5-Hook=none (stdio Docker MCP, no hooks bundled) ✓
+  - 6-MCP=GitHub API HTTPS only ✓
+  - 7-File-write=none (read-only mode enforced) ✓
+  - 8-Scope=project (enabledMcpjsonServers 명시 승인, settings.local.json) ✓
+  - 9-Uninstall=remove docker entry from .mcp.json ✓
+  - 10-ALL-GREEN ✓
+- transport verification: 3-agent diagnosis (2026-05-17) confirmed:
+  - Docker image pulled ✓, PAT scope=public_repo ✓, stdio handshake → `server session connected` ✓
+  - `docker ps` empty = `--rm` normal behavior (not a crash) ✓
+  - Claude Code "deferred schema load" misidentified as death — tool works when ToolSearch schema fetched
+- R2 Lock: `enableAllProjectMcpServers: false` preserved in `.claude/settings.local.json` ✓
+- change from REJECT: PAT now in `.env` (untracked), READ_ONLY+LOCKDOWN flags in place, toolset restricted
+- remaining risk: Docker dependency (requires Docker Desktop running); `.env` must not be committed
+- reason: 10-item checklist ALL GREEN. PAT isolated in gitignored `.env`. Lockdown+read-only flags reduce write surface. Official GitHub vendor image. Transport confirmed working.
+
+---
 
 ---
 
