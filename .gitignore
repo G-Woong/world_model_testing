@@ -84,6 +84,7 @@ secrets/
 # Claude Code session temp
 # =========================
 .claude/.session_*.lock
+.claude/hooks/_logs/
 
 # =========================
 # P0 scaffold negations
