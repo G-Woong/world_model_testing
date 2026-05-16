@@ -50,8 +50,8 @@ $ErrorActionPreference = 'Stop'
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
 # ─────────────────────────────────────────────────────────────────────────────
-$CLAUDE_ROOT    = 'C:\Users\computer\Desktop\NeurIPS2026_claude-code'
-$CODEX_ROOT     = 'C:\Users\computer\Desktop\NeurIPS2026_codex'
+$CLAUDE_ROOT    = 'C:\Users\computer\Desktop\ICLR_WM_claude-code'
+$CODEX_ROOT     = 'C:\Users\computer\Desktop\ICLR_WM_codex'
 $AGENT_TASKS    = Join-Path $CLAUDE_ROOT '.agent_tasks'
 $QUEUE_DIR      = Join-Path $AGENT_TASKS  'codex_queue'
 $DONE_DIR       = Join-Path $AGENT_TASKS  'codex_done'
@@ -61,7 +61,7 @@ $TEMPLATE_FILE  = Join-Path $AGENT_TASKS  'codex_prompt_template.md'
 $GITIGNORE_FILE = Join-Path $CLAUDE_ROOT  '.gitignore'
 
 if (-not $ClaudeBranch) {
-    $ClaudeBranch = if ($env:FRCGW_CLAUDE_BRANCH) { $env:FRCGW_CLAUDE_BRANCH } else { 'solo/p3-final-boss-cleared' }
+    $ClaudeBranch = if ($env:FRCGW_CLAUDE_BRANCH) { $env:FRCGW_CLAUDE_BRANCH } else { 'memory-redesign-2026-05-16' }
 }
 $CLAUDE_BRANCH  = $ClaudeBranch
 $CODEX_BRANCH   = 'codex-work'
@@ -229,14 +229,14 @@ function Invoke-Init {
     if (-not (Test-Path $TEMPLATE_FILE)) {
         $tpl = @'
 You are the implementation agent for the FRCG-WM repo at
-C:\Users\computer\Desktop\NeurIPS2026_codex (worktree branch: codex-work).
+C:\Users\computer\Desktop\ICLR_WM_codex (worktree branch: codex-work).
 
 Your task is fully specified in: {{TASK_FILE}}
 Task name: {{TASK_NAME}}
 Task number: {{TASK_NUMBER}}
 
 Hard constraints:
-- Work only inside C:\Users\computer\Desktop\NeurIPS2026_codex.
+- Work only inside C:\Users\computer\Desktop\ICLR_WM_codex.
 - Do not modify: .claude/, CLAUDE.md, .mcp.json, .venv/, data/, outputs/,
   secrets/, .env*, paper_context_ref/, scripts/run_codex_task.ps1.
 - Use the existing Python venv at .venv. Use `python -m pip`, not bare pip.
