@@ -237,6 +237,15 @@ def _backfill_episode_timestamps(
     """
     import dataclasses
 
+    evidence_ts = next(
+        (
+            i
+            for i, step in enumerate(steps)
+            if step.evaluation_labels.true_wrong_hypothesis
+        ),
+        None,
+    )
+
     hyp_update_ts = None
     for i, step in enumerate(steps):
         if step.training_labels.valid_hypothesis_switch:
@@ -261,6 +270,7 @@ def _backfill_episode_timestamps(
     for step in steps:
         new_eval = dataclasses.replace(
             step.evaluation_labels,
+            evidence_timestamp=evidence_ts,
             hypothesis_update_timestamp=hyp_update_ts,
             recovery_timestamp=recovery_ts,
             ood_type=ood_type,
