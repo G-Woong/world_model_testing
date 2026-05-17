@@ -400,7 +400,7 @@ def cmd_cleanup_cache(args: argparse.Namespace) -> int:
     out_dir = repo_root / "outputs" / "lifecycle"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    if apply_mode and _git_is_dirty(repo_root):
+    if apply_mode and not args.allow_dirty and _git_is_dirty(repo_root):
         print(
             "[EXIT-4] Working tree is dirty; commit or stash before cache cleanup.",
             file=sys.stderr,
@@ -527,6 +527,8 @@ def build_parser() -> argparse.ArgumentParser:
     c = sub.add_parser("cleanup-cache", help="Delete cache dirs (pytest_cache/__pycache__/etc)")
     c.add_argument("--apply", action="store_true")
     c.add_argument("--confirm-cache-cleanup", action="store_true")
+    c.add_argument("--allow-dirty", action="store_true",
+                   help="Skip dirty working tree check (hook use only)")
     c.add_argument("--root", type=pathlib.Path, default=None,
                    help="Repository root (default: auto-detected)")
 

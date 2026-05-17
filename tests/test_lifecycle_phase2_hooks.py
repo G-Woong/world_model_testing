@@ -193,16 +193,23 @@ def test_hook_invokes_memory_promote():
     )
 
 
-# ── 13. Hook never uses --apply (preview-only enforcement) ───────────────────
+# ── 13. Hook --apply only appears with safe subcommands (Phase 4) ────────────
 
-def test_hook_still_no_apply():
+def test_hook_apply_only_for_safe_classes():
     src = HOOK_PATH.read_text(encoding="utf-8")
-    # Strip comment lines, then check no --apply present
     non_comment = "\n".join(
         ln for ln in src.splitlines()
         if not ln.lstrip().startswith("#")
     )
-    assert "--apply" not in non_comment, (
-        "stop_lifecycle_automation.ps1 must NEVER pass --apply "
-        "(hook is preview-only, Phase 3 policy)"
-    )
+    apply_lines = [ln for ln in non_comment.splitlines() if "--apply" in ln]
+    for ln in apply_lines:
+        assert "trash" in ln or "cleanup-cache" in ln, (
+            f"--apply must only appear with trash or cleanup-cache subcommand, got: {ln!r}"
+        )
+    # ARCHIVE_READY / MANUAL_ONLY / UNKNOWN must never have --apply on same line
+    forbidden_classes = ("ARCHIVE_READY", "MANUAL_ONLY", "UNKNOWN")
+    for ln in apply_lines:
+        for cls in forbidden_classes:
+            assert cls not in ln, (
+                f"--apply must not appear alongside {cls}: {ln!r}"
+            )

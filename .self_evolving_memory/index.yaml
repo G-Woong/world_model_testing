@@ -26,7 +26,17 @@ current_state:
   phase_gate: P3_EVAL
   gate_status: "BLOCKED: planning_calls_zero"
   open_blocker: "C3 LR claim — planning_rate=0.0 in P3 eval run"
-  lifecycle_phase: "Phase 3 (controlled automation rollout)"
+  lifecycle_phase: "Phase 4 (safe apply enabled)"
   phase2_status: "stop_lifecycle_automation hook wired; auto-trash NOT enabled"
   phase3_status: "lifecycle_trash_v2.py + restore + memory_promote deployed (dry-run in hook)"
+  phase4_status: "safe_apply_enabled"
+  stop_hook_mode: "changed_scope_safe_apply"
+  auto_apply_allowed_classes:
+    - "AUTO_SAFE_CACHE"
+    - "AUTO_SAFE_TEMP"
+  auto_apply_forbidden_classes:
+    - "PROTECTED"
+    - "ARCHIVE_READY"
+    - "MANUAL_ONLY"
+    - "UNKNOWN"
   next_milestone: "Lifecycle Phase G — ARCHIVE_READY auto git mv (after user review)"
