@@ -11,6 +11,7 @@ import argparse
 import builtins
 import datetime as _datetime
 import json
+import statistics
 import subprocess
 import sys
 from collections import defaultdict
@@ -41,6 +42,10 @@ from frcgw.schemas.step_schema import PublicObservation
 
 
 AgentFactory = Callable[[], Any]
+C5_DEGENERATE_PREDICTOR = "DEGENERATE_PREDICTOR"
+C5_OK = "OK"
+C5_NO_DATA = "NO_DATA"
+C5_AUDIT_FILENAME = "step4_ece_degenerate_predictor_audit.json"
 
 
 def _parse_args() -> argparse.Namespace:
@@ -187,6 +192,16 @@ class _TracingAgent:
                 "wrong_prob": getattr(self._agent, "last_wrong_prob", None),
                 "f_t": getattr(self._agent, "last_F_t", None),
                 "tau_f": getattr(self._agent, "_last_tau_f", None),
+                "selected_hypothesis_id": getattr(
+                    self._agent,
+                    "_last_selected_hypothesis_id",
+                    None,
+                ),
+                "selected_hypothesis_confidence": getattr(
+                    self._agent,
+                    "_last_selected_hypothesis_confidence",
+                    None,
+                ),
             }
         )
         return action, compute_log
@@ -247,6 +262,10 @@ def _attach_trace_records(
                     "wrong_prob": float(wrong_prob),
                     "planning_calls": int(trace.get("planning_calls") or 0),
                     "rollout_steps": int(trace.get("rollout_steps") or 0),
+                    "selected_hypothesis_id": trace.get("selected_hypothesis_id"),
+                    "selected_hypothesis_confidence": trace.get(
+                        "selected_hypothesis_confidence"
+                    ),
                     "observed_effect_type": observed_effect.get(
                         "effect_type",
                         training_labels.get("true_action_effect_type", "unknown"),
@@ -301,8 +320,10 @@ def _write_per_step_jsonl(
                 "split": split,
                 "action_id": record["action_id"],
                 "action_type": record["action_type"],
-                "selected_hypothesis_id": None,
-                "selected_hypothesis_confidence": None,
+                "selected_hypothesis_id": record.get("selected_hypothesis_id"),
+                "selected_hypothesis_confidence": record.get(
+                    "selected_hypothesis_confidence"
+                ),
                 "f_t": record["f_t"],
                 "tau_f": record.get("tau_f"),
                 "predicted_wrong": record["predicted_wrong"],
@@ -400,6 +421,71 @@ def _mean(values: list[float]) -> float | None:
     return sum(values) / len(values) if values else None
 
 
+def _compute_c5_calibration_audit(
+    wrong_probs: list[float],
+    f_t_values: list[float] | None = None,
+) -> dict[str, Any]:
+    f_t_values = f_t_values or []
+    if wrong_probs:
+        variance = statistics.pvariance(wrong_probs)
+        unique_count = len(set(wrong_probs))
+        mean_wp = sum(wrong_probs) / len(wrong_probs)
+        mean_f_t = sum(f_t_values) / len(f_t_values) if f_t_values else None
+        f_t_constant_zero = mean_f_t is None or mean_f_t == 0.0
+        if variance < 1e-6 and unique_count < 2 and mean_wp == 0.0 and f_t_constant_zero:
+            c5_status = C5_DEGENERATE_PREDICTOR
+        else:
+            c5_status = C5_OK
+    else:
+        variance = None
+        unique_count = None
+        mean_wp = None
+        mean_f_t = None
+        c5_status = C5_NO_DATA
+
+    return {
+        "n_steps": len(wrong_probs),
+        "variance_wrong_prob": variance,
+        "unique_wrong_prob_count": unique_count,
+        "mean_wrong_prob": mean_wp,
+        "mean_f_t": mean_f_t,
+        "C5_calibration_status": c5_status,
+    }
+
+
+def _collect_trace_float_values(
+    all_results: list[tuple[str, int, EvaluationResult]],
+    key: str,
+) -> list[float]:
+    values: list[float] = []
+    for _agent_id, _seed, result in all_results:
+        for record in getattr(result, "_real_eval_step_records", []):
+            value = record.get(key)
+            if value is not None:
+                values.append(float(value))
+    return values
+
+
+def _build_c5_calibration_audit(
+    all_results: list[tuple[str, int, EvaluationResult]],
+) -> dict[str, Any]:
+    return _compute_c5_calibration_audit(
+        _collect_trace_float_values(all_results, "wrong_prob"),
+        _collect_trace_float_values(all_results, "f_t"),
+    )
+
+
+def _write_ece_degenerate_predictor_audit(
+    audit_payload: dict[str, Any],
+    audit_dir: Path | None = None,
+) -> Path:
+    target_dir = audit_dir or (REPO_ROOT / "outputs" / "audits")
+    target_dir.mkdir(parents=True, exist_ok=True)
+    path = target_dir / C5_AUDIT_FILENAME
+    path.write_text(json.dumps(audit_payload, indent=2), encoding="utf-8")
+    return path
+
+
 def _metric(value: float | None, status: str = "OK") -> dict[str, Any]:
     return {"value": value, "status": status}
 
@@ -418,6 +504,8 @@ def _build_metrics_with_blocked_markers(
     for agent_id, _seed, result in all_results:
         by_agent[agent_id].append(result)
 
+    c5_audit = _build_c5_calibration_audit(all_results)
+    c5_status = str(c5_audit["C5_calibration_status"])
     agents_payload: dict[str, dict[str, Any]] = {}
     blocked_count = 0
     for agent_id, results in by_agent.items():
@@ -466,8 +554,12 @@ def _build_metrics_with_blocked_markers(
             payload["C3_recovery_delay"] = _blocked("BLOCKED_no_recovery_timestamp")
         else:
             payload["C3_recovery_delay"] = _metric(_mean(values("recovery_delay")))
-        if dataset_audit.get("selected_hypothesis_confidence_coverage", 0) == 0:
+        if c5_status == C5_DEGENERATE_PREDICTOR:
+            payload["C5_calibration_ece"] = _blocked("BLOCKED_DEGENERATE_PREDICTOR")
+        elif dataset_audit.get("selected_hypothesis_confidence_coverage", 0) == 0:
             payload["C5_calibration_ece"] = _blocked("BLOCKED_no_confidence_label")
+        elif c5_status == C5_NO_DATA:
+            payload["C5_calibration_ece"] = _blocked("BLOCKED_no_wrong_prob_trace")
         else:
             payload["C5_calibration_ece"] = _metric(
                 _mean(values("falsification_calibration"))
@@ -498,6 +590,8 @@ def _build_metrics_with_blocked_markers(
         "dataset_audit": dataset_audit,
         "fake_metric_count": 0,
         "blocked_metric_count": blocked_count,
+        "C5_calibration_status": c5_status,
+        "C5_calibration_audit": c5_audit,
     }
 
 
@@ -516,6 +610,7 @@ def _write_manifest(
         if spec.get("class") == "TextFRCGModelAgent"
     ]
     ckpt_paths_all_provided = all(bool(spec.get("ckpt_path")) for spec in text_specs)
+    valid_trained_eval = ckpt_paths_all_provided
     random_init_ok = ckpt_paths_all_provided
     hard_checks_all_pass = (
         metrics_payload.get("fake_metric_count") == 0
@@ -537,7 +632,9 @@ def _write_manifest(
         "forbidden_source_assertion": forbidden_source_assertion,
         "random_init_ok": random_init_ok,
         "ckpt_paths_all_provided": ckpt_paths_all_provided,
+        "valid_trained_eval": valid_trained_eval,
         "hard_checks_all_pass": hard_checks_all_pass,
+        "C5_calibration_status": metrics_payload.get("C5_calibration_status"),
         "dataset_audit": dataset_audit,
         "fake_metric_count": metrics_payload.get("fake_metric_count"),
         "blocked_metric_count": metrics_payload.get("blocked_metric_count"),
@@ -596,6 +693,9 @@ def main() -> int:
             all_results,
             config,
             dataset_audit,
+        )
+        _write_ece_degenerate_predictor_audit(
+            dict(metrics_payload.get("C5_calibration_audit") or {})
         )
         _write_manifest(config, out_dir, metrics_payload, forbidden_source_assertion, dataset_audit)
         (out_dir / "metrics.json").write_text(

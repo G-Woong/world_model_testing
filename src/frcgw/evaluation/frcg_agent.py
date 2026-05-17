@@ -72,6 +72,8 @@ class TextFRCGModelAgent(BaselineAgent):
         self._last_predicted_wrong: bool = False
         self._last_wrong_prob: float = 0.5
         self._last_tau_f: float = self.gate_config.tau_f
+        self._last_selected_hypothesis_id: str | None = None
+        self._last_selected_hypothesis_confidence: float | None = None
 
     def reset(self) -> None:
         self._planner_state = PlannerState()
@@ -80,6 +82,8 @@ class TextFRCGModelAgent(BaselineAgent):
         self._last_predicted_wrong = False
         self._last_wrong_prob = 0.5
         self._last_tau_f = self.gate_config.tau_f
+        self._last_selected_hypothesis_id = None
+        self._last_selected_hypothesis_confidence = None
 
     def act(
         self,
@@ -100,9 +104,11 @@ class TextFRCGModelAgent(BaselineAgent):
             # Forward pass to get posterior for falsification signal
             model_out = self.model.forward(obs)
             # Retained for ABL-022/ABL-023 compatibility; full-model trace uses F_t below.
-            max_grammar_prob = float(
-                F.softmax(model_out.z_grammar_logits, dim=-1).max().item()
-            )
+            grammar_probs = F.softmax(model_out.z_grammar_logits, dim=-1)
+            best_grammar_idx = int(grammar_probs.argmax().item())
+            max_grammar_prob = float(grammar_probs.max().item())
+            self._last_selected_hypothesis_id = f"grammar_{best_grammar_idx}"
+            self._last_selected_hypothesis_confidence = max_grammar_prob
 
             action, plan_meta = text_frcg_plan(
                 obs,
