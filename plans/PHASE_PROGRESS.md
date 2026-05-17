@@ -18,6 +18,7 @@ gate 명령: `/frcgw-phase-check`
 | P2 | PASS | 2026-05-08 | text-only data generator complete — 101 tests pass, coverage all thresholds met, leakage PASS, sentinel P2.passed created |
 | P3 | PASS | 2026-05-09 | tiny text FRCG model complete — 166 tests pass (65 new), leakage PASS, F_t/gate/rewrite/planner all implemented, sentinel P3.passed created |
 | P3_LR_REAL_EVAL | PASS | 2026-05-17 | Real episode-level eval runner (STEP 2) — 14 tests pass, fake_metric_count=0, forbidden_source_assertion=none_read, 66 BLOCKED markers all null. random_init_ok=False (advisory, P3 pre-training normal). sentinel P3_LR_REAL_EVAL.passed created |
+| P3_STEP3_DATASET_BACKFILL | PASS | 2026-05-17 | Dataset v0.2 label backfill + LR wire-up (STEP 3) — 48 tests pass (1 skipped ABL-023 marker), 4 fields 0→>0 coverage, fake_metric_count=0, C1/C3/C5 status=OK, tau_f=0.5 non-null, predicted_wrong distribution changed. T4: C5 ECE=0.025 is degenerate-predictor artifact; C1 PARTIALLY_COMPUTABLE (evidence_timestamp missing). sentinel P3_STEP3_DATASET_BACKFILL.passed created |
 | P4 | PENDING | — | synthetic GUI MVE collector |
 | P5 | PENDING | — | frozen VLM MVE model |
 | P6 | PENDING | — | core baselines/ablations compute-matched |
@@ -63,3 +64,4 @@ gate 명령: `/frcgw-phase-check`
 - 2026-05-16T22:56:05Z | branch: memory-redesign-2026-05-16 | passed_gates: P1.5, P1, P2, P3, P3_EVAL | SoT: docs/orchestration/session_reports/2026-05/2026-05-16_precompact_handoff.md
 - 2026-05-17T12:53:52Z | branch: memory-redesign-2026-05-16 | passed_gates: P1.5, P1, P2, P3, P3_EVAL, P3_LR_EVAL | SoT: docs/orchestration/session_reports/2026-05/2026-05-17_precompact_handoff.md
 - 2026-05-17T17:00:19Z | branch: memory-redesign-2026-05-16 | passed_gates: P1.5, P1, P2, P3, P3_EVAL, P3_LR_EVAL | SoT: docs/orchestration/session_reports/2026-05/2026-05-17_precompact_handoff.md
+- 2026-05-17T21:29:21Z | branch: memory-redesign-2026-05-16 | passed_gates: P1.5, P1, P2, P3, P3_EVAL, P3_LR_EVAL, P3_LR_REAL_EVAL | SoT: docs/orchestration/session_reports/2026-05/2026-05-17_precompact_handoff.md
