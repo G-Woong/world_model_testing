@@ -50,8 +50,11 @@ $ErrorActionPreference = 'Stop'
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
 # ─────────────────────────────────────────────────────────────────────────────
-$CLAUDE_ROOT    = 'C:\Users\computer\Desktop\ICLR_WM_claude-code'
-$CODEX_ROOT     = 'C:\Users\computer\Desktop\ICLR_WM_codex'
+# Load shared sync constants: CLAUDE_ROOT, CODEX_ROOT, CLAUDE_BRANCH_DEFAULT,
+# CODEX_BRANCH, FORBIDDEN_PATTERNS, Test-CodexSyncEnv (read-only).
+$_syncConstFile = Join-Path (Split-Path $PSScriptRoot) '.claude\lib\codex_sync_constants.ps1'
+. $_syncConstFile
+
 $AGENT_TASKS    = Join-Path $CLAUDE_ROOT '.agent_tasks'
 $QUEUE_DIR      = Join-Path $AGENT_TASKS  'codex_queue'
 $DONE_DIR       = Join-Path $AGENT_TASKS  'codex_done'
@@ -60,11 +63,17 @@ $LOCK_FILE      = Join-Path $AGENT_TASKS  '.lock'
 $TEMPLATE_FILE  = Join-Path $AGENT_TASKS  'codex_prompt_template.md'
 $GITIGNORE_FILE = Join-Path $CLAUDE_ROOT  '.gitignore'
 
+# Lag threshold: override with env:FRCGW_CODEX_LAG_THRESHOLD (integer) for case-by-case.
+$LAG_BEHIND_THRESHOLD = $(
+    $envLag = $env:FRCGW_CODEX_LAG_THRESHOLD -as [int]
+    if ($envLag -and $envLag -gt 0) { $envLag } else { 5 }
+)
+
 if (-not $ClaudeBranch) {
-    $ClaudeBranch = if ($env:FRCGW_CLAUDE_BRANCH) { $env:FRCGW_CLAUDE_BRANCH } else { 'memory-redesign-2026-05-16' }
+    $ClaudeBranch = if ($env:FRCGW_CLAUDE_BRANCH) { $env:FRCGW_CLAUDE_BRANCH } else { $CLAUDE_BRANCH_DEFAULT }
 }
 $CLAUDE_BRANCH  = $ClaudeBranch
-$CODEX_BRANCH   = 'codex-work'
+# $CODEX_BRANCH provided by codex_sync_constants.ps1
 
 # Resolve codex runner: on Windows npm installs codex as .cmd/.ps1 which
 # Start-Process cannot handle; resolve to node + codex.js directly.
@@ -101,17 +110,8 @@ $REQUIRED_HEADERS = @(
     'STOP_CONDITION:'
 )
 
-$FORBIDDEN_PATTERNS = @(
-    '^\.claude/',
-    '^CLAUDE\.md$',
-    '^\.mcp\.json$',
-    '^\.venv/',
-    '^data/',
-    '^outputs/',
-    '^secrets/',
-    '^\.env',
-    '^scripts/run_codex_task\.ps1$'
-)
+# FORBIDDEN_PATTERNS loaded from codex_sync_constants.ps1 (base patterns; paper_context_ref/ excluded).
+# Mirror obligation: must stay in sync with codex_orchestration_rules.md §"Codex 절대 수정 금지 경로".
 if (-not $AllowPaperContextRef) {
     $FORBIDDEN_PATTERNS += '^paper_context_ref/'
 }
@@ -354,6 +354,9 @@ function Invoke-Dispatch {
     $baseSha = $ctx.BaseSha
     Write-Step "Mode: dispatch | task=$name | num=$num | base=$baseSha"
 
+    # [Self-check] Path/repo/origin invariant — dispatch only (사례 7 재발 방지)
+    Test-CodexSyncEnv -ExitOnFail
+
     # [Pre-check 1] Lock
     if (Test-Path $LOCK_FILE) {
         Write-Fail "Lock file exists: $LOCK_FILE — another dispatch may be running. Remove manually if stale."
@@ -374,6 +377,66 @@ function Invoke-Dispatch {
         exit 10
     }
     Write-Step "Divergence check: clean"
+
+    # [Pre-check 3] Lag threshold — codex must not be too far behind main
+    $lagBehind = 0
+    $rawLag = (git -C $CODEX_ROOT rev-list --count "${CODEX_BRANCH}..${CLAUDE_BRANCH}" 2>$null) -join ''
+    if ($rawLag -match '^\d+$') { $lagBehind = [int]$rawLag }
+
+    if ($lagBehind -ge $LAG_BEHIND_THRESHOLD) {
+        Write-Fail "BLOCKER: codex behind main by $lagBehind commits (>=$LAG_BEHIND_THRESHOLD)"
+        Write-Fail "Action: review main commits, write DECISIONS_REQUIRED, get human approval"
+        Write-Fail "Override: set env:FRCGW_CODEX_LAG_THRESHOLD=<larger> if intentional"
+        exit 10
+    }
+    Write-Step "Lag check: codex behind by $lagBehind commits (threshold=$LAG_BEHIND_THRESHOLD)"
+
+    # [Pre-check 4] Forbidden paths in incoming main commits
+    # Exclusion list: tracking metadata / harness — allowed in incoming but still FORBIDDEN
+    # in Codex's own diff at prepare-merge. data/**, outputs/runs/**, secrets/**, .env* kept.
+    $INCOMING_CHECK_EXCLUSIONS = @('^outputs/phase_gates/', '^outputs/lifecycle/', '^scripts/run_codex_task\.ps1$')
+    $incomingRaw      = @(git -C $CODEX_ROOT diff --name-only "${CODEX_BRANCH}...${CLAUDE_BRANCH}" 2>$null |
+                          Where-Object { $_ -and $_.Trim() })
+    $incomingExcluded = @($incomingRaw | Where-Object {
+        $fi = $_; (@($INCOMING_CHECK_EXCLUSIONS | Where-Object { $fi -match $_ })).Count -gt 0
+    })
+    $incomingChecked  = @($incomingRaw | Where-Object {
+        $fi = $_; (@($INCOMING_CHECK_EXCLUSIONS | Where-Object { $fi -match $_ })).Count -eq 0
+    })
+    $incomingForbidden = @($incomingChecked | Where-Object {
+        $fi = $_
+        (@($FORBIDDEN_PATTERNS | Where-Object { $fi -match $_ })).Count -gt 0
+    })
+    if ($incomingExcluded.Count -gt 0) {
+        Write-Step "Incoming tracking-exclusions (allowed in incoming only): $($incomingExcluded -join ', ')"
+    }
+    if ($incomingForbidden.Count -gt 0) {
+        Write-Fail "BLOCKER: forbidden_paths in incoming main commits:"
+        $incomingForbidden | ForEach-Object { Write-Fail "  $_" }
+        Write-Fail "Action: confirm intended Codex visibility before fast-forward"
+        exit 10
+    }
+    Write-Step "Forbidden-in-incoming check: clean (files=$($incomingRaw.Count), excluded=$($incomingExcluded.Count))"
+
+    # [Pre-check 5] ff-only pre-check — read-only: verify codex-work is ancestor of CLAUDE_BRANCH
+    if ($DryRun) {
+        Write-Host "[DRY] merge-base --is-ancestor $CODEX_BRANCH $CLAUDE_BRANCH  (ff pre-check)"
+        Write-Host "[DRY] git status --porcelain  (dirty worktree pre-check)"
+    } else {
+        git -C $CODEX_ROOT merge-base --is-ancestor $CODEX_BRANCH $CLAUDE_BRANCH 2>$null
+        $ffPreCode = $LASTEXITCODE
+        if ($ffPreCode -ne 0) {
+            Write-Fail "BLOCKER: ff-only pre-check failed: $CODEX_BRANCH is not an ancestor of $CLAUDE_BRANCH"
+            Write-Fail "Action: resolve diverged history before dispatch"
+            exit 10
+        }
+        $codexStatusPre = (git -C $CODEX_ROOT status --porcelain 2>$null) -join ''
+        if ($codexStatusPre -ne '') {
+            Write-Fail "BLOCKER: codex worktree has uncommitted changes before ff-only sync"
+            exit 10
+        }
+        Write-Step "ff-only pre-check: OK ($CODEX_BRANCH is ancestor of $CLAUDE_BRANCH, worktree clean)"
+    }
 
     # [Codex worktree sync] ff-only preferred; abort if fast-forward impossible
     if ($DryRun) {
