@@ -1,0 +1,147 @@
+TASK_NAME: TASK_1038_step4_evidence_timestamp
+SANDBOX_MODE: bypass
+
+BACKGROUND: |
+  FRCG-WM STEP 4 — B0 blocker.
+  collector.py:223 `evidence_timestamp=pre_state.step_index` 는 의미 오류다.
+  모든 step이 자기 인덱스를 evidence_timestamp로 emit하므로 C1 metric
+  (wrong_grammar_persistence = hypothesis_update_ts - evidence_ts)이 신뢰 불가.
+
+  올바른 정의 (eval_runner.py:255 SSoT):
+    evidence_timestamp = first step index where true_wrong_hypothesis is True
+                         in the episode.
+
+  _backfill_episode_timestamps (collector.py:230-269)는 이미 hypothesis_update_ts와
+  recovery_ts를 episode post-pass로 채우고 있다. 같은 방식으로 evidence_ts도 채운다.
+
+  불변식:
+  - evidence_timestamp <= hypothesis_update_timestamp (둘 다 non-null이면)
+  - evidence_timestamp <= recovery_timestamp (둘 다 non-null이면)
+  - episode 내 true_wrong_hypothesis=True가 없으면 evidence_timestamp=None
+  - metrics.py:84 if None: continue 처리로 이미 None 안전 처리됨
+
+GOAL: |
+  1. collector.py `_backfill_episode_timestamps` 함수에 evidence_ts 계산 추가
+  2. backfill loop에서 evidence_timestamp도 dataclasses.replace로 덮어씀
+  3. tests/test_step4_evidence_timestamp.py 에 8개 테스트 작성
+
+FILES_ALLOWED: |
+  src/frcgw/text_env/collector.py
+  tests/test_step4_evidence_timestamp.py
+
+FILES_FORBIDDEN: |
+  src/frcgw/schemas/visibility.py
+  paper_context_ref/
+  data/
+  .claude/settings.json
+  scripts/run_codex_task.ps1
+  src/frcgw/evaluation/frcg_agent.py
+  scripts/10_run_lr_real_eval.py
+  src/frcgw/evaluation/eval_runner.py
+  src/frcgw/evaluation/metrics.py
+  configs/
+  outputs/
+
+REQUIRED_IMPLEMENTATION: |
+  collector.py `_backfill_episode_timestamps` 확장:
+
+  ```python
+  def _backfill_episode_timestamps(
+      steps: list[StepRecord],
+      ood_type: str | None,
+  ) -> list[StepRecord]:
+      import dataclasses
+
+      # evidence_ts: first step where true_wrong_hypothesis is True
+      evidence_ts = next(
+          (i for i, step in enumerate(steps)
+           if step.evaluation_labels.true_wrong_hypothesis),
+          None,
+      )
+
+      hyp_update_ts = None
+      for i, step in enumerate(steps):
+          if step.training_labels.valid_hypothesis_switch:
+              hyp_update_ts = i
+              break
+
+      recovery_ts = None
+      for i, step in enumerate(steps):
+          if i == 0:
+              continue
+          prior_wrong = steps[i - 1].evaluation_labels.true_wrong_hypothesis
+          tl = step.training_labels
+          if (
+              prior_wrong
+              and step.action.action_type == tl.recovery_action_id
+              and tl.progress_delta > 0
+          ):
+              recovery_ts = i
+              break
+
+      patched = []
+      for step in steps:
+          new_eval = dataclasses.replace(
+              step.evaluation_labels,
+              evidence_timestamp=evidence_ts,          # NEW
+              hypothesis_update_timestamp=hyp_update_ts,
+              recovery_timestamp=recovery_ts,
+              ood_type=ood_type,
+          )
+          patched.append(dataclasses.replace(step, evaluation_labels=new_eval))
+      return patched
+  ```
+
+  주의: `_build_evaluation_labels` (L209-227)는 수정하지 않는다.
+  backfill에서만 evidence_ts를 덮어쓴다.
+
+REQUIRED_TESTS: |
+  tests/test_step4_evidence_timestamp.py — 8개 테스트:
+
+  1. test_evidence_timestamp_is_first_true_wrong_step
+     - episode에서 step 2가 first true_wrong_hypothesis=True이면 evidence_ts=2
+
+  2. test_evidence_timestamp_none_when_no_true_wrong_in_episode
+     - 모든 step에서 true_wrong_hypothesis=False이면 evidence_ts=None
+
+  3. test_evidence_timestamp_not_in_public_observation
+     - StepRecord.public_observation에 evidence_timestamp 없음 (leakage guard)
+
+  4. test_evidence_timestamp_not_in_history_public
+     - PublicHistoryItem에 evidence_timestamp 없음
+
+  5. test_evidence_timestamp_not_in_candidate_actions
+     - CandidateAction에 evidence_timestamp 없음
+
+  6. test_evidence_timestamp_leq_hypothesis_update_when_both_present
+     - 둘 다 non-null이면 evidence_ts <= hypothesis_update_ts
+
+  7. test_evidence_timestamp_leq_recovery_when_both_present
+     - 둘 다 non-null이면 evidence_ts <= recovery_ts
+
+  8. test_c1_persistence_changes_after_evidence_timestamp_fix
+     - backfill 전: evidence_timestamp == step_index (old bug)
+     - backfill 후: evidence_timestamp == first_wrong_step (fixed)
+     - persistence 값이 변경됨을 확인
+
+ACCEPTANCE_CRITERIA: |
+  - pytest tests/test_step4_evidence_timestamp.py -q → 8/8 PASSED
+  - data/frcgw_text/v0_1/ 및 data/frcgw_text/v0_2/ 파일 미수정 (mtime 불변)
+  - _backfill_episode_timestamps 함수만 변경; collector의 다른 로직 미변경
+  - visibility.py FORBIDDEN_AGENT_FIELDS 미수정
+  - tests/test_forbidden_field_mirror_sync.py PASSED (회귀)
+  - tests/test_step3_dataset_backfill.py PASSED (회귀)
+
+COMMIT_MESSAGE: |
+  feat(step4/task1): evidence_timestamp semantic fix in _backfill_episode_timestamps
+
+  B0 blocker: collector.py was emitting evidence_timestamp=pre_state.step_index
+  (self-index per step). Now backfills evidence_timestamp = first step where
+  true_wrong_hypothesis=True in the episode (matching eval_runner.py:255 SSoT).
+  Fixes wrong_grammar_persistence (C1 metric) which was uncomputable before.
+
+  8 new tests in test_step4_evidence_timestamp.py.
+
+STOP_CONDITION: |
+  8 tests green, FILES_FORBIDDEN 미수정, v0_1/v0_2 mtime 불변.
+  이 외 조건 미충족 시 RESULT.md에 BLOCKED 사유 기록 후 중단.
