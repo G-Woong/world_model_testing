@@ -1,0 +1,25 @@
+# errors/error_memory.yaml — recurring error pattern log
+# schema per entry:
+#   id:                 ERR-NNN
+#   first_seen:         YYYY-MM-DD
+#   last_seen:          YYYY-MM-DD
+#   count:              integer
+#   description:        short description
+#   resolution_status:  OPEN | RESOLVED | KNOWN_LIMITATION
+#   resolution:         how it was fixed (if RESOLVED)
+#   notes:              additional context / re-occurrence guard
+
+errors:
+  - id: ERR-001
+    first_seen: "2026-05-16"
+    last_seen: "2026-05-16"
+    count: 1
+    description: >
+      semantic-scholar-mcp connection failure — cli.py missing err=True patch
+      after tool installation
+    resolution_status: RESOLVED
+    resolution: "Applied err=True patch to 14 locations in cli.py per runbook"
+    notes: >
+      Re-apply after every `uv tool upgrade semantic-scholar-mcp`.
+      Patch runbook: docs/orchestration/session_reports/2026-05/2026-05-16_semantic_scholar_mcp_connection_fix.md
+      Verification: `Select-String -Pattern 'err=True' <cli.py path> | Measure-Object` → 14건

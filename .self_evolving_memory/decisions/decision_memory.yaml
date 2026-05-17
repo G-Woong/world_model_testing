@@ -1,0 +1,34 @@
+# decisions/decision_memory.yaml — key design and policy decisions
+# schema per entry:
+#   id:                   DEC-NNN
+#   date:                 YYYY-MM-DD
+#   decision:             what was decided
+#   rationale:            why
+#   alternatives_rejected: list of rejected alternatives
+#   reversible:           true | false
+#   ref:                  source document
+
+decisions:
+  - id: DEC-001
+    date: "2026-05-16"
+    decision: "enableAllProjectMcpServers: false — R2 Lock (permanent)"
+    rationale: "Prevent unauthorized MCP server activation; security boundary"
+    alternatives_rejected:
+      - "enableAllProjectMcpServers: true (too permissive)"
+      - "per-server allowlist only (insufficient for untrusted servers)"
+    reversible: false
+    ref: "docs/orchestration/10_MCP_SECURITY_POLICY.md §2"
+
+  - id: DEC-002
+    date: "2026-05-17"
+    decision: >
+      Lifecycle automation Phase 1 = dry-run only engine + memory skeleton.
+      No hook changes, no settings.json changes, no file moves.
+    rationale: >
+      Avoid breaking fragile invariants (.claude/settings.json, stop hooks)
+      in the first iteration. Establish safe read-only foundation first.
+    alternatives_rejected:
+      - "Immediate hook integration (risks stop_auto_commit.ps1 breakage)"
+      - "Direct file archiving (no human review step)"
+    reversible: true
+    ref: "docs/orchestration/19_LIFECYCLE_AUTOMATION_V2_MASTER_PLAN.md"

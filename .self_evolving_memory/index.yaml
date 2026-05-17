@@ -1,0 +1,24 @@
+# .self_evolving_memory/index.yaml
+# machine-readable master pointer
+# generated: 2026-05-17 (Phase 1 skeleton)
+
+schema_version: "1.0.0"
+phase: "Phase 1 skeleton — hook-free"
+
+pointers:
+  errors: errors/error_memory.yaml
+  decisions: decisions/decision_memory.yaml
+  active_direction: directions/active_direction.md
+  parking_lot: directions/parking_lot.md
+  successful_patterns: patterns/successful_patterns.md
+  anti_patterns: patterns/anti_patterns.md
+  hook_log: hooks/hook_execution_log.md
+  run_summaries_dir: run_summaries/
+
+current_state:
+  branch: memory-redesign-2026-05-16
+  phase_gate: P3_EVAL
+  gate_status: "BLOCKED: planning_calls_zero"
+  open_blocker: "C3 LR claim — planning_rate=0.0 in P3 eval run"
+  lifecycle_phase: "Phase 1 (dry-run engine + skeleton complete)"
+  next_milestone: "Lifecycle Phase E — stop hook integration (requires separate user approval)"
