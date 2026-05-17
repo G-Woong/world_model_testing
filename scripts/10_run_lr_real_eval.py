@@ -186,6 +186,7 @@ class _TracingAgent:
                 "predicted_wrong": getattr(self._agent, "last_predicted_wrong", None),
                 "wrong_prob": getattr(self._agent, "last_wrong_prob", None),
                 "f_t": getattr(self._agent, "last_F_t", None),
+                "tau_f": getattr(self._agent, "_last_tau_f", None),
             }
         )
         return action, compute_log
@@ -241,6 +242,7 @@ def _attach_trace_records(
                     "action_id": trace.get("action_id", "unknown"),
                     "action_type": trace.get("action_type", "unknown"),
                     "f_t": trace.get("f_t"),
+                    "tau_f": trace.get("tau_f"),
                     "predicted_wrong": bool(predicted_wrong),
                     "wrong_prob": float(wrong_prob),
                     "planning_calls": int(trace.get("planning_calls") or 0),
@@ -276,6 +278,7 @@ def _write_per_step_jsonl(
                 "action_id": "unknown",
                 "action_type": "unknown",
                 "f_t": None,
+                "tau_f": None,
                 "predicted_wrong": False,
                 "wrong_prob": 0.0,
                 "planning_calls": 0,
@@ -301,7 +304,7 @@ def _write_per_step_jsonl(
                 "selected_hypothesis_id": None,
                 "selected_hypothesis_confidence": None,
                 "f_t": record["f_t"],
-                "tau_f": None,
+                "tau_f": record.get("tau_f"),
                 "predicted_wrong": record["predicted_wrong"],
                 "wrong_prob": record["wrong_prob"],
                 "planning_calls": record["planning_calls"],
