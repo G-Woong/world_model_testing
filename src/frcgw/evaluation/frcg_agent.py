@@ -6,6 +6,7 @@ Source MDs:
 """
 from __future__ import annotations
 
+import math
 from dataclasses import replace  # used for always_plan gate_mode override
 from pathlib import Path
 
@@ -18,6 +19,12 @@ from frcgw.models.text_frcg_model import TextFRCGModel
 from frcgw.planning.decision_gate import GateConfig
 from frcgw.planning.planner import PlannerState, text_frcg_plan
 from frcgw.schemas.step_schema import CandidateAction, PublicObservation
+
+
+def _sigmoid(x: float) -> float:
+    """Numerically stable sigmoid with +/-50 clamp."""
+    x = max(-50.0, min(50.0, x))
+    return 1.0 / (1.0 + math.exp(-x))
 
 
 class TextFRCGModelAgent(BaselineAgent):
@@ -57,11 +64,14 @@ class TextFRCGModelAgent(BaselineAgent):
         # For default n_grammars=8, uniform gives max=0.125 (always predicts wrong).
         # A trained model concentrating on 1 grammar gives max≈1.0 (predicts correct).
         self._confidence_threshold: float = 0.4
+        # _confidence_threshold kept for ABL-022/ABL-023 subclass compatibility
+        # predicted_wrong now uses F_t > tau_f (paper contract: MET-FALS-001/002)
         self._planner_state = PlannerState()
         self._step_idx = 0
         self._last_F_t: float = 0.0
         self._last_predicted_wrong: bool = False
         self._last_wrong_prob: float = 0.5
+        self._last_tau_f: float = self.gate_config.tau_f
 
     def reset(self) -> None:
         self._planner_state = PlannerState()
@@ -69,6 +79,7 @@ class TextFRCGModelAgent(BaselineAgent):
         self._last_F_t = 0.0
         self._last_predicted_wrong = False
         self._last_wrong_prob = 0.5
+        self._last_tau_f = self.gate_config.tau_f
 
     def act(
         self,
@@ -88,12 +99,10 @@ class TextFRCGModelAgent(BaselineAgent):
         with torch.no_grad():
             # Forward pass to get posterior for falsification signal
             model_out = self.model.forward(obs)
-            # wrong_prob = 1 - max P(grammar): low max confidence → likely wrong hypothesis
+            # Retained for ABL-022/ABL-023 compatibility; full-model trace uses F_t below.
             max_grammar_prob = float(
                 F.softmax(model_out.z_grammar_logits, dim=-1).max().item()
             )
-            self._last_wrong_prob = 1.0 - max_grammar_prob
-            self._last_predicted_wrong = max_grammar_prob < self._confidence_threshold
 
             action, plan_meta = text_frcg_plan(
                 obs,
@@ -105,6 +114,10 @@ class TextFRCGModelAgent(BaselineAgent):
             )
 
         self._last_F_t = float(plan_meta.F_t)
+        tau_f = float(self.gate_config.tau_f)
+        self._last_tau_f = tau_f
+        self._last_predicted_wrong = self._last_F_t > tau_f
+        self._last_wrong_prob = _sigmoid(self._last_F_t - tau_f)
         self._step_idx += 1
 
         planned = plan_meta.planned
@@ -124,9 +137,13 @@ class TextFRCGModelAgent(BaselineAgent):
 
     @property
     def last_wrong_prob(self) -> float:
-        """P(wrong hypothesis) = 1 - max P(grammar) from model posterior."""
+        """P(wrong hypothesis) = sigmoid(F_t - tau_f) from the LR falsification score."""
         return self._last_wrong_prob
 
     @property
     def last_F_t(self) -> float:
         return self._last_F_t
+
+    @property
+    def last_tau_f(self) -> float:
+        return self._last_tau_f
