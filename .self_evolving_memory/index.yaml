@@ -3,7 +3,7 @@
 # generated: 2026-05-17 (Phase 1 skeleton)
 
 schema_version: "1.0.0"
-phase: "Phase 1 skeleton — hook-free"
+phase: "Phase 2 — stop hook dry-run connected"
 
 pointers:
   errors: errors/error_memory.yaml
@@ -14,11 +14,19 @@ pointers:
   anti_patterns: patterns/anti_patterns.md
   hook_log: hooks/hook_execution_log.md
   run_summaries_dir: run_summaries/
+  latest_lifecycle_audit: ../outputs/lifecycle/latest_stop_hook_audit.md
+  lifecycle_engine_audit: ../outputs/lifecycle/latest_audit.md
+  latest_trash_preview: ../outputs/lifecycle/latest_trash_preview.md
+  latest_cache_cleanup_preview: ../outputs/lifecycle/latest_cache_cleanup_preview.md
+  error_memory: errors/error_memory.yaml
+  recurring_errors: errors/recurring_errors.md
 
 current_state:
   branch: memory-redesign-2026-05-16
   phase_gate: P3_EVAL
   gate_status: "BLOCKED: planning_calls_zero"
   open_blocker: "C3 LR claim — planning_rate=0.0 in P3 eval run"
-  lifecycle_phase: "Phase 1 (dry-run engine + skeleton complete)"
-  next_milestone: "Lifecycle Phase E — stop hook integration (requires separate user approval)"
+  lifecycle_phase: "Phase 3 (controlled automation rollout)"
+  phase2_status: "stop_lifecycle_automation hook wired; auto-trash NOT enabled"
+  phase3_status: "lifecycle_trash_v2.py + restore + memory_promote deployed (dry-run in hook)"
+  next_milestone: "Lifecycle Phase G — ARCHIVE_READY auto git mv (after user review)"

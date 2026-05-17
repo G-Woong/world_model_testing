@@ -1,16 +1,26 @@
 # errors/error_memory.yaml — recurring error pattern log
-# schema per entry:
+# schema per entry (Phase 3 extended):
 #   id:                 ERR-NNN
+#   signature:          hook sig= token (for auto-promoted entries)
 #   first_seen:         YYYY-MM-DD
 #   last_seen:          YYYY-MM-DD
-#   count:              integer
+#   count:              integer (legacy; prefer occurrence_count)
+#   occurrence_count:   integer (Phase 3+; auto-incremented by lifecycle_memory_promote.py)
 #   description:        short description
 #   resolution_status:  OPEN | RESOLVED | KNOWN_LIMITATION
 #   resolution:         how it was fixed (if RESOLVED)
+#   regression_test:    test path or null
+#   do_not_repeat_rule: brief rule or null
+#   escalation_rule:    escalation condition or null
 #   notes:              additional context / re-occurrence guard
 
 errors:
   - id: ERR-001
+    signature: null
+    occurrence_count: 1
+    regression_test: null
+    do_not_repeat_rule: "Always re-apply err=True patch after uv tool upgrade semantic-scholar-mcp"
+    escalation_rule: null
     first_seen: "2026-05-16"
     last_seen: "2026-05-16"
     count: 1

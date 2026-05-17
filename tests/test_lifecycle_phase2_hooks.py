@@ -169,3 +169,40 @@ def test_self_evolving_memory_hook_log_path_exists():
     assert HOOK_LOG.exists(), (
         f"Missing: {HOOK_LOG} — must be created as part of Phase 1 skeleton"
     )
+
+
+# ── Phase 3 hook extensions ───────────────────────────────────────────────────
+
+# ── 11. Hook invokes lifecycle_trash_v2.py (dry-run preview) ─────────────────
+
+def test_hook_invokes_trash_preview():
+    src = HOOK_PATH.read_text(encoding="utf-8")
+    assert "lifecycle_trash_v2.py" in src, (
+        "stop_lifecycle_automation.ps1 must reference lifecycle_trash_v2.py "
+        "for Phase 3 trash preview"
+    )
+
+
+# ── 12. Hook invokes lifecycle_memory_promote.py ─────────────────────────────
+
+def test_hook_invokes_memory_promote():
+    src = HOOK_PATH.read_text(encoding="utf-8")
+    assert "lifecycle_memory_promote.py" in src, (
+        "stop_lifecycle_automation.ps1 must reference lifecycle_memory_promote.py "
+        "for Phase 3 memory promotion"
+    )
+
+
+# ── 13. Hook never uses --apply (preview-only enforcement) ───────────────────
+
+def test_hook_still_no_apply():
+    src = HOOK_PATH.read_text(encoding="utf-8")
+    # Strip comment lines, then check no --apply present
+    non_comment = "\n".join(
+        ln for ln in src.splitlines()
+        if not ln.lstrip().startswith("#")
+    )
+    assert "--apply" not in non_comment, (
+        "stop_lifecycle_automation.ps1 must NEVER pass --apply "
+        "(hook is preview-only, Phase 3 policy)"
+    )
