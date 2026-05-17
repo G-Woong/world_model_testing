@@ -88,13 +88,19 @@ STEP 5로 이관된 항목들의 공식 추적 기록이다.
 - ABL-040 (leakage sanity probe): synthetic validity foundation 검증
 - **Priority**: CRITICAL (reviewer attack defense 필수)
 
-### §3.9 BASE-026/027/028 Direct Threat Baseline 구현
+### §3.9 BASE-026/027/028 Direct Threat Baseline 고도화
 
-**Task**: STEP 5에서 direct threat baseline runner 구현
-- BASE-026 (WAC-style consequence correction): ATTACK-DEF-003 방어
-- BASE-027 (CUWM-style candidate simulation): ATTACK-DEF-004 방어
-- BASE-028 (WebWorld-style simulator search): novelty claim defense
-- **Priority**: HIGH (paper §7 SSoT BASE-026..028)
+**현재 상태** (STEP 4 smoke에서 확인됨):
+- BASE-026 (`WACStyleConsequenceCorrectionAgent`): heuristic-based **구현 완료** — public consequence 기반, no grammar posterior
+- BASE-027 (`CUWMStyleCandidateSimulationAgent`): heuristic-based **구현 완료** — frozen-base candidate comparison, no grammar posterior
+- BASE-028 (`WebWorldStyleSearchAgent`): heuristic-based **구현 완료** — next-state heuristic + action search
+
+이들은 paper §7의 direct threat baselines의 **heuristic approximation**이며 실제 WAC/CUWM/WebWorld와 구조적으로 유사하나 grammar posterior를 사용하지 않는 단순화 버전이다.
+
+**Task** (STEP 5): 
+- 3개 baseline이 smoke eval에 이미 포함됨 (metrics.json에 BASE-026/027/028 기록)
+- 논문 비교를 위해 공개된 WAC/CUWM/WebWorld 알고리즘에 더 충실한 구현으로 고도화 또는 현재 구현이 충분한지 reviewer response 문서화
+- **Priority**: MEDIUM (기본 구현 존재, 고도화 우선순위 결정 필요)
 
 ### §3.10 h_exec_id Emission Decision
 

@@ -223,3 +223,44 @@ C5 calibration ECE는 STEP 3에서 preliminary:
 - `paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md §7,§8` — baseline/ablation SSoT
 - `src/frcgw/schemas/step_schema.py::CounterfactualRecord` — schema (수정 시 fragile file 절차)
 - `src/frcgw/schemas/visibility.py` — FORBIDDEN_AGENT_FIELDS (수정 시 fragile file 절차)
+
+---
+
+## §6. STEP 4 Execution Status (2026-05-17 append)
+
+**PHASE A audit (2026-05-17)**: handoff 문서와 repo 실태 불일치 발견 후 scope 재정의.
+상세 계획: `docs/orchestration/lr_alignment/21_step4_execution_plan.md`
+
+### Scope 재정의 요약
+
+| 구 blocker | 신 분류 | 비고 |
+|---|---|---|
+| B0 (original: lr_scorer wiring) | **재정의 → evidence_timestamp semantic fix** | IMPLEMENTABLE_CORE |
+| B1 (original: counterfactual rollout) | **유지** | 신규 `counterfactual_rollout.py` |
+| B2 (original: calibration) | **재정의 → LR comparison report only** | active path 변경 X |
+| B3 (new: valid_trained_eval disclosure) | **신규** | manifest 1-field |
+| B4 (new: trace writer fix) | **신규** | selected_hypothesis_id null 해소 |
+| B5 (new: ECE degeneracy flag) | **신규** | C5_calibration_status |
+| B6 (new: v0_3 dataset) | **신규** | B0+B1 반영 |
+
+### PHASE A 핵심 발견
+
+- `evidence_timestamp` = 100% coverage BUT 값이 `pre_state.step_index` (의미 오류)
+- eval_runner.py:252 `_compute_episode_timestamps`는 올바른 semantic이지만 dataset-as-source flow에서 미적용
+- `correct_hypothesis_id` (grammar name) vs `selected_hypothesis_id` (policy string): namespace 불일치 → STEP 5 handoff
+- per_step trace: `selected_hypothesis_id` / `selected_hypothesis_confidence` 100% null
+- `LikelihoodRatioFalsificationScorer` = dead code in text path; active F_t = `planning/falsification.py`
+- `degenerate_f_t_count` counter bug (runner-level, STEP 5 scope)
+- `C4_rollout_fidelity`, `C2_regime_split` metric 함수 미존재 → STEP 5
+
+### Codex Tasks (STEP 4)
+
+- TASK_1038_step4_evidence_timestamp (B0)
+- TASK_1039_step4_counterfactual_rollout (B1)
+- TASK_1040_step4_lr_comparison (B2)
+- TASK_1041_step4_disclosure_trace_ece (B3+B4+B5)
+- TASK_1042_step4_redteam_review (Task 5)
+
+### Target Sentinel
+
+`outputs/phase_gates/P3_STEP4_EVIDENCE_INTEGRITY.passed`

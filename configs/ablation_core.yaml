@@ -124,6 +124,27 @@ ablations:
     expected_collapse:
       rollout_fidelity: decrease
       alternative_adoption_rate: decrease
+  # T2 remediation 2026-05-17: 3 CRITICAL ablations added (ABL-011/015/040)
+  - id: no_action_effect_log
+    tdd_ref: ABL-011
+    severity: CRITICAL
+    description: "Remove action-effect log from agent observation; falsification loses its grounding evidence (C3). Execution deferred to STEP 5."
+    expected_collapse:
+      falsification_precision_recall_f1: decrease
+      wrong_control_grammar_persistence: increase
+  - id: no_control_grammar_loss
+    tdd_ref: ABL-015
+    severity: CRITICAL
+    description: "Remove L_control_grammar training loss; control-grammar representation untrained (C2). Distinct from ABL-017 rewrite loss. Execution deferred to STEP 5."
+    expected_collapse:
+      regime_shift_f1: decrease
+      rewrite_success_rate: decrease
+  - id: leakage_sanity_probe
+    tdd_ref: ABL-040
+    severity: CRITICAL
+    description: "Oracle label leakage sanity check: inject true_control_grammar into inference input and verify metric jumps. Confirms metric discriminability without label leakage. Execution deferred to STEP 5."
+    expected_collapse:
+      task_success_rate: increase  # metric should jump — confirms discriminability
 forbidden_fields:
   - true_regime
   - true_control_grammar
