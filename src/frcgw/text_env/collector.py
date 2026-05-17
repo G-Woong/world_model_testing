@@ -15,6 +15,7 @@ from frcgw.schemas.episode_schema import AuditMetadata, EpisodeRecord
 from frcgw.schemas.step_schema import (
     ActionRecord,
     CandidateAction,
+    CounterfactualRecord,
     EvaluationLabels,
     PublicEffect,
     PublicHistoryItem,
@@ -49,6 +50,25 @@ class CollectorConfig:
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _build_counterfactuals(
+    pre_state: TextState,
+    actual_action_type: str,
+    candidates: list[CandidateAction],
+    engine: GrammarEngine,
+    rng: random.Random,
+) -> list[CounterfactualRecord]:
+    from frcgw.text_env.counterfactual_rollout import generate_counterfactuals
+
+    return generate_counterfactuals(
+        pre_state=pre_state,
+        actual_action_id=actual_action_type,
+        candidates=candidates,
+        engine=engine,
+        top_k=3,
+        rng=rng,
+    )
 
 
 def build_public_observation(
@@ -398,7 +418,13 @@ def collect_episode(
             observed_effect_public=public_effect,
             training_labels=training_labels,
             evaluation_labels=evaluation_labels,
-            counterfactuals=[],
+            counterfactuals=_build_counterfactuals(
+                state,
+                action_record.action_type,
+                list(obs.candidate_actions_public),
+                engine,
+                rng,
+            ),
             audit_metadata=audit,
         )
 
