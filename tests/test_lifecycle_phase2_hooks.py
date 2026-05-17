@@ -203,11 +203,13 @@ def test_hook_apply_only_for_safe_classes():
     )
     apply_lines = [ln for ln in non_comment.splitlines() if "--apply" in ln]
     for ln in apply_lines:
-        assert "trash" in ln or "cleanup-cache" in ln, (
-            f"--apply must only appear with trash or cleanup-cache subcommand, got: {ln!r}"
+        # Phase 5: sweep (archive) is now also allowed alongside trash/cleanup-cache
+        assert "trash" in ln or "cleanup-cache" in ln or "sweep" in ln, (
+            f"--apply must only appear with trash, cleanup-cache, or sweep subcommand, got: {ln!r}"
         )
-    # ARCHIVE_READY / MANUAL_ONLY / UNKNOWN must never have --apply on same line
-    forbidden_classes = ("ARCHIVE_READY", "MANUAL_ONLY", "UNKNOWN")
+    # MANUAL_ONLY / UNKNOWN must never have --apply on same line
+    # (ARCHIVE_READY removed from forbidden_classes — Phase 5 enables auto-archive)
+    forbidden_classes = ("MANUAL_ONLY", "UNKNOWN")
     for ln in apply_lines:
         for cls in forbidden_classes:
             assert cls not in ln, (

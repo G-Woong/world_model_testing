@@ -19,7 +19,7 @@ import pathlib
 import re
 import sys
 
-CLASSIFIER_VERSION = "v2.0.0-phase1"
+CLASSIFIER_VERSION = "v2.0.1-phase5"
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -34,6 +34,8 @@ _PROTECTED_DIRS = (
     "outputs/runs/p3_ablations",
     "outputs/runs/p3_lr_smoke",
     "docs/orchestration/lr_alignment/evidence_cards",
+    "evidence_cards",
+    "outputs/runs/p3_eval",
     ".claude",
     ".self_evolving_memory",
 )
@@ -50,6 +52,8 @@ _PROTECTED_EXACT = (
     "CLAUDE.local.md",
     ".mcp.json",
     ".agent_tasks/codex_prompt_template.md",
+    "claim_status.json",
+    "ablation_results.json",
 )
 
 # Scope walk exclusions — never classify files under these prefixes
@@ -63,11 +67,10 @@ EXCLUDE_PREFIXES = (
     "outputs/lifecycle/",
 )
 
-# Manual-only source directories
+# Manual-only source directories (codex_done is now handled by ARCHIVE_READY Rule C)
 _MANUAL_DIRS = (
     "docs/orchestration/session_reports",
     "docs/orchestration/decision_logs",
-    ".agent_tasks/codex_done",
 )
 
 # Manual-only exact basenames (근거 artifact — preview only)
@@ -103,7 +106,7 @@ _ACTION: dict[Classification, str] = {
     Classification.PROTECTED: "none",
     Classification.AUTO_SAFE_CACHE: "preview_delete_cache",
     Classification.AUTO_SAFE_TEMP: "preview_delete_cache",
-    Classification.ARCHIVE_READY: "preview_archive",
+    Classification.ARCHIVE_READY: "auto_archive",
     Classification.MANUAL_ONLY: "manual_review",
     Classification.UNKNOWN: "manual_review",
 }
@@ -170,16 +173,37 @@ def _is_auto_safe_temp(rel: str) -> tuple[bool, str]:
 
 def _is_archive_ready(rel: str, repo_root: pathlib.Path) -> tuple[bool, str]:
     norm = _norm(rel)
-    if not re.match(r"plans/P\d+.*\.md$", norm, re.IGNORECASE):
-        return False, ""
-    if "PHASE_PROGRESS" in norm:
-        return False, ""
-    m = re.match(r"plans/P(\d+)", norm)
-    if m:
-        phase = int(m.group(1))
-        gate = repo_root / "outputs" / "phase_gates" / f"P{phase}.passed"
-        if gate.exists():
-            return True, f"phase gate sentinel exists: P{phase}.passed"
+    basename = norm.rsplit("/", 1)[-1]
+
+    # Rule A: plans/P<N>*.md with gate sentinel (excluding PHASE_PROGRESS)
+    if re.match(r"plans/P\d+.*\.md$", norm, re.IGNORECASE) and "PHASE_PROGRESS" not in norm:
+        m = re.match(r"plans/P(\d+)", norm)
+        if m:
+            phase = int(m.group(1))
+            gate = repo_root / "outputs" / "phase_gates" / f"P{phase}.passed"
+            if gate.exists():
+                return True, f"phase gate sentinel exists: P{phase}.passed"
+
+    # Rule B: docs/orchestration/PHASE<N>[variant]_GATE_REPORT.md (always historical)
+    if re.match(r"docs/orchestration/PHASE\w+_GATE_REPORT\.md$", norm):
+        return True, "PHASE gate report (historical, auto-archive eligible)"
+
+    # Rule C: .agent_tasks/codex_done/TASK_*_RESULT.md
+    if re.match(r"\.agent_tasks/codex_done/TASK_\d+.*_RESULT\.md$", norm):
+        return True, "completed codex task result (auto-archive eligible)"
+
+    # Rule D: .agent_tasks/codex_archive/**/*.md
+    if norm.startswith(".agent_tasks/codex_archive/") and norm.endswith(".md"):
+        return True, "codex_archive dir (auto-archive under date)"
+
+    # Rule E: superseded precompact_handoff (newer sibling exists in same folder)
+    if re.match(r"docs/orchestration/session_reports/\d{4}-\d{2}/.*_precompact_handoff\.md$", norm):
+        folder = (repo_root / norm).parent
+        if folder.is_dir():
+            candidates = sorted(p.name for p in folder.glob("*_precompact_handoff.md"))
+            if candidates and basename != candidates[-1]:
+                return True, f"superseded precompact handoff (latest: {candidates[-1]})"
+
     return False, ""
 
 
@@ -188,8 +212,7 @@ def _is_manual_only(rel: str) -> tuple[bool, str]:
     for d in _MANUAL_DIRS:
         if _under_dir(d, rel):
             return True, f"matched manual-only dir: {d}/**"
-    if re.match(r"docs/orchestration/PHASE\d+_GATE_REPORT\.md", norm):
-        return True, "matched: PHASE gate report (manual review required)"
+    # Note: PHASE<N>_GATE_REPORT.md is now classified ARCHIVE_READY (Rule B) with higher priority
     # lifecycle v2 plans 15-19
     m = re.match(r"docs/orchestration/(1[5-9])_.*\.md$", norm)
     if m:

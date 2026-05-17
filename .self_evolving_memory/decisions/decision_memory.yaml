@@ -32,3 +32,24 @@ decisions:
       - "Direct file archiving (no human review step)"
     reversible: true
     ref: "docs/orchestration/19_LIFECYCLE_AUTOMATION_V2_MASTER_PLAN.md"
+
+  - id: DEC-003
+    date: "2026-05-17"
+    decision: >
+      Phase 5: rule-based auto-archive enabled for ARCHIVE_READY class.
+      ARCHIVE_READY files matching rules A-E are automatically git mv'd to
+      archive/YYYY-MM/ on every stop hook turn (changed scope) or explicit
+      turn_cleanup.ps1 run (repo scope). No human approval per file required.
+    rationale: >
+      Supersedes DEC-002 alternative rejection "Direct file archiving".
+      The risk was mitigated by: (1) _is_protected() priority > ARCHIVE_READY,
+      (2) explicit evidence_cards/claim_status.json/ablation_results.json
+      protection, (3) MAX_FILES=50/MAX_BYTES=5MB caps,
+      (4) restore_command in every manifest entry, (5) 70 tests green.
+      All moves are git-tracked and fully reversible.
+    alternatives_rejected:
+      - "Manual approval per file (bottleneck; 35 files accumulate per phase)"
+      - "CSV editing workflow (too slow for automated turn-end cleanup)"
+      - "Real text extraction before archiving (complexity risk; deferred to Phase 5.5)"
+    reversible: true
+    ref: "docs/orchestration/14_REPORT_LIFECYCLE_POLICY.md §3.5"

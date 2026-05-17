@@ -15,7 +15,8 @@ FRCG-WM 리포지토리에는 세션 작업 중 생성된 임시 리포트 파�
 
 **핵심 원칙**:
 - delete 금지, archive-first
-- 실제 이동/삭제는 dry-run 출력 + human 승인 후 별도 라운드에서만 실행
+- ARCHIVE_READY 클래스 중 rule-based 조건을 만족하는 파일은 **자동 git mv** (Phase 5 이후)
+- MANUAL_ONLY / UNKNOWN: dry-run 출력 + human 승인 후 별도 라운드에서만 실행
 - scientific contract(forbidden field, baseline, evaluation) 완화 0
 
 ---
@@ -52,6 +53,30 @@ FRCG-WM 리포지토리에는 세션 작업 중 생성된 임시 리포트 파�
 
 > **Special case**: `plans/PHASE_PROGRESS.md`는 pre_compact hook가 active append를 수행하므로
 > ssot_absorbed=NEVER로 처리. archive/delete 절대 금지.
+
+---
+
+## §3.5 Auto-archive rule set (Phase 5 — rule-based)
+
+다음 5개 규칙을 만족하는 파일은 `stop_lifecycle_automation.ps1` 턴 종료 hook에서
+`archive_sweep_v2.py`가 자동으로 `git mv`한다. 복구 가능한 이동이다 (`restore_command` 포함).
+
+| Rule | Path pattern | 조건 | Destination |
+|---|---|---|---|
+| A | `plans/P\d+.*\.md` (not PHASE_PROGRESS) | `outputs/phase_gates/P{N}.passed` 존재 | `plans/archive/YYYY-MM/` |
+| B | `docs/orchestration/PHASE\w+_GATE_REPORT\.md` | 항상 (historical, immutable) | `docs/orchestration/archive/YYYY-MM/` |
+| C | `.agent_tasks/codex_done/TASK_\d+.*_RESULT\.md` | 항상 (completed task records) | `.agent_tasks/archive/YYYY-MM/codex_done/` |
+| D | `.agent_tasks/codex_archive/**/*.md` | 항상 (already named archive) | `.agent_tasks/archive/YYYY-MM/p3_impl/` |
+| E | `docs/orchestration/session_reports/YYYY-MM/*_precompact_handoff.md` | 같은 폴더에 더 최신 precompact_handoff 존재 | `docs/orchestration/archive/YYYY-MM/session_reports/` |
+
+**보호 예외** (어떤 규칙에서도 ARCHIVE_READY 금지):
+- `paper_context_ref/**`, `src/frcgw/**`, `tests/**`, `evidence_cards/**`
+- `outputs/phase_gates/**`, `outputs/runs/**`, `data/**`
+- `claim_status.json`, `ablation_results.json`
+- `plans/PHASE_PROGRESS.md`, `CLAUDE.md`, `.claude/**`, `.self_evolving_memory/**`
+
+**Implementation**: `scripts/archive_sweep_v2.py` (MAX_FILES=50, MAX_BYTES=5MB)
+**Self-evolving status**: manifest field `self_evolving_summary_status` + DEC-003
 
 ---
 
@@ -115,8 +140,8 @@ plans/
 # --apply 플래그: 정책상 미지원 (exit code 2 반환)
 ```
 
-`--apply` 플래그는 **이번 라운드에서 의도적으로 미구현**됨.  
-실제 archive 실행은 dry-run 출력 → human 리뷰 → 5조건 수동 검증 → Move-Item PR → 별도 라운드.
+`--apply` 플래그: Phase 5 이후 `archive_sweep_v2.py --apply --confirm-auto-archive`로 rule-based 자동 실행.
+`scripts/audit_stale_reports.py`의 `--apply`는 계속 미구현 (MANUAL_ONLY 대상 파일은 별도 라운드).
 
 ---
 

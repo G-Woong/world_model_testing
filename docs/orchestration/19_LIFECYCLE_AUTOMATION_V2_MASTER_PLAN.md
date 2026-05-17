@@ -204,7 +204,7 @@ CLAUDE.local.md
 | D | plan path enforcement hook | `.claude/hooks/pre_tool_guard.ps1` (extend) | `.claude/commands/frcgw-plan-new.md` | YES |
 | E | `stop_lifecycle_automation.ps1` dry-run 연결 | `.claude/settings.json` (+1 hook entry) | hook script | YES (CRITICAL — fragile file) |
 | F | auto-safe cache cleanup 활성화 | `stop_lifecycle_automation.ps1` (--mode safe) | none | YES |
-| G | archive/trash automation 단계적 rollout | `stop_auto_commit.ps1` fragile list 확장 | `scripts/lifecycle_trash_v2.py`, `scripts/lifecycle_restore_v2.ps1` | YES |
+| G | rule-based auto-archive enabled (Phase 5) | `stop_lifecycle_automation.ps1` (+archive sweep call), `scripts/lifecycle_audit_v2.py` (rules B/C/D/E) | `scripts/archive_sweep_v2.py`, `scripts/turn_cleanup.ps1`, `tests/test_archive_sweep_v2.py` | **DONE 2026-05-17** |
 
 ---
 
@@ -215,7 +215,7 @@ CLAUDE.local.md
 | `.gitignore` 수정 | A | 간접적 fragile (commit 영향) |
 | `.claude/settings.json` 수정 | E | 직접 fragile (CLAUDE.md §Invariant Preservation) |
 | `stop_auto_commit.ps1` fragile list 확장 | G | auto-commit 동작 변경 |
-| 첫 actual trash 이동 (apply) | G | 비가역적 파일 이동 시작점 |
+| ~~첫 actual archive 이동 (apply)~~ | ~~G~~ | **완료** — Phase 5 rule-based auto-archive 활성화 (2026-05-17) |
 
 ---
 

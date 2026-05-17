@@ -5,15 +5,15 @@ Branch: `memory-redesign-2026-05-16`
 
 ## Current Focus
 
-**Lifecycle Automation v2 — Phase 4 Safe Apply** (활성화 완료: 2026-05-17)
+**Lifecycle Automation v2 — Phase 5 Archive Sweep** (활성화 완료: 2026-05-17)
 
 ### Lifecycle 운영 정책
 
 | 트리거 | 스코프 | Apply 범위 | 상태 |
 |---|---|---|---|
-| 일반 턴 종료 (stop hook) | changed-scope | AUTO_SAFE_TEMP + AUTO_SAFE_CACHE | **자동 활성** |
-| 명시적 "턴별정리" | repo-scope | AUTO_SAFE_TEMP + AUTO_SAFE_CACHE | 수동 커맨드 |
-| ARCHIVE_READY | — | preview only | 별도 승인 필요 |
+| 일반 턴 종료 (stop hook) | changed-scope | AUTO_SAFE_TEMP + AUTO_SAFE_CACHE + ARCHIVE_READY | **자동 활성** |
+| 명시적 "턴별정리" (`pwsh scripts/turn_cleanup.ps1`) | repo-scope | AUTO_SAFE_TEMP + AUTO_SAFE_CACHE + ARCHIVE_READY | 수동 커맨드 |
+| ARCHIVE_READY | changed/repo | rule-based auto git mv | **Phase 5 자동 활성** |
 | MANUAL_ONLY / UNKNOWN | — | preview only | 절대 자동 금지 |
 | PROTECTED | — | 불가 | 절대 금지 |
 
@@ -23,9 +23,16 @@ Branch: `memory-redesign-2026-05-16`
 
 ### 자동 Apply 금지 클래스
 - `PROTECTED`: 논문 핵심 파일, 증거 카드, evidence, phase gate
-- `ARCHIVE_READY`: 이전 보고서 (별도 승인 후 git mv)
-- `MANUAL_ONLY`: 코드, 설정, 문서
-- `UNKNOWN`: 미분류 파일
+- `MANUAL_ONLY`: 코드, 설정, 문서 (절대 자동 금지)
+- `UNKNOWN`: 미분류 파일 (절대 자동 금지)
+
+### 자동 Archive 허용 클래스 (Phase 5)
+- `ARCHIVE_READY`: rule-based 조건(A-E) 충족 시 자동 `git mv` → `archive/YYYY-MM/`
+  - Rule A: plans/P<N>*.md with gate sentinel
+  - Rule B: PHASE<N>_GATE_REPORT.md (historical)
+  - Rule C: .agent_tasks/codex_done/*_RESULT.md
+  - Rule D: .agent_tasks/codex_archive/**/*.md
+  - Rule E: superseded precompact_handoff
 
 ### Protected Core 목록 (절대 건드리지 않음)
 - `outputs/runs/p3_lr_eval/metrics.json`
@@ -55,9 +62,10 @@ Branch: `memory-redesign-2026-05-16`
 - [x] Phase 2: stop hook dry-run 연결 (`stop_lifecycle_automation.ps1`)
 - [x] Phase 3: `lifecycle_trash_v2.py` + `lifecycle_restore_v2.ps1` + `lifecycle_memory_promote.py`
 - [x] Phase 4: safe apply 활성화 — `--allow-dirty` 추가, hook dry-run → apply 전환, 53 tests pass
+- [x] Phase 5: archive sweep 활성화 — `archive_sweep_v2.py` (rules A-E), 70 tests pass, ~35 files archived
 
 ## Next After This Turn
 
 1. C3 falsification blocker 해소 (P3 gate 재평가)
-2. ARCHIVE_READY 8건 이동 — 별도 승인 라운드
-3. Lifecycle Phase G: ARCHIVE_READY auto git mv 정책 수립
+2. Lifecycle Phase 5.5: session reports 14d cutoff / decision_logs / agent_reports (deferred)
+3. `plans/archive/`, `docs/orchestration/archive/`, `.agent_tasks/archive/` 주기적 검토
