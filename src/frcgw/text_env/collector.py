@@ -227,6 +227,48 @@ def _build_evaluation_labels(
     )
 
 
+def _backfill_episode_timestamps(
+    steps: list[StepRecord],
+    ood_type: str | None,
+) -> list[StepRecord]:
+    """Episode-level post-pass for Step 3 evaluation-only labels.
+
+    Source: docs/orchestration/lr_alignment/19_step3_dataset_backfill_plan.md 짠5.1
+    """
+    import dataclasses
+
+    hyp_update_ts = None
+    for i, step in enumerate(steps):
+        if step.training_labels.valid_hypothesis_switch:
+            hyp_update_ts = i
+            break
+
+    recovery_ts = None
+    for i, step in enumerate(steps):
+        if i == 0:
+            continue
+        prior_wrong = steps[i - 1].evaluation_labels.true_wrong_hypothesis
+        tl = step.training_labels
+        if (
+            prior_wrong
+            and step.action.action_type == tl.recovery_action_id
+            and tl.progress_delta > 0
+        ):
+            recovery_ts = i
+            break
+
+    patched = []
+    for step in steps:
+        new_eval = dataclasses.replace(
+            step.evaluation_labels,
+            hypothesis_update_timestamp=hyp_update_ts,
+            recovery_timestamp=recovery_ts,
+            ood_type=ood_type,
+        )
+        patched.append(dataclasses.replace(step, evaluation_labels=new_eval))
+    return patched
+
+
 def _update_visible_text(
     state: TextState,
     action_id: str,
@@ -368,6 +410,10 @@ def collect_episode(
             break
 
     final_success = engine.is_success(state._hidden_preconditions)
+
+    # Post-pass: backfill episode-level timestamps.
+    ood_type = getattr(spec, "ood_type", None)
+    steps = _backfill_episode_timestamps(steps, ood_type)
 
     episode = EpisodeRecord(
         episode_id=spec.episode_id,

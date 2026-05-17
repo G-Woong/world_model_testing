@@ -24,7 +24,11 @@ from frcgw.data.coverage_auditor import CoverageAuditor, CoverageThresholds
 from frcgw.data.leakage_auditor import LeakageAuditor
 from frcgw.data.shard_exporter import ShardExporter
 from frcgw.text_env.collector import CollectorConfig, collect_episode
-from frcgw.text_env.generator import EpisodeSpecGenerator, TaskFamily
+from frcgw.text_env.generator import (
+    EpisodeSpecGenerator,
+    OOD_GRAMMAR_FAMILIES,
+    TaskFamily,
+)
 from frcgw.text_env.policies import PolicyMixtureRunner
 from frcgw.text_env.replay import ReplayValidator
 
@@ -36,6 +40,25 @@ def _split_id_from_hash(episode_id: str, train: float, valid: float) -> str:
     if h < int((train + valid) * 100):
         return "valid"
     return "test_id"
+
+
+def _families_from_config(cfg: dict) -> list[TaskFamily]:
+    configured = cfg.get("id_grammar_families")
+    if configured is None:
+        return list(TaskFamily)
+    families = [TaskFamily(family) for family in configured]
+    return [family for family in families if family not in OOD_GRAMMAR_FAMILIES]
+
+
+def _write_manifest_split_counts(out_dir: Path) -> None:
+    manifest_path = out_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    splits = manifest.get("splits", {})
+    for split in ("train", "valid", "test_id", "test_ood"):
+        manifest[f"{split}_count"] = int(splits.get(split, 0))
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -76,9 +99,13 @@ def main(argv: list[str] | None = None) -> int:
     episodes = []
     failed_count = 0
 
-    # Generate episodes round-robin over task families to ensure coverage
-    families = list(TaskFamily)
-    n_per_family = max(1, num_episodes // len(families))
+    # Generate ID episodes round-robin over configured task families.
+    families = _families_from_config(cfg)
+    if not families:
+        print("[P2] No ID task families configured.", file=sys.stderr)
+        return 1
+    num_ood_episodes = int(cfg.get("num_ood_episodes") or 0)
+    should_generate_ood = bool(cfg.get("ood_grammar_families")) and num_ood_episodes > 0
 
     for i in range(num_episodes):
         family = families[i % len(families)]
@@ -108,6 +135,30 @@ def main(argv: list[str] | None = None) -> int:
                 print("[P2] Too many failures — aborting.", file=sys.stderr)
                 return 1
 
+    if should_generate_ood:
+        print(f"[P2] Generating {num_ood_episodes} OOD episodes -> test_ood")
+        for i, spec in enumerate(gen.generate_ood(num_ood_episodes)):
+            try:
+                config = CollectorConfig(
+                    dataset_version=dataset_version,
+                    schema_version=schema_version,
+                    generator_version=generator_version,
+                    split_id="test_ood",
+                )
+                ep = collect_episode(spec, runner, random.Random(spec.seed), config)
+                exporter.write_episode("test_ood", ep)
+                episodes.append(ep)
+
+                if (i + 1) % 25 == 0:
+                    print(f"[P2]   {i+1}/{num_ood_episodes} OOD episodes collected")
+
+            except Exception as e:
+                print(f"[P2] ERROR OOD episode {i}: {e}", file=sys.stderr)
+                failed_count += 1
+                if failed_count > max(1, (num_episodes + num_ood_episodes) // 10):
+                    print("[P2] Too many failures; aborting.", file=sys.stderr)
+                    return 1
+
     print(f"[P2] Collection complete: {len(episodes)} episodes, {failed_count} failures")
 
     # Coverage audit
@@ -127,6 +178,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Write manifest and audit reports
     exporter.write_manifest(cov_report, leak_report)
+    _write_manifest_split_counts(out_dir)
 
     # Copy config to metadata
     meta_dir = out_dir / "metadata"

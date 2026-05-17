@@ -64,6 +64,7 @@ class TextEpisodeSpec:
     event_schedule: list[dict] = field(default_factory=list)
     max_steps: int = 12
     seed: int = 0
+    ood_type: str | None = None  # None for id split, "grammar_shift" for ood split
 
 
 @dataclass

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 
 from frcgw.schemas.step_schema import CandidateAction
@@ -26,6 +26,12 @@ class TaskFamily(str, Enum):
     LOADING_DELAYED     = "loading_delayed"
     PERMISSION_GATE     = "permission_gate"
     FILTER_ACCORDION    = "filter_accordion"
+
+
+OOD_GRAMMAR_FAMILIES = [TaskFamily.FILTER_ACCORDION, TaskFamily.NESTED_SCROLL]
+ID_GRAMMAR_FAMILIES = [
+    family for family in TaskFamily if family not in OOD_GRAMMAR_FAMILIES
+]
 
 
 # ---------------------------------------------------------------------------
@@ -232,6 +238,7 @@ class EpisodeSpecGenerator:
         self._base_seed = seed
         self._max_steps = max_steps
         self._counter = 0
+        self._rng = random.Random(seed)
 
     def generate(self, family: str | None = None, rng: random.Random | None = None) -> TextEpisodeSpec:
         if rng is None:
@@ -239,8 +246,11 @@ class EpisodeSpecGenerator:
         self._counter += 1
 
         if family is None:
-            family = rng.choice(list(TaskFamily))
+            family = rng.choice(ID_GRAMMAR_FAMILIES)
 
+        return self._generate_spec(family, rng)
+
+    def _generate_spec(self, family: str, rng: random.Random) -> TextEpisodeSpec:
         template = TASK_FAMILY_TEMPLATES[family]
         instruction = rng.choice(template.instructions)
         initial_state_text = rng.choice(template.initial_states)
@@ -265,6 +275,15 @@ class EpisodeSpecGenerator:
     ) -> list[TextEpisodeSpec]:
         rng = random.Random(self._base_seed)
         return [self.generate(family=family, rng=rng) for _ in range(n)]
+
+    def generate_ood(self, n: int, ood_type: str = "grammar_shift") -> list[TextEpisodeSpec]:
+        """Generate OOD episode specs using held-out grammar families."""
+        specs = []
+        for _ in range(n):
+            family = self._rng.choice(OOD_GRAMMAR_FAMILIES)
+            spec = self.generate(family=family, rng=self._rng)
+            specs.append(replace(spec, ood_type=ood_type))
+        return specs
 
 
 def build_initial_state(spec: TextEpisodeSpec) -> TextState:
