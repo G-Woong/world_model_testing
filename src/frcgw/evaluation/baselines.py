@@ -48,6 +48,68 @@ def _heuristic_best_action(obs: PublicObservation) -> CandidateAction:
     return max(obs.candidate_actions_public, key=lambda action: len(action.action_id))
 
 
+def _action_family(action: CandidateAction) -> str:
+    return action.action_type or action.action_id
+
+
+def _public_history_text(item: object) -> str:
+    parts = [
+        getattr(item, "action_type", ""),
+        getattr(item, "action_id", ""),
+        getattr(item, "action_summary", ""),
+        getattr(item, "effect_summary", ""),
+    ]
+    return " ".join(str(part) for part in parts if part).lower()
+
+
+def _history_family(item: object, visible_families: set[str]) -> str | None:
+    direct_family = getattr(item, "action_type", None)
+    if isinstance(direct_family, str) and direct_family in visible_families:
+        return direct_family
+
+    text = _public_history_text(item)
+    for family in sorted(visible_families, key=len, reverse=True):
+        if family and family.lower() in text:
+            return family
+    return None
+
+
+def _history_effect_is_no_state_change(item: object) -> bool:
+    effect = str(getattr(item, "effect_summary", "") or "").lower()
+    normalized = effect.replace("-", "_").replace(" ", "_")
+    return "no_state_change" in normalized
+
+
+def _action_was_tried(action: CandidateAction, history_public: list[object]) -> bool:
+    action_id = action.action_id.lower()
+    action_type = action.action_type.lower()
+    for item in history_public:
+        text = _public_history_text(item)
+        if action_id and action_id in text:
+            return True
+        if action_type and action_type in text:
+            return True
+    return False
+
+
+def _simulated_effect_type(action: CandidateAction) -> str:
+    text = f"{action.action_type} {action.action_id}".lower()
+    if any(token in text for token in ("task_complete", "complete", "finish", "submit")):
+        return "task_complete"
+    if (
+        "close_modal" in text
+        or ("close" in text and "modal" in text)
+        or "dismiss" in text
+        or "blocker" in text
+    ):
+        return "blocker_removed"
+    if "wait" in text or "delay" in text:
+        return "delayed_effect"
+    if "noop" in text:
+        return "no_state_change"
+    return "state_change"
+
+
 def _budget(
     *,
     planning_calls: int,
@@ -381,6 +443,130 @@ class CUWMStyleCandidateSimulationAgent(BaselineAgent):
         )
 
 
+class WACFaithfulCandidate(BaselineAgent):
+    """BASE-026 faithful candidate.
+
+    WAC 짠3.2 grammar posterior + consequence correction. approximation_level=partial:
+    full WAC requires trained discriminative model. Heuristic: beta-Binomial
+    counting from public history.
+    """
+
+    approximation_level: str = "partial"
+    baseline_id: str = "BASE-026-faithful"
+    paper_ssot_id = "BASE-026 faithful candidate (WAC partial)"
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        assert eval_labels is None or not (FORBIDDEN_AGENT_KEYS & set(eval_labels or {})), f"Hidden label leak: {FORBIDDEN_AGENT_KEYS & set(eval_labels or {})}"
+        candidates = obs.candidate_actions_public
+        n = len(candidates)
+        if not candidates:
+            return _noop_action(), _budget(
+                planning_calls=1,
+                rollout_steps=1,
+                candidate_actions_scored=0,
+            )
+        if not obs.history_public:
+            return candidates[0], _budget(
+                planning_calls=1,
+                rollout_steps=1,
+                candidate_actions_scored=n,
+            )
+
+        visible_families = {_action_family(action) for action in candidates}
+        attempt_counts = {family: 0 for family in visible_families}
+        no_state_change_counts = {family: 0 for family in visible_families}
+
+        for item in obs.history_public:
+            family = _history_family(item, visible_families)
+            if family is None:
+                continue
+            attempt_counts[family] += 1
+            if _history_effect_is_no_state_change(item):
+                no_state_change_counts[family] += 1
+
+        if not any(attempt_counts.values()):
+            return candidates[0], _budget(
+                planning_calls=1,
+                rollout_steps=1,
+                candidate_actions_scored=n,
+            )
+
+        posterior_success = {}
+        for family in visible_families:
+            failures = no_state_change_counts[family]
+            attempts = attempt_counts[family]
+            no_state_change_rate = (failures + 1.0) / (attempts + 2.0)
+            posterior_success[family] = 1.0 - no_state_change_rate
+
+        action_scores = [
+            posterior_success[_action_family(action)] for action in candidates
+        ]
+        if len({round(score, 12) for score in action_scores}) <= 1:
+            action = candidates[0]
+        else:
+            action = max(candidates, key=lambda candidate: posterior_success[_action_family(candidate)])
+
+        return action, _budget(
+            planning_calls=1,
+            rollout_steps=1,
+            candidate_actions_scored=n,
+        )
+
+
+class CUWMFaithfulCandidate(BaselineAgent):
+    """BASE-027 faithful candidate.
+
+    CUWM 짠4 K-candidate simulation + task progress prediction.
+    approximation_level=partial: full CUWM requires trained world model rollout.
+    Heuristic: action_type->effect_type rule table.
+    """
+
+    approximation_level: str = "partial"
+    baseline_id: str = "BASE-027-faithful"
+    paper_ssot_id = "BASE-027 faithful candidate (CUWM partial)"
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        assert eval_labels is None or not (FORBIDDEN_AGENT_KEYS & set(eval_labels or {})), f"Hidden label leak: {FORBIDDEN_AGENT_KEYS & set(eval_labels or {})}"
+        candidates = obs.candidate_actions_public
+        k = min(len(candidates), 5)
+        if k == 0:
+            return _noop_action(), _budget(
+                planning_calls=1,
+                rollout_steps=0,
+                candidate_actions_scored=0,
+            )
+
+        effect_scores = {
+            "task_complete": 2.0,
+            "blocker_removed": 1.5,
+            "state_change": 1.0,
+            "delayed_effect": 0.5,
+            "no_state_change": 0.0,
+        }
+        scored: list[tuple[float, CandidateAction]] = []
+        for action in candidates[:k]:
+            simulated_effect = _simulated_effect_type(action)
+            score = effect_scores[simulated_effect]
+            if not _action_was_tried(action, obs.history_public):
+                score += 0.25
+            scored.append((score, action))
+
+        action = max(scored, key=lambda item: item[0])[1]
+        return action, _budget(
+            planning_calls=1,
+            rollout_steps=k,
+            candidate_actions_scored=k,
+        )
+
+
 class WebWorldStyleSearchAgent(BaselineAgent):
     """BASE-028: WebWorld-style simulator search (WebWorld direct-threat defense).
 
@@ -499,6 +685,8 @@ __all__ = [
     "ComputeMatchedRandomAgent",
     "WACStyleConsequenceCorrectionAgent",
     "CUWMStyleCandidateSimulationAgent",
+    "WACFaithfulCandidate",
+    "CUWMFaithfulCandidate",
     "WebWorldStyleSearchAgent",
     "CATTSStyleUncertaintyGateAgent",
     "VLAALoopHeuristicAgent",
