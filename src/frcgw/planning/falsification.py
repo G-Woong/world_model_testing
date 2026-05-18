@@ -61,6 +61,8 @@ def falsification_score(
 
     Source MD: paper_context_ref/09_PLANNING_THEORY_ALGORITHM.md FALS-02
     """
+    # 0=no_state_change (unintended no-change); 6=no_op_valid (deliberate no-op).
+    # Falsifying on zero-effect evidence is ill-posed — short-circuit is intentional.
     if evidence.observed_effect_type in {0, 6}:
         return torch.zeros((), dtype=shared_h.dtype, device=shared_h.device)
 
