@@ -80,6 +80,7 @@ class EvaluationLabels:
     hypothesis_update_timestamp: int | None = None
     recovery_timestamp: int | None = None
     ood_type: str | None = None
+    true_regime: str | None = None
 
 
 @dataclass

@@ -244,6 +244,7 @@ def _build_evaluation_labels(
         hypothesis_update_timestamp=None,
         recovery_timestamp=None,
         ood_type=None,
+        true_regime=pre_state._hidden_regime,
     )
 
 

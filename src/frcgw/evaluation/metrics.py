@@ -54,9 +54,6 @@ def assert_no_hidden_labels_in_input(obs_dict: dict, context: str = "") -> None:
 
 
 # C2 proxy: ood_shift_f1 uses eval_labels.ood_type as split label.
-# true regime_shift_f1 (MET-OOD-003 faithful) requires true_regime in EvaluationLabels.
-# This is deferred to STEP 9 (R2 lock review required for visibility contract change).
-# DO NOT add a regime_shift_f1 function here in STEP 8.
 def ood_shift_f1(episodes: list[dict]) -> dict[str, float]:
     """OOD shift detection F1 for the MET-OOD-003 STEP 8 proxy.
 
@@ -104,6 +101,66 @@ def ood_shift_f1(episodes: list[dict]) -> dict[str, float]:
         "false_positives": false_positives,
         "false_negatives": false_negatives,
         "true_negatives": true_negatives,
+    }
+
+
+def regime_shift_f1(episodes: list[dict]) -> dict[str, float]:
+    """Compute regime-shift detection F1 using true_regime from EvaluationLabels.
+
+    true_regime is EVALUATION_ONLY and must never be used as inference input.
+    A shift is any episode where true_regime changes across steps.
+    """
+    true_positives = 0
+    false_positives = 0
+    false_negatives = 0
+    skipped = 0
+
+    for episode in episodes:
+        steps = _field(episode, "steps", []) or []
+        regimes = []
+        detected = False
+        has_regime_data = False
+
+        for step in steps:
+            labels = _field(step, "eval_labels", {}) or {}
+            true_regime = _field(labels, "true_regime")
+            if true_regime is None:
+                labels = _field(step, "evaluation_labels", {}) or {}
+                true_regime = _field(labels, "true_regime")
+            if true_regime is not None:
+                has_regime_data = True
+                regimes.append(true_regime)
+            if bool(_field(step, "predicted_wrong", False)):
+                detected = True
+
+        if not has_regime_data:
+            skipped += 1
+            continue
+
+        is_shift = len(set(regimes)) > 1
+
+        if is_shift and detected:
+            true_positives += 1
+        elif not is_shift and detected:
+            false_positives += 1
+        elif is_shift and not detected:
+            false_negatives += 1
+
+    precision_denom = true_positives + false_positives
+    recall_denom = true_positives + false_negatives
+    precision = true_positives / precision_denom if precision_denom > 0 else 0.0
+    recall = true_positives / recall_denom if recall_denom > 0 else 0.0
+    f1_denom = precision + recall
+    f1 = 2 * precision * recall / f1_denom if f1_denom > 0 else 0.0
+
+    return {
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "true_positives": float(true_positives),
+        "false_positives": float(false_positives),
+        "false_negatives": float(false_negatives),
+        "skipped_no_regime_data": float(skipped),
     }
 
 
