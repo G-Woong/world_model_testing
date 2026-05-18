@@ -41,7 +41,10 @@ GRAMMAR_VOCAB: dict[str, int] = {
 
 REVEAL_SHIFT_VOCAB: dict[str, int] = {"none": 0, "reveal": 1, "shift": 2}
 
+# SSoT alignment: planner.py::_effect_type_id, _PUBLIC_EFFECT_TYPES in
+# counterfactual_rollout.py. n_effect_types=7 (indices 0-6).
 EFFECT_TYPE_VOCAB: dict[str, int] = {
+    # legacy (preserved for backward compat)
     "none": 0,
     "no_change": 0,
     "reveal": 1,
@@ -50,6 +53,12 @@ EFFECT_TYPE_VOCAB: dict[str, int] = {
     "delayed": 4,
     "noisy": 5,
     "no_op_valid": 6,
+    # v0_3 / _PUBLIC_EFFECT_TYPES strings (must match planner.py::_effect_type_id)
+    "no_state_change": 0,
+    "state_change": 1,
+    "blocker_removed": 2,
+    "delayed_effect": 4,
+    "task_complete": 5,
 }
 
 DEFAULT_WEIGHTS: dict[str, float] = {
