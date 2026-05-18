@@ -152,6 +152,27 @@ ablations:
     description: "Oracle label leakage sanity check: inject true_control_grammar into inference input and verify metric jumps. Confirms metric discriminability without label leakage. Execution deferred to STEP 5."
     expected_collapse:
       task_success_rate: increase  # metric should jump — confirms discriminability
+# STEP 7 execution metadata (2026-05-18)
+step7_execution:
+  planned_date: "2026-05-18"
+  inference_time_ablations:
+    - ABL-006
+    - ABL-011
+    - ABL-017
+    - ABL-022
+    - ABL-023
+    - ABL-024
+    - ABL-033
+    - ABL-034
+    - ABL-035
+    - ABL-036
+  positive_control_isolated:
+    - ABL-040
+  deferred_to_step8_faithful_retrain:
+    - ABL-001
+    - ABL-003
+    - ABL-015
+  note: "ABL-001/003/015 are training-time ablations. STEP 7 only runs inference-time ablations."
 forbidden_fields:
   - true_regime
   - true_control_grammar
