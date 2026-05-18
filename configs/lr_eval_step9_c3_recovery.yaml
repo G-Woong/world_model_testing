@@ -26,6 +26,7 @@ metrics:
   - task_success_rate
   - falsification_precision_recall
   - ood_shift_f1
+  - regime_shift_f1
   - progress_per_compute
   - false_planning_call_rate
 splits:

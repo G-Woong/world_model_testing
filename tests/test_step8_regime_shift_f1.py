@@ -3,9 +3,9 @@ from __future__ import annotations
 from frcgw.evaluation import metrics
 
 
-def test_no_regime_shift_f1_function() -> None:
-    assert not hasattr(metrics, "regime_shift_f1")
-    assert not hasattr(metrics, "compute_regime_shift_f1")
+def test_regime_shift_f1_function_exists() -> None:
+    # STEP 9: regime_shift_f1 added (was blocked until true_regime in EvaluationLabels).
+    assert hasattr(metrics, "regime_shift_f1"), "regime_shift_f1 must exist in STEP 9+"
 
 
 def test_ood_shift_f1_exists() -> None:

@@ -788,7 +788,11 @@ def _build_metrics_with_blocked_markers(
         if not dataset_audit.get("ood_split_exists", False):
             payload["C2_regime_split"] = _blocked("BLOCKED_no_ood_split")
         else:
-            payload["C2_regime_split"] = _blocked("BLOCKED_regime_split_metric_not_implemented")
+            _rsf = nested_values("regime_shift_f1", "f1")
+            if _rsf:
+                payload["C2_regime_split"] = _metric(_mean(_rsf))
+            else:
+                payload["C2_regime_split"] = _blocked("BLOCKED_regime_shift_f1_not_in_metrics_config")
 
         blocked_count += sum(
             1 for value in payload.values() if str(value.get("status", "")).startswith("BLOCKED")

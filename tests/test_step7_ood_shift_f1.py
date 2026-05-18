@@ -60,13 +60,12 @@ def test_ood_shift_f1_no_ood_type():
 
 
 def test_ood_shift_f1_name_not_regime_shift():
-    """Verify that regime_shift_f1 is not in METRIC_FUNCTIONS."""
+    """Verify that both ood_shift_f1 and regime_shift_f1 are in METRIC_FUNCTIONS (STEP 9+)."""
     from frcgw.evaluation.eval_runner import METRIC_FUNCTIONS
 
-    assert "regime_shift_f1" not in METRIC_FUNCTIONS, (
-        "regime_shift_f1 must not appear in METRIC_FUNCTIONS; use ood_shift_f1 only"
-    )
+    # STEP 9: regime_shift_f1 added as faithful C2 metric alongside ood_shift_f1 proxy.
     assert "ood_shift_f1" in METRIC_FUNCTIONS
+    assert "regime_shift_f1" in METRIC_FUNCTIONS
 
 
 def test_ood_shift_f1_dispatched_in_runner():
