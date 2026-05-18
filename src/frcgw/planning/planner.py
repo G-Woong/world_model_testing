@@ -54,6 +54,9 @@ def _latent_sample_from_output(model_out: ModelOutput) -> LatentSample:
 
 def _effect_type_id(effect_summary: str | None) -> int:
     key = (effect_summary or "none").strip().lower()
+    # Legacy keys preserved for backward compat with training-proxy ABL data.
+    # SSoT for public strings: counterfactual_rollout.py::_PUBLIC_EFFECT_TYPES.
+    # n_effect_types=7 (indices 0-6); task_complete=5 avoids the {0, 6} short-circuit.
     mapping = {
         "none": 0,
         "no_change": 0,
@@ -63,6 +66,11 @@ def _effect_type_id(effect_summary: str | None) -> int:
         "delayed": 4,
         "noisy": 5,
         "no_op_valid": 6,
+        "no_state_change": 0,
+        "state_change": 1,
+        "blocker_removed": 2,
+        "delayed_effect": 4,
+        "task_complete": 5,
     }
     return mapping.get(key, 0)
 

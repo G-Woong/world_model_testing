@@ -99,14 +99,36 @@ class EvidenceFeatures:
 
         eff = step.observed_effect_public
         effect_type: str = eff.effect_type
+
         dom_diff_summary: str = _summarize_dom_diff(eff.dom_diff_public)
         text_diff: str = eff.text_diff_public or ""
-        visual_diff_score: float = 0.0        # no visual field in current public schema
-        precondition_status: str = "unknown"  # no public precondition proxy in schema
-        no_effect_flag: bool = effect_type in ("no_effect", "no_change", "noop")
-        delayed_effect_flag: bool = False     # no public delayed marker in schema
+
+        # visual_diff_score: no visual field in current public schema
+        visual_diff_score: float = 0.0
+
+        # precondition_status: derive from public effect_type.
+        if effect_type in ("blocker_removed", "task_complete"):
+            precondition_status: str = "satisfied"
+        elif effect_type == "no_state_change":
+            precondition_status = "unmet"
+        else:
+            precondition_status = "unknown"
+
+        no_effect_flag: bool = effect_type in (
+            "no_effect",
+            "no_change",
+            "noop",
+            "no_state_change",
+        )
+        delayed_effect_flag: bool = effect_type == "delayed_effect"
         noisy_observation_flag: bool = False  # no public noisy marker in schema
-        progress_delta: float = 0.0           # training_labels.progress_delta is hidden
+
+        # Public-safe proxy; training_labels.progress_delta is hidden.
+        text_len = len(text_diff) if text_diff else 0
+        dom_items = len(eff.dom_diff_public) if isinstance(eff.dom_diff_public, dict) else 0
+        raw_proxy = float(text_len + dom_items)
+        progress_delta: float = min(1.0, raw_proxy / 100.0)
+
         failure_reason: Optional[str] = None  # training_labels.failure_reason is hidden
 
         return cls(
