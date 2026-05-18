@@ -17,6 +17,7 @@ class GateConfig:
     tau_u: float = 2.0
     C_plan_beta: float = 0.1
     tau_r: float = 0.5
+    use_no_state_change_proxy: bool = True
 
 
 @dataclass
