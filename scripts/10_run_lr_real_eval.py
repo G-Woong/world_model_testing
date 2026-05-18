@@ -588,7 +588,32 @@ def _build_metrics_with_blocked_markers(
                 "BLOCKED_no_counterfactual_samples"
             )
         else:
-            payload["C4_rollout_fidelity"] = _blocked("BLOCKED_counterfactual_metric_not_implemented")
+            c4_values = []
+            c4_statuses = []
+            for result in results:
+                c4_result = result.metrics.get("alternative_rollout_fidelity")
+                if not isinstance(c4_result, dict):
+                    continue
+                c4_statuses.append(str(c4_result.get("status", "OK")))
+                c4_value = c4_result.get("mean_fidelity")
+                if c4_result.get("status") == "OK" and isinstance(c4_value, (int, float)):
+                    c4_values.append(float(c4_value))
+            if not c4_values and not c4_statuses and config.get("dataset_path"):
+                from frcgw.evaluation.metrics import alternative_rollout_fidelity
+
+                c4_result = alternative_rollout_fidelity(_load_jsonl(config["dataset_path"]))
+                c4_statuses.append(str(c4_result.get("status", "OK")))
+                c4_value = c4_result.get("mean_fidelity")
+                if c4_result.get("status") == "OK" and isinstance(c4_value, (int, float)):
+                    c4_values.append(float(c4_value))
+            if c4_values:
+                payload["C4_rollout_fidelity"] = _metric(_mean(c4_values))
+            else:
+                c4_status = next(
+                    (status for status in c4_statuses if status.startswith("BLOCKED")),
+                    "BLOCKED_no_model_rollout_prediction",
+                )
+                payload["C4_rollout_fidelity"] = _metric(None, c4_status)
             payload["C4_alternative_adoption_rate"] = _blocked(
                 "BLOCKED_counterfactual_metric_not_implemented"
             )
