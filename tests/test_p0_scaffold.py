@@ -71,7 +71,7 @@ def test_configs_yaml_valid_with_phase_key():
     for rel in CONFIGS:
         path = ROOT / rel
         assert path.exists(), f"Config missing: {rel}"
-        with path.open() as f:
+        with path.open(encoding="utf-8") as f:
             data = yaml.safe_load(f)
         assert data is not None, f"Config empty: {rel}"
         assert "phase" in data, f"Config missing 'phase' key: {rel}"
