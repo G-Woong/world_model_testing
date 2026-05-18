@@ -53,12 +53,16 @@ def assert_no_hidden_labels_in_input(obs_dict: dict, context: str = "") -> None:
         raise AssertionError(f"Forbidden agent observation keys{suffix}: {forbidden}")
 
 
+# C2 proxy: ood_shift_f1 uses eval_labels.ood_type as split label.
+# true regime_shift_f1 (MET-OOD-003 faithful) requires true_regime in EvaluationLabels.
+# This is deferred to STEP 9 (R2 lock review required for visibility contract change).
+# DO NOT add a regime_shift_f1 function here in STEP 8.
 def ood_shift_f1(episodes: list[dict]) -> dict[str, float]:
-    """OOD shift detection F1 for the MET-OOD-003 STEP 7 proxy.
+    """OOD shift detection F1 for the MET-OOD-003 STEP 8 proxy.
 
     Uses EvaluationLabels.ood_type as a split-time label, not inference input.
     Agent prediction uses any step with predicted_wrong=True as the shift signal.
-    This is a proxy; the true regime-shift metric is deferred to STEP 8.
+    This is a proxy; the true regime-shift metric is deferred to STEP 9.
     """
     true_positives = 0
     false_positives = 0
