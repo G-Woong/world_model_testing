@@ -658,23 +658,24 @@ def evidence_accumulation_quality(episodes: list[dict], window: int = 10) -> dic
 def fair_ppc(episodes: list[dict]) -> dict[str, float]:
     """Fair compute-matched progress per compute.
 
-    Denominator = wall_clock_seconds when available, else self-report units.
-    Avoids self-report bias: ABL-036 heuristic has tiny self-report vs model agents.
+    Denominator = actual wall_clock_seconds (or self-report if wall_clock=0).
+    Avoids self-report bias in planning_calls vs heuristic agents.
 
     Source MD: paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md MET-COMPUTE-001 (fair)
     """
-    total_progress = 0.0
-    total_wall_clock = 0.0
-    total_self_report = 0.0
+    total_progress, total_wall_clock, total_self_report = 0.0, 0.0, 0.0
     for ep in episodes:
         total_progress += float(_field(ep, "total_progress", 0.0) or 0.0)
-        clog = _field(ep, "compute_log") or {}
-        total_wall_clock += float(_field(clog, "wall_clock_seconds", 0.0) or 0.0)
-        total_self_report += (
-            float(_field(clog, "planning_calls", 0.0) or 0.0)
-            + float(_field(clog, "rollout_steps", 0.0) or 0.0)
-            + float(_field(clog, "candidate_actions_scored", 0.0) or 0.0)
-        )
+        compute_logs = _field(ep, "compute_logs")
+        if compute_logs is None:
+            compute_logs = [_field(ep, "compute_log", {}) or {}]
+        for clog in compute_logs:
+            total_wall_clock += float(_field(clog, "wall_clock_seconds", 0.0) or 0.0)
+            total_self_report += (
+                float(_field(clog, "planning_calls", 0.0) or 0.0)
+                + float(_field(clog, "rollout_steps", 0.0) or 0.0)
+                + float(_field(clog, "candidate_actions_scored", 0.0) or 0.0)
+            )
     ppc_wall = total_progress / total_wall_clock if total_wall_clock > 0 else 0.0
     ppc_self = total_progress / total_self_report if total_self_report > 0 else 0.0
     return {
