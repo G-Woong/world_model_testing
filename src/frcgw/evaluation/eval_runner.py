@@ -139,6 +139,9 @@ class EvaluationRunner:
                     wrong_prob_val = float(agent.last_wrong_prob)
                 else:
                     wrong_prob_val = float(step.get("wrong_prob") or 0.0)
+                action_changed_by_rollout_val = bool(
+                    getattr(agent, "last_action_changed_by_rollout", False)
+                )
                 f_t_val = _safe_float_or_none(getattr(agent, "last_F_t", None))
                 predicted_progress_delta_val = getattr(agent, "last_predicted_progress_delta", None)
 
@@ -159,6 +162,7 @@ class EvaluationRunner:
                         "eval_labels": eval_labels,
                         "predicted_wrong": predicted_wrong_val,
                         "wrong_prob": wrong_prob_val,
+                        "action_changed_by_rollout": action_changed_by_rollout_val,
                         "f_t": f_t_val,
                         "progress_delta": float(targets.get("progress_delta") or 0.0),
                         "predicted_progress_delta": predicted_progress_delta_val,
@@ -185,6 +189,10 @@ class EvaluationRunner:
                     "rewrite_timestamp": _first_present(episode.get("steps", []), "rewrite_timestamp"),
                     "planning_events": episode_planning_events,
                     "degenerate_f_t_count": _count_degenerate_f_t_steps(step_results),
+                    "total_action_changes": sum(
+                        int(step.get("action_changed_by_rollout", False))
+                        for step in step_results
+                    ),
                     "steps": step_results,
                 }
             )
