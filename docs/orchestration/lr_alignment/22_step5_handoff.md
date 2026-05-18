@@ -145,3 +145,40 @@ STEP 4 완료 후 evidence card에서:
 - `paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md §7,§8` — baseline/ablation SSoT
 - `docs/orchestration/agent_reports/2026-05/claim_metric_alignment_step4_T2_R1.md` — T2 claim audit
 - `docs/orchestration/agent_reports/2026-05/experiment_design_step4_T2_R1.md` — T2 experiment audit
+
+---
+
+## §7. STEP 5 Execution Status (2026-05-18 append)
+
+**시작일**: 2026-05-18
+**Verdict**: IMPLEMENTABLE_CORE (confidence 0.78)
+**실행 계획**: `docs/orchestration/lr_alignment/23_step5_execution_plan.md`
+
+### 진행 상태
+
+| Task | Status | Notes |
+|---|---|---|
+| T1 Pretraining checkpoint (Codex Task 1) | PENDING | v0_3 config + monitoring.py + tests |
+| T2 C4 MET-WM-001 metric (Codex Task 2) | PENDING | alternative_rollout_fidelity() |
+| T3 C1 namespace mapping (Codex Task 3) | PENDING | _GRAMMAR_IDX_TO_NAME dict |
+| T4 LR reconciliation (Codex Task 4) | PENDING | audit script + degenerate counter fix |
+| T5 C5 DEGENERATE 임계 강화 (Codex Task 5) | PENDING | unique<=2 condition |
+| T6 ABL-011/015/040 registry (Codex Task 6) | PENDING | ablations.py wiring |
+| T7 Trained smoke eval | PENDING | test_id + test_ood (5 ep each) |
+| T8 BASE-026/027/028 reviewer doc | PENDING | 24_step5_direct_threat_baseline_report.md |
+| T9 STEP 6 handoff doc | PENDING | 25_step6_handoff.md |
+| T10 Red-team review (Codex Task 7) | PENDING | read-only review |
+
+### Pre-existing Dirty Files (STEP 5 commit 미포함)
+- `.gitignore` (M)
+- `.self_evolving_memory/hooks/hook_execution_log.md` (M)
+- `docs/orchestration/AGENT_TEAMS_ROLLOUT_PLAN.md` (M)
+- `docs/orchestration/session_reports/2026-05/2026-05-17_precompact_handoff.md` (M)
+- `plans/PHASE_PROGRESS.md` (M)
+- `docs/orchestration/session_reports/2026-05/2026-05-18_precompact_handoff.md` (?? untracked)
+
+### Blockers
+- None at STEP 5 start. Training NaN/Inf 시 TRAIN_BLOCKED 상태로 전환.
+
+### Target Sentinel
+`outputs/phase_gates/P3_STEP5_TRAINED_EVIDENCE_READY.passed`
