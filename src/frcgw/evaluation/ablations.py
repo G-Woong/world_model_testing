@@ -6,6 +6,7 @@ Source docs:
 """
 from __future__ import annotations
 
+import logging
 import random
 from dataclasses import dataclass, replace
 from typing import Any
@@ -13,6 +14,9 @@ from typing import Any
 from frcgw.evaluation.baselines import BaselineAgent
 from frcgw.evaluation.compute_budget import ComputeBudgetLog
 from frcgw.schemas.step_schema import CandidateAction, PublicObservation
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -24,6 +28,7 @@ class AblationConfig:
     expected_collapse: dict[str, str]
     masking: dict[str, Any]
     control_evidence_ref: str | None = None  # path to checkpoint used as training-time control
+    inference_time: bool = True
 
 
 def _budget(
@@ -169,13 +174,23 @@ class NoAlternativeHypothesisAblation(AblatedAgent):
         )
 
 
-class RandomAlternativeAblation(AblatedAgent):
+class RandomAlternativeHypothesisAblation(AblatedAgent):
+    """ABL-025: choose h_alt at random instead of using falsification signal."""
+
+    def _select_best_alternative(self, alt_hypotheses: list[Any]) -> Any | None:
+        if not alt_hypotheses:
+            return None
+        return random.choice(alt_hypotheses)
+
     def act(
         self,
         obs: PublicObservation,
         eval_labels: dict | None = None,
     ) -> tuple[CandidateAction, ComputeBudgetLog]:
-        return _random_public_candidate(obs, salt=self.ablation_id), _budget(
+        action = self._select_best_alternative(list(obs.candidate_actions_public))
+        if action is None:
+            action = _noop_action()
+        return action, _budget(
             planning_calls=1,
             rollout_steps=0,
             candidate_actions_scored=len(obs.candidate_actions_public),
@@ -183,17 +198,29 @@ class RandomAlternativeAblation(AblatedAgent):
         )
 
 
-class NoRolloutAblation(AblatedAgent):
+RandomAlternativeAblation = RandomAlternativeHypothesisAblation
+
+
+class NoShortRolloutAblation(AblatedAgent):
+    """ABL-026: skip short rollout before committing to rewrite."""
+
+    def _should_rollout(self) -> bool:
+        return False
+
     def act(
         self,
         obs: PublicObservation,
         eval_labels: dict | None = None,
     ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        rollout_steps = len(obs.candidate_actions_public) if self._should_rollout() else 0
         return _best_public_candidate(obs), _budget(
             planning_calls=1,
-            rollout_steps=0,
+            rollout_steps=rollout_steps,
             candidate_actions_scored=len(obs.candidate_actions_public),
         )
+
+
+NoRolloutAblation = NoShortRolloutAblation
 
 
 class NoRewriteAblation(AblatedAgent):
@@ -367,6 +394,12 @@ class LeakageSanityProbeAblation(AblatedAgent):
     structurally isolated from agent-visible PublicObservation fields.
     """
 
+    _injection_applied_count: int = 0
+
+    def reset(self) -> None:
+        super().reset()
+        self._injection_applied_count = 0
+
     def act(
         self,
         obs: PublicObservation,
@@ -374,7 +407,13 @@ class LeakageSanityProbeAblation(AblatedAgent):
     ) -> tuple[CandidateAction, ComputeBudgetLog]:
         action, log = self._agent.act(obs, eval_labels)
         if eval_labels is not None and "true_control_grammar" in eval_labels:
-            self._agent._last_selected_hypothesis_id = eval_labels["true_control_grammar"]
+            injected_id = eval_labels["true_control_grammar"]
+            self._agent._last_selected_hypothesis_id = injected_id
+            self._injection_applied_count += 1
+            LOGGER.warning(
+                "ABL-040 leakage sanity probe injected selected_hypothesis_id=%s",
+                injected_id,
+            )
         return action, log
 
 
@@ -440,17 +479,28 @@ ABLATION_REGISTRY: dict[str, AblationConfig] = {
         ablation_id="random_alternative",
         tdd_ref="ABL-025",
         severity="standard",
-        description="Pick random alternative hypothesis instead of proposed",
-        expected_collapse={"recovery_delay": "increase"},
+        description=(
+            "Random alternative hypothesis selection - selects h_alt at random "
+            "instead of using falsification signal"
+        ),
+        expected_collapse={
+            "falsification_precision": "decrease",
+            "recovery_delay": "increase",
+        },
         masking={"randomize_alternative": True},
+        inference_time=True,
     ),
     "no_rollout": AblationConfig(
         ablation_id="no_rollout",
         tdd_ref="ABL-026",
         severity="standard",
-        description="Skip rollout; use 0 rollout steps in planning",
-        expected_collapse={"task_success_rate": "decrease"},
+        description=(
+            "Skip short rollout - do not roll out alternative hypothesis before "
+            "committing to rewrite"
+        ),
+        expected_collapse={"alternative_rollout_fidelity": "decrease"},
         masking={"rollout_steps": 0},
+        inference_time=True,
     ),
     "no_rewrite": AblationConfig(
         ablation_id="no_rewrite",
@@ -567,8 +617,8 @@ _WRAPPERS: dict[str, type[AblatedAgent]] = {
     "no_falsification": NoFalsificationAblation,
     "uncertainty_instead_of_falsification": UncertaintyInsteadOfFalsificationAblation,
     "no_alternative_hypothesis": NoAlternativeHypothesisAblation,
-    "random_alternative": RandomAlternativeAblation,
-    "no_rollout": NoRolloutAblation,
+    "random_alternative": RandomAlternativeHypothesisAblation,
+    "no_rollout": NoShortRolloutAblation,
     "no_rewrite": NoRewriteAblation,
     "always_plan_no_gate": AlwaysPlanNoGateAblation,
     "no_progress_reward": NoProgressRewardAblation,
@@ -604,5 +654,8 @@ __all__ = [
     "ABLATION_REGISTRY",
     "AblationConfig",
     "AblatedAgent",
+    "LeakageSanityProbeAblation",
+    "NoShortRolloutAblation",
+    "RandomAlternativeHypothesisAblation",
     "apply_ablation",
 ]
