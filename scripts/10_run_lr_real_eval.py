@@ -193,6 +193,11 @@ class _TracingAgent:
             self._agent.reset()
 
     def act(self, obs: PublicObservation) -> Any:
+        trace_step_idx = _coerce_int(
+            getattr(self._agent, "_step_idx", len(self.records)),
+            len(self.records),
+        )
+        h_exec_id = _current_hypothesis_id(self._agent, trace_step_idx)
         action, compute_log = self._agent.act(obs)
 
         # STEP 6 C4: model rollout prediction for alternative_rollout_fidelity metric.
@@ -232,16 +237,39 @@ class _TracingAgent:
         # model prediction — never flows to obs (leakage prevention)
         self.last_predicted_progress_delta = model_predicted_progress_delta
 
+        plan_meta = getattr(self._agent, "_last_plan_metadata", None)
+        planner_F_t = _coerce_float(getattr(plan_meta, "F_t", None), None)
+        if planner_F_t is None:
+            planner_F_t = _coerce_float(getattr(self._agent, "last_F_t", None), 0.0)
+        lr_scorer_F_t = _coerce_float(
+            getattr(
+                self._agent,
+                "last_lr_scorer_F_t",
+                getattr(
+                    self._agent,
+                    "_last_lr_scorer_F_t",
+                    getattr(self._agent, "last_F_t", None),
+                ),
+            ),
+            0.0,
+        )
+
         self.records.append(
             {
                 "action_id": action.action_id,
                 "action_type": action.action_type,
                 "planning_calls": compute_log.planning_calls,
                 "rollout_steps": compute_log.rollout_steps,
+                "planner_F_t": planner_F_t,
+                "lr_scorer_F_t": lr_scorer_F_t,
+                "effect_type": _last_public_effect_type(obs),
                 "predicted_wrong": getattr(self._agent, "last_predicted_wrong", None),
                 "wrong_prob": getattr(self._agent, "last_wrong_prob", None),
                 "f_t": getattr(self._agent, "last_F_t", None),
                 "tau_f": getattr(self._agent, "_last_tau_f", None),
+                "h_exec_id": h_exec_id,
+                "h_alt_best_id": _h_alt_best_id(plan_meta),
+                "degenerate_reason": None,
                 "selected_hypothesis_id": getattr(
                     self._agent,
                     "_last_selected_hypothesis_id",
@@ -257,6 +285,79 @@ class _TracingAgent:
             }
         )
         return action, compute_log
+
+
+def _coerce_float(value: Any, default: float | None = 0.0) -> float | None:
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_int(value: Any, default: int = 0) -> int:
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_optional_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _current_hypothesis_id(agent: Any, step_idx: int) -> int:
+    planner_state = getattr(agent, "_planner_state", None)
+    get_current = getattr(planner_state, "get_current", None)
+    if callable(get_current):
+        return _coerce_int(get_current(step_idx), 0)
+    return _coerce_int(getattr(agent, "h_exec_id", 0), 0)
+
+
+def _h_alt_best_id(plan_meta: Any) -> int | None:
+    h_star = getattr(plan_meta, "h_star", None)
+    if h_star is None:
+        return None
+    return _coerce_optional_int(getattr(h_star, "combined_id", h_star))
+
+
+def _last_public_effect_type(obs: PublicObservation) -> str:
+    if not obs.history_public:
+        return "none"
+    effect = obs.history_public[-1].effect_summary
+    return str(effect or "none")
+
+
+def _last_public_effect_type_from_step(step: dict[str, Any]) -> str:
+    public_obs = dict(step.get("public_observation") or step.get("public_input") or {})
+    history = public_obs.get("history_public") or []
+    if not history:
+        return "none"
+    last = history[-1]
+    if isinstance(last, dict):
+        return str(last.get("effect_summary") or "none")
+    effect = getattr(last, "effect_summary", None)
+    return str(effect or "none")
+
+
+def _trace_predicted_wrong(trace: dict[str, Any], step: dict[str, Any]) -> bool | None:
+    if trace.get("predicted_wrong") is not None:
+        return bool(trace["predicted_wrong"])
+    if step.get("predicted_wrong") is not None:
+        return bool(step["predicted_wrong"])
+    for labels_key in ("evaluation_labels", "eval_labels"):
+        labels = step.get(labels_key)
+        if isinstance(labels, dict) and labels.get("predicted_wrong") is not None:
+            return bool(labels["predicted_wrong"])
+    return None
 
 
 def _load_jsonl(path: str | Path) -> list[dict[str, Any]]:
@@ -292,15 +393,18 @@ def _attach_trace_records(
             trace = trace_records[trace_index] if trace_index < len(trace_records) else {}
             trace_index += 1
             step_index = int(step.get("step_index", trace_index - 1))
-            eval_labels = dict(step.get("evaluation_labels") or step.get("eval_labels") or {})
-            training_labels = dict(step.get("training_labels") or step.get("targets") or {})
             observed_effect = dict(step.get("observed_effect_public") or {})
-            predicted_wrong = trace.get("predicted_wrong")
-            if predicted_wrong is None:
-                predicted_wrong = bool(step.get("predicted_wrong", False))
+            effect_type = str(trace.get("effect_type") or _last_public_effect_type_from_step(step))
+            predicted_wrong = _trace_predicted_wrong(trace, step)
             wrong_prob = trace.get("wrong_prob")
             if wrong_prob is None:
                 wrong_prob = float(step.get("wrong_prob") or 0.0)
+            planner_F_t = _coerce_float(trace.get("planner_F_t"), None)
+            if planner_F_t is None:
+                planner_F_t = _coerce_float(trace.get("f_t"), 0.0)
+            lr_scorer_F_t = _coerce_float(trace.get("lr_scorer_F_t"), None)
+            if lr_scorer_F_t is None:
+                lr_scorer_F_t = _coerce_float(trace.get("f_t"), 0.0)
             per_step.append(
                 {
                     "episode_id": episode_id,
@@ -308,10 +412,16 @@ def _attach_trace_records(
                     "step_index": step_index,
                     "action_id": trace.get("action_id", "unknown"),
                     "action_type": trace.get("action_type", "unknown"),
+                    "planner_F_t": planner_F_t,
+                    "lr_scorer_F_t": lr_scorer_F_t,
+                    "effect_type": effect_type,
                     "f_t": trace.get("f_t"),
                     "tau_f": trace.get("tau_f"),
-                    "predicted_wrong": bool(predicted_wrong),
+                    "predicted_wrong": predicted_wrong,
                     "wrong_prob": float(wrong_prob),
+                    "h_exec_id": _coerce_int(trace.get("h_exec_id"), 0),
+                    "h_alt_best_id": _coerce_optional_int(trace.get("h_alt_best_id")),
+                    "degenerate_reason": trace.get("degenerate_reason"),
                     "planning_calls": int(trace.get("planning_calls") or 0),
                     "rollout_steps": int(trace.get("rollout_steps") or 0),
                     "selected_hypothesis_id": trace.get("selected_hypothesis_id"),
@@ -320,9 +430,8 @@ def _attach_trace_records(
                     ),
                     "observed_effect_type": observed_effect.get(
                         "effect_type",
-                        training_labels.get("true_action_effect_type", "unknown"),
+                        effect_type,
                     ),
-                    "true_wrong_hypothesis_available": eval_labels.get("true_wrong_hypothesis") is not None,
                 }
             )
     result._real_eval_step_records = per_step  # type: ignore[attr-defined]
@@ -348,14 +457,19 @@ def _write_per_step_jsonl(
                 "step_index": 0,
                 "action_id": "unknown",
                 "action_type": "unknown",
+                "planner_F_t": 0.0,
+                "lr_scorer_F_t": 0.0,
+                "effect_type": "none",
                 "f_t": None,
                 "tau_f": None,
-                "predicted_wrong": False,
+                "predicted_wrong": None,
                 "wrong_prob": 0.0,
+                "h_exec_id": 0,
+                "h_alt_best_id": None,
+                "degenerate_reason": None,
                 "planning_calls": 0,
                 "rollout_steps": 0,
                 "observed_effect_type": "unknown",
-                "true_wrong_hypothesis_available": False,
             }
             for index in range(result.n_episodes)
         ]
@@ -376,14 +490,19 @@ def _write_per_step_jsonl(
                 "selected_hypothesis_confidence": record.get(
                     "selected_hypothesis_confidence"
                 ),
+                "planner_F_t": _coerce_float(record.get("planner_F_t"), 0.0),
+                "lr_scorer_F_t": _coerce_float(record.get("lr_scorer_F_t"), 0.0),
+                "effect_type": str(record.get("effect_type") or "none"),
                 "f_t": record["f_t"],
                 "tau_f": record.get("tau_f"),
-                "predicted_wrong": record["predicted_wrong"],
-                "wrong_prob": record["wrong_prob"],
+                "predicted_wrong": record.get("predicted_wrong"),
+                "wrong_prob": _coerce_float(record.get("wrong_prob"), 0.0),
+                "h_exec_id": _coerce_int(record.get("h_exec_id"), 0),
+                "h_alt_best_id": _coerce_optional_int(record.get("h_alt_best_id")),
+                "degenerate_reason": record.get("degenerate_reason"),
                 "planning_calls": record["planning_calls"],
                 "rollout_steps": record["rollout_steps"],
                 "observed_effect_type": record["observed_effect_type"],
-                "true_wrong_hypothesis_available": record["true_wrong_hypothesis_available"],
                 "leakage_guard_passed": True,
                 "error": None,
             }
