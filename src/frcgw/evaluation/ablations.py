@@ -23,6 +23,7 @@ class AblationConfig:
     description: str
     expected_collapse: dict[str, str]
     masking: dict[str, Any]
+    control_evidence_ref: str | None = None  # path to checkpoint used as training-time control
 
 
 def _budget(
@@ -415,6 +416,9 @@ ABLATION_REGISTRY: dict[str, AblationConfig] = {
             "false_planning_call_rate": "increase",
         },
         masking={"disable_falsification": True},
+        # STEP 6: STEP 5 checkpoint is the training-time control for ABL-016.
+        # l_falsification=0.0 in training config (configs/train_text_v0_3.yaml).
+        control_evidence_ref="outputs/checkpoints/pretrain_v0_3/checkpoint_best.pt",
     ),
     "uncertainty_instead_of_falsification": AblationConfig(
         ablation_id="uncertainty_instead_of_falsification",

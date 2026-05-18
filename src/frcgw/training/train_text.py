@@ -18,8 +18,19 @@ import yaml
 
 from frcgw.data.text_dataset import build_dataloaders
 from frcgw.models.text_frcg_model import TextFRCGModel
-from frcgw.objectives.losses import LossDict, assert_no_objective_leakage, compute_total_loss
+from frcgw.objectives.losses import (
+    EFFECT_TYPE_VOCAB,
+    GRAMMAR_VOCAB,
+    LossDict,
+    assert_no_objective_leakage,
+    compute_total_loss,
+)
+from frcgw.planning.falsification import FalsificationEvidence, falsification_score
 from frcgw.training.monitoring import PublicTraceLogger
+
+# Number of grammar hypotheses for deterministic alt enumeration during training.
+# Mirrors GRAMMAR_VOCAB in objectives/losses.py; must stay in sync.
+_FALSIFICATION_GRAMMAR_N: int = max(GRAMMAR_VOCAB.values()) + 1  # 8
 
 
 @dataclass
@@ -88,10 +99,34 @@ def train_one_epoch(
             action_type,
             0,
         )
+        # STEP 6 B1 fix: compute per-example F_t [B] for L_falsification.
+        # T1 audit (mathematical_validity_critic_step6_T1_R1.md): falsification_score()
+        # returns a scalar; L_falsification expects [B]; per-example loop+stack required.
+        # Only runs when l_falsification weight is non-zero (config-controlled).
+        _eff_falsification_w = float((weights or {}).get("l_falsification", 1.0))
+        F_t_batch: torch.Tensor | None = None
+        if _eff_falsification_w > 0.0 and targets:
+            _h_exec = 0  # training: deterministic executing hypothesis index
+            _alt_ids = list(range(1, _FALSIFICATION_GRAMMAR_N))  # [1..7]
+            _f_list: list[torch.Tensor] = []
+            for _i, _t in enumerate(targets):
+                _effect_str = getattr(_t, "true_action_effect_type", "none") or "none"
+                _evidence = FalsificationEvidence(
+                    observed_effect_type=EFFECT_TYPE_VOCAB.get(_effect_str, 0),
+                    observed_progress_delta=float(getattr(_t, "progress_delta", 0.0) or 0.0),
+                    observed_failed_action=bool(getattr(_t, "true_failed_action", False)),
+                )
+                _sh = model_out.shared_h[_i : _i + 1] if model_out.shared_h.dim() > 1 else model_out.shared_h.unsqueeze(0)
+                _zs = model_out.z_state[_i : _i + 1] if model_out.z_state.dim() > 1 else model_out.z_state.unsqueeze(0)
+                _f_list.append(
+                    falsification_score(model, _sh, _zs, action_type, _h_exec, _alt_ids, _evidence).reshape(1)
+                )
+            F_t_batch = torch.cat(_f_list, dim=0)  # shape [B]
+
         loss_dict = compute_total_loss(
             model_out,
             world_out,
-            F_t=None,
+            F_t=F_t_batch,
             targets=targets,
             weights=weights,
             public_input=public_inputs,

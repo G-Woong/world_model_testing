@@ -181,17 +181,57 @@ class _TracingAgent:
     def __init__(self, agent: Any) -> None:
         self._agent = agent
         self.records: list[dict[str, Any]] = []
+        self.last_predicted_progress_delta: float | None = None
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._agent, name)
 
     def reset(self) -> None:
         self.records = []
+        self.last_predicted_progress_delta = None
         if hasattr(self._agent, "reset"):
             self._agent.reset()
 
     def act(self, obs: PublicObservation) -> Any:
         action, compute_log = self._agent.act(obs)
+
+        # STEP 6 C4: model rollout prediction for alternative_rollout_fidelity metric.
+        # Only computed when agent has a loaded model (valid_trained_eval=True).
+        # model prediction trace — never flows to obs (leakage prevention)
+        model_predicted_progress_delta: float | None = None
+        model_rollout_predictions: list[dict] = []
+        _model = getattr(self._agent, "model", None)
+        if _model is not None and hasattr(_model, "world_model_heads"):
+            try:
+                import torch
+                with torch.no_grad():
+                    _model_out = _model.forward(obs)
+                    _candidates = list(obs.candidate_actions_public)[:3]
+                    _pred_deltas: list[float] = []
+                    for _ci, _cand in enumerate(_candidates):
+                        _rollout = _model.world_model_heads.rollout_step(
+                            _model_out.shared_h,
+                            _model_out.z_state,
+                            _cand.action_type,
+                            _ci,
+                            H=1,
+                        )
+                        _delta = float(_rollout.progress_pred.squeeze().item())
+                        _pred_deltas.append(_delta)
+                        model_rollout_predictions.append({
+                            "candidate_idx": _ci,
+                            "action_type": _cand.action_type,
+                            "model_predicted_progress_delta": _delta,
+                        })
+                    if _pred_deltas:
+                        model_predicted_progress_delta = max(_pred_deltas)
+            except Exception:
+                pass  # model rollout is best-effort; never blocks eval
+
+        # Expose to eval_runner (reads via getattr(agent, "last_predicted_progress_delta", None))
+        # model prediction — never flows to obs (leakage prevention)
+        self.last_predicted_progress_delta = model_predicted_progress_delta
+
         self.records.append(
             {
                 "action_id": action.action_id,
@@ -212,6 +252,8 @@ class _TracingAgent:
                     "_last_selected_hypothesis_confidence",
                     None,
                 ),
+                "model_predicted_progress_delta": model_predicted_progress_delta,
+                "model_rollout_predictions": model_rollout_predictions,
             }
         )
         return action, compute_log

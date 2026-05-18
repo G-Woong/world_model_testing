@@ -43,6 +43,13 @@ ablations:
     expected_collapse:
       falsification_precision_recall_f1: decrease
       false_planning_call_rate: increase
+    # STEP 6 ABL-016 control evidence (registered 2026-05-18)
+    paper_ssot_id: ABL-016
+    control_checkpoint_ref: "outputs/checkpoints/pretrain_v0_3/checkpoint_best.pt"
+    training_l_falsification: 0.0
+    control_eval_run_ref: "outputs/runs/p3_lr_real_eval_step5_trained_smoke"
+    step6_experimental_group_ckpt: "outputs/checkpoints/pretrain_v0_3_falsification/checkpoint_best.pt"
+    note: "STEP 5 checkpoint is training-time ABL-016 control (l_falsification=0.0). STEP 6 experimental group uses l_falsification=1.0."
   - id: uncertainty_instead_of_falsification
     tdd_ref: ABL-023
     severity: CRITICAL

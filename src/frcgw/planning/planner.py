@@ -106,21 +106,11 @@ def text_frcg_plan(
     model_out = model.forward(public_obs)
     effect_text = _last_effect_summary(public_obs)
     evidence = FalsificationEvidence(_effect_type_id(effect_text), 0.0, False)
-    h_exec_id = planner_state.get_current(step_idx)
-    F_t_tensor = falsification_score(
-        model,
-        model_out.shared_h,
-        model_out.z_state,
-        base_action.action_type,
-        h_exec_id,
-        [],
-        evidence,
-    )
-    F_t = float(F_t_tensor.item())
     cfg = cfg or GateConfig()
-    if F_t <= cfg.tau_f:
-        return base_action, PlanMetadata(planned=False, reason="low_F_t", F_t=F_t)
+    h_exec_id = planner_state.get_current(step_idx)
 
+    # STEP 6 B2 fix: propose() must run BEFORE falsification_score() so alt_ids is non-empty.
+    # posterior_only: prior-ranked alts; evidence-blind by design at inference.
     latent_sample = _latent_sample_from_output(model_out)
     alt_hypotheses = propose(
         latent_sample,
@@ -132,6 +122,21 @@ def text_frcg_plan(
         mode="posterior_only",
         k=3,
     )
+    alt_ids = [h.combined_id for h in alt_hypotheses if isinstance(h.combined_id, int)]
+
+    F_t_tensor = falsification_score(
+        model,
+        model_out.shared_h,
+        model_out.z_state,
+        base_action.action_type,
+        h_exec_id,
+        alt_ids,
+        evidence,
+    )
+    F_t = float(F_t_tensor.item())
+    if F_t <= cfg.tau_f:
+        return base_action, PlanMetadata(planned=False, reason="low_F_t", F_t=F_t)
+
     h_exec_value = _value_for_hypothesis(model, model_out, base_action.action_type, h_exec_id)
     alt_values = [
         _value_for_hypothesis(model, model_out, base_action.action_type, h.combined_id)
