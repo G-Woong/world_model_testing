@@ -7,7 +7,7 @@ Source docs:
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from frcgw.evaluation.baselines import BaselineAgent
@@ -323,6 +323,60 @@ class NoCounterfactualTargetAblationAgent(AblatedAgent):
         )
 
 
+class NoActionEffectLogAblation(AblatedAgent):
+    """ABL-011: Remove public action-effect grounding from observation history."""
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        masked_history = [
+            replace(history_item, effect_summary=None)
+            for history_item in obs.history_public
+        ]
+        masked_obs = replace(obs, history_public=masked_history)
+        return self._agent.act(masked_obs, eval_labels)
+
+
+class NoControlGrammarLossAblation(AblatedAgent):
+    """ABL-015: Proxy for L_control_grammar=0.0 training-time ablation.
+
+    Training cannot be replayed in P3 text-only smoke mode, so inference uses
+    random candidate selection as a proxy for removing the control grammar loss.
+    """
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        return _random_public_candidate(obs, salt=self.ablation_id), _budget(
+            planning_calls=0,
+            rollout_steps=0,
+            candidate_actions_scored=len(obs.candidate_actions_public),
+        )
+
+
+class LeakageSanityProbeAblation(AblatedAgent):
+    """ABL-040 POSITIVE CONTROL: oracle injection via eval_labels, NOT PublicObservation.
+
+    This path is only a metric-discriminability probe. The injected label is
+    supplied through the evaluation-only eval_labels argument and remains
+    structurally isolated from agent-visible PublicObservation fields.
+    """
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        action, log = self._agent.act(obs, eval_labels)
+        if eval_labels is not None and "true_control_grammar" in eval_labels:
+            self._agent._last_selected_hypothesis_id = eval_labels["true_control_grammar"]
+        return action, log
+
+
 ABLATION_REGISTRY: dict[str, AblationConfig] = {
     "no_control_grammar": AblationConfig(
         ablation_id="no_control_grammar",
@@ -467,6 +521,38 @@ ABLATION_REGISTRY: dict[str, AblationConfig] = {
         expected_collapse={"rollout_fidelity": "decrease", "alternative_adoption_rate": "decrease"},
         masking={"disable_counterfactual_target": True},
     ),
+    "no_action_effect_log": AblationConfig(
+        ablation_id="no_action_effect_log",
+        tdd_ref="ABL-011",
+        severity="CRITICAL",
+        description="Remove action-effect log (effect_summary) from history_public; falsification loses grounding evidence (C3).",
+        expected_collapse={
+            "falsification_precision_recall_f1": "decrease",
+            "wrong_control_grammar_persistence": "increase",
+        },
+        masking={"zero_effect_summary": True},
+    ),
+    "no_control_grammar_loss": AblationConfig(
+        ablation_id="no_control_grammar_loss",
+        tdd_ref="ABL-015",
+        severity="CRITICAL",
+        description="Proxy for L_control_grammar=0.0 training ablation (C2). At inference: random candidate. Training-time intervention proxied.",
+        expected_collapse={
+            "regime_shift_f1": "decrease",
+            "rewrite_success_rate": "decrease",
+        },
+        masking={"disable_control_grammar_loss": True},
+    ),
+    "leakage_sanity_probe": AblationConfig(
+        ablation_id="leakage_sanity_probe",
+        tdd_ref="ABL-040",
+        severity="CRITICAL",
+        description="Oracle label leakage positive control: inject true_control_grammar from eval_labels to confirm metric discriminability. NOT a production path.",
+        expected_collapse={
+            "task_success_rate": "increase",
+        },
+        masking={"inject_oracle_grammar": True},
+    ),
 }
 
 
@@ -487,6 +573,9 @@ _WRAPPERS: dict[str, type[AblatedAgent]] = {
     "no_intent_action_mapping": NoIntentActionMappingAblationAgent,
     "no_falsification_score_gate": NoFalsificationScoreGateAblationAgent,
     "no_counterfactual_target": NoCounterfactualTargetAblationAgent,
+    "no_action_effect_log": NoActionEffectLogAblation,
+    "no_control_grammar_loss": NoControlGrammarLossAblation,
+    "leakage_sanity_probe": LeakageSanityProbeAblation,
 }
 
 
