@@ -35,7 +35,7 @@ src/frcgw/
 REQUIRED_IMPLEMENTATION:
 1. scripts/risk_hunt/run_abl003_retrain.py (identical pattern to run_abl001_retrain.py but for abl003)
 2. configs/lr_eval_step10_abl003.yaml:
-   - checkpoint_path: outputs/checkpoints/pretrain_v0_4_abl003/checkpoint_best.pt
+   - checkpoint_path: outputs/checkpoints/abl003_merged_regime_grammar/checkpoint_best.pt
    - agents: ABL-003-merged + FRCG-LR-reference
    - metrics: falsification_precision_recall, threshold_free_c3_auroc, regime_shift_f1, progress_per_compute
    - output_root: outputs/risk_hunt/experiments/loop03_abl003_retrain

@@ -71,7 +71,7 @@ REQUIRED_IMPLEMENTATION:
    version: step10_abl001
    dataset_root: data/frcgw_text/v0_4
    dataset_path: data/frcgw_text/v0_4
-   checkpoint_path: outputs/checkpoints/pretrain_v0_4_abl001/checkpoint_best.pt
+   checkpoint_path: outputs/checkpoints/abl001_no_regime/checkpoint_best.pt
    model_config: configs/model_text.yaml
    max_episodes: null
    compute_budget:
@@ -80,7 +80,7 @@ REQUIRED_IMPLEMENTATION:
    agents:
      - id: ABL-001-no-regime
        class: TextFRCGModelAgent
-       ckpt_path: outputs/checkpoints/pretrain_v0_4_abl001/checkpoint_best.pt
+       ckpt_path: outputs/checkpoints/abl001_no_regime/checkpoint_best.pt
      - id: FRCG-LR-reference
        class: TextFRCGModelAgent
        ckpt_path: outputs/checkpoints/pretrain_v0_4_long/checkpoint_best.pt

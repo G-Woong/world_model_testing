@@ -40,9 +40,14 @@ src/frcgw/planning/falsification.py
 REQUIRED_IMPLEMENTATION:
 1. src/frcgw/planning/planner.py 수정:
    - text_frcg_plan() 시그니처에 `use_no_state_change_proxy: bool = True` 파라미터 추가
-   - `if use_no_state_change_proxy: _obs_effect_type_id = 3 if _effect_key == "no_state_change" else ...`
-   - else: `_obs_effect_type_id = _effect_type_id(effect_text)` (proxy 없음)
+   - line 122 게이팅:
+     `if use_no_state_change_proxy: _obs_effect_type_id = 3 if _effect_key == "no_state_change" else _effect_type_id(effect_text)`
+     `else: _obs_effect_type_id = _effect_type_id(effect_text)` (proxy 없음, no special-case)
+   - line 124 게이팅 (반드시 함께 처리):
+     `if use_no_state_change_proxy: _observed_failed = any(kw in _effect_key for kw in _failed_keywords) or _effect_key == "no_state_change"`
+     `else: _observed_failed = any(kw in _effect_key for kw in _failed_keywords)` (no_state_change 특수처리 없음)
    - default=True → 기존 동작 유지 (regression 없음)
+   - 두 줄(122, 124) 모두 게이팅하지 않으면 proxy=OFF 결과가 부분적 proxy임 (Fix-B 요구사항)
 
 2. GateConfig에 `use_no_state_change_proxy: bool = True` 필드 추가
    - src/frcgw/planning/decision_gate.py 수정
