@@ -328,6 +328,11 @@ class WACStyleConsequenceCorrectionAgent(BaselineAgent):
 
     baseline_id = "BASE-026"
     paper_ssot_id = "BASE-026 (WAC-style consequence correction)"
+    approximation_level = (
+        "heuristic last-effect-fail proxy; "
+        "full WAC consequence-correction model (grammar posterior + consequence prediction) "
+        "deferred to STEP 8"
+    )
 
     def act(
         self,
@@ -356,6 +361,11 @@ class CUWMStyleCandidateSimulationAgent(BaselineAgent):
 
     baseline_id = "BASE-027"
     paper_ssot_id = "BASE-027 (CUWM-style candidate simulation)"
+    approximation_level = (
+        "heuristic longest-action-id proxy; "
+        "full CUWM candidate-simulation (world model rollout per candidate) "
+        "deferred to STEP 8"
+    )
 
     def act(
         self,
