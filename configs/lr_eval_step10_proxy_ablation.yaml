@@ -1,0 +1,26 @@
+version: step10_proxy_ablation
+dataset_root: data/frcgw_text/v0_4
+dataset_path: data/frcgw_text/v0_4
+checkpoint_path: outputs/checkpoints/pretrain_v0_4_long/checkpoint_best.pt
+model_config: configs/model_text.yaml
+max_episodes: null
+compute_budget:
+  planning_calls_cap: 5
+  rollout_steps_cap: 10
+agents:
+  - id: FRCG-LR-proxy-on
+    class: TextFRCGModelAgent
+    ckpt_path: outputs/checkpoints/pretrain_v0_4_long/checkpoint_best.pt
+  - id: FRCG-LR-proxy-off
+    class: TextFRCGModelAgent
+    gate_config:
+      use_no_state_change_proxy: false
+    ckpt_path: outputs/checkpoints/pretrain_v0_4_long/checkpoint_best.pt
+metrics:
+  - falsification_precision_recall
+  - threshold_free_c3_auroc
+  - progress_per_compute
+splits:
+  - test_id
+seeds: [0]
+output_root: outputs/risk_hunt/experiments/loop01_proxy_ablation

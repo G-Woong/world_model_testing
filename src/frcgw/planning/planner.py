@@ -104,6 +104,7 @@ def text_frcg_plan(
     model: TextFRCGModel,
     planner_state: PlannerState,
     cfg: GateConfig | None = None,
+    use_no_state_change_proxy: bool = True,
 ) -> tuple[CandidateAction, PlanMetadata]:
     """Closed-loop planning step.
 
@@ -112,6 +113,8 @@ def text_frcg_plan(
     assert_agent_observation_safe(public_obs)
     base_action = candidates[0] if candidates else CandidateAction("noop", "noop", {})
     model_out = model.forward(public_obs)
+    cfg = cfg or GateConfig()
+    use_no_state_change_proxy = bool(cfg.use_no_state_change_proxy) and use_no_state_change_proxy
     effect_text = _last_effect_summary(public_obs)
     # fix-2a: derive observed_failed_action from public effect_summary (inference-safe proxy).
     # no_state_change → type 3 (failed proxy) to bypass falsification short-circuit on type 0.
@@ -119,12 +122,17 @@ def text_frcg_plan(
     # functionally equivalent to a failed action for falsification scoring purposes.
     _effect_key = (effect_text or "none").lower()
     _no_effect_keys = {"none", "no_change", "no_state_change"}
-    _obs_effect_type_id = 3 if _effect_key == "no_state_change" else _effect_type_id(effect_text)
+    if use_no_state_change_proxy:
+        _obs_effect_type_id = 3 if _effect_key == "no_state_change" else _effect_type_id(effect_text)
+    else:
+        _obs_effect_type_id = _effect_type_id(effect_text)
     _failed_keywords = {"failed", "failed_action", "blocked", "no_op_valid", "no_change"}
-    _observed_failed = any(kw in _effect_key for kw in _failed_keywords) or _effect_key == "no_state_change"
+    if use_no_state_change_proxy:
+        _observed_failed = any(kw in _effect_key for kw in _failed_keywords) or _effect_key == "no_state_change"
+    else:
+        _observed_failed = any(kw in _effect_key for kw in _failed_keywords)
     _observed_progress = 0.0 if _effect_key in _no_effect_keys else 1.0
     evidence = FalsificationEvidence(_obs_effect_type_id, _observed_progress, _observed_failed)
-    cfg = cfg or GateConfig()
     h_exec_id = planner_state.get_current(step_idx)
 
     # STEP 6 B2 fix: propose() must run BEFORE falsification_score() so alt_ids is non-empty.
