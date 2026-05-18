@@ -107,8 +107,21 @@ class EvaluationRunner:
                     public_obs,
                     context=f"{episode.get('episode_id', '<unknown>')}:{step.get('step_index', 0)}",
                 )
+                eval_labels = dict(step.get("evaluation_labels") or step.get("eval_labels") or {})
+                targets = dict(step.get("training_labels") or step.get("targets") or {})
                 obs = _build_public_observation(public_obs)
-                action, compute_log = agent.act(obs)
+                # ABL-040 positive control: oracle labels passed via eval_labels, not PublicObservation.
+                # baseline_id is "FRCG-FULL:leakage_sanity_probe" (AblatedAgent format).
+                _is_probe = (
+                    getattr(agent, "ablation_id", "") == "leakage_sanity_probe"
+                    or str(getattr(agent, "baseline_id", "")).endswith("leakage_sanity_probe")
+                )
+                if _is_probe:
+                    _probe_labels: dict = dict(eval_labels)
+                    _probe_labels.update(targets)
+                    action, compute_log = agent.act(obs, eval_labels=_probe_labels)
+                else:
+                    action, compute_log = agent.act(obs)
                 episode_compute_log = _add_compute_logs(episode_compute_log, compute_log)
                 if hasattr(agent, "last_predicted_wrong"):
                     predicted_wrong_val = bool(agent.last_predicted_wrong)
@@ -121,13 +134,10 @@ class EvaluationRunner:
                 f_t_val = _safe_float_or_none(getattr(agent, "last_F_t", None))
                 predicted_progress_delta_val = getattr(agent, "last_predicted_progress_delta", None)
 
-                eval_labels = dict(step.get("evaluation_labels") or step.get("eval_labels") or {})
-                targets = dict(step.get("training_labels") or step.get("targets") or {})
                 if not episode_eval_labels:
                     episode_eval_labels = eval_labels
                 total_progress += float(targets.get("progress_delta") or 0.0)
                 total_return += float(targets.get("progress_delta") or 0.0)
-                success = success or total_progress > 0.0
 
                 planning_events = list(step.get("planning_events") or [])
                 episode_planning_events.extend(planning_events)
@@ -153,6 +163,8 @@ class EvaluationRunner:
 
             episode_ts = _compute_episode_timestamps(step_results)
             episode_eval_labels.update(episode_ts)
+            # success from dataset final_success (engine task-completion gate), not cumulative progress_delta.
+            success = bool(episode.get("final_success", False))
             scored_episodes.append(
                 {
                     "episode_id": episode.get("episode_id"),

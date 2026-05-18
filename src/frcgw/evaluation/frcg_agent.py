@@ -71,7 +71,7 @@ class TextFRCGModelAgent(BaselineAgent):
             state_dict = ckpt.get("model_state_dict", ckpt)
             self.model.load_state_dict(state_dict)
 
-        self.gate_config = gate_config or GateConfig(tau_f=0.5)
+        self.gate_config = gate_config or GateConfig(tau_f=0.0)
         # Threshold for grammar uncertainty: if max P(grammar) < 0.4, predict wrong hypothesis.
         # For default n_grammars=8, uniform gives max=0.125 (always predicts wrong).
         # A trained model concentrating on 1 grammar gives max≈1.0 (predicts correct).
@@ -138,8 +138,8 @@ class TextFRCGModelAgent(BaselineAgent):
         self._last_F_t = float(plan_meta.F_t)
         tau_f = float(self.gate_config.tau_f)
         self._last_tau_f = tau_f
-        self._last_predicted_wrong = self._last_F_t > tau_f
         self._last_wrong_prob = _sigmoid(self._last_F_t - tau_f)
+        self._last_predicted_wrong = self._last_wrong_prob > 0.5
         self._step_idx += 1
 
         planned = plan_meta.planned

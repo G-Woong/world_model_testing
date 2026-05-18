@@ -80,6 +80,11 @@ class AblatedAgent(BaselineAgent):
         self.ablation_id = config.ablation_id
         self.baseline_id = f"{getattr(agent, 'baseline_id', agent.__class__.__name__)}:{self.ablation_id}"
 
+    def __getattr__(self, name: str) -> Any:
+        # Delegate unknown attribute access to the wrapped agent.
+        # Enables callers to read last_predicted_wrong, last_F_t, etc. from ablation wrappers.
+        return getattr(object.__getattribute__(self, "_agent"), name)
+
     def reset(self) -> None:
         if hasattr(self._agent, "reset"):
             self._agent.reset()
@@ -409,6 +414,10 @@ class LeakageSanityProbeAblation(AblatedAgent):
         if eval_labels is not None and "true_control_grammar" in eval_labels:
             injected_id = eval_labels["true_control_grammar"]
             self._agent._last_selected_hypothesis_id = injected_id
+            # fix-3b: force F_t high and predicted_wrong=True to make positive control discriminable.
+            self._agent._last_F_t = 10.0
+            self._agent._last_wrong_prob = 1.0
+            self._agent._last_predicted_wrong = True
             self._injection_applied_count += 1
             LOGGER.warning(
                 "ABL-040 leakage sanity probe injected selected_hypothesis_id=%s",

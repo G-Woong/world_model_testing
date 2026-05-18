@@ -196,13 +196,16 @@ class _TracingAgent:
         if hasattr(self._agent, "reset"):
             self._agent.reset()
 
-    def act(self, obs: PublicObservation) -> Any:
+    def act(self, obs: PublicObservation, eval_labels: dict | None = None) -> Any:
         trace_step_idx = _coerce_int(
             getattr(self._agent, "_step_idx", len(self.records)),
             len(self.records),
         )
         h_exec_id = _current_hypothesis_id(self._agent, trace_step_idx)
-        action, compute_log = self._agent.act(obs)
+        if eval_labels is not None:
+            action, compute_log = self._agent.act(obs, eval_labels)
+        else:
+            action, compute_log = self._agent.act(obs)
 
         # STEP 6 C4: model rollout prediction for alternative_rollout_fidelity metric.
         # Only computed when agent has a loaded model (valid_trained_eval=True).

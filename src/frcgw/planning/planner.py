@@ -113,7 +113,17 @@ def text_frcg_plan(
     base_action = candidates[0] if candidates else CandidateAction("noop", "noop", {})
     model_out = model.forward(public_obs)
     effect_text = _last_effect_summary(public_obs)
-    evidence = FalsificationEvidence(_effect_type_id(effect_text), 0.0, False)
+    # fix-2a: derive observed_failed_action from public effect_summary (inference-safe proxy).
+    # no_state_change → type 3 (failed proxy) to bypass falsification short-circuit on type 0.
+    # Rationale: "action executed under wrong grammar but produced no visible change" is
+    # functionally equivalent to a failed action for falsification scoring purposes.
+    _effect_key = (effect_text or "none").lower()
+    _no_effect_keys = {"none", "no_change", "no_state_change"}
+    _obs_effect_type_id = 3 if _effect_key == "no_state_change" else _effect_type_id(effect_text)
+    _failed_keywords = {"failed", "failed_action", "blocked", "no_op_valid", "no_change"}
+    _observed_failed = any(kw in _effect_key for kw in _failed_keywords) or _effect_key == "no_state_change"
+    _observed_progress = 0.0 if _effect_key in _no_effect_keys else 1.0
+    evidence = FalsificationEvidence(_obs_effect_type_id, _observed_progress, _observed_failed)
     cfg = cfg or GateConfig()
     h_exec_id = planner_state.get_current(step_idx)
 
@@ -176,6 +186,8 @@ def text_frcg_plan(
     valid, reason = validate_rewrite(rewrite_result, public_obs, confidence, tau_r=cfg.tau_r)
     if valid:
         assert rewrite_result is not None
+        # fix-2b: update h_exec for next step so P_switch is correctly re-evaluated.
+        planner_state.update(step_idx + 1, h_star.combined_id)
         return rewrite_result, PlanMetadata(
             planned=True,
             reason="planned",
