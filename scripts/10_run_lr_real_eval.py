@@ -43,6 +43,7 @@ from frcgw.schemas.step_schema import PublicObservation
 
 AgentFactory = Callable[[], Any]
 C5_DEGENERATE_PREDICTOR = "DEGENERATE_PREDICTOR"
+C5_DEGENERATE_OR_UNTRAINED = "DEGENERATE_OR_UNTRAINED"
 C5_OK = "OK"
 C5_NO_DATA = "NO_DATA"
 C5_AUDIT_FILENAME = "step4_ece_degenerate_predictor_audit.json"
@@ -152,6 +153,15 @@ def _build_agent_dispatch_table(config: dict[str, Any]) -> dict[str, AgentFactor
         dispatch[agent_id] = factory
 
     return dispatch
+
+
+def _ckpt_paths_all_provided(config: dict[str, Any]) -> bool:
+    text_specs = [
+        spec
+        for spec in config.get("agents", [])
+        if spec.get("class") == "TextFRCGModelAgent"
+    ]
+    return all(bool(spec.get("ckpt_path")) for spec in text_specs)
 
 
 def _preflight_dry_obs_check(dispatch_table: dict[str, AgentFactory]) -> None:
@@ -431,8 +441,11 @@ def _compute_c5_calibration_audit(
         unique_count = len(set(wrong_probs))
         mean_wp = sum(wrong_probs) / len(wrong_probs)
         mean_f_t = sum(f_t_values) / len(f_t_values) if f_t_values else None
-        f_t_constant_zero = mean_f_t is None or mean_f_t == 0.0
-        if variance < 1e-6 and unique_count < 2 and mean_wp == 0.0 and f_t_constant_zero:
+        if (
+            variance < 1e-6
+            or unique_count <= 2
+            or (mean_f_t is not None and mean_f_t < 1e-6)
+        ):
             c5_status = C5_DEGENERATE_PREDICTOR
         else:
             c5_status = C5_OK
@@ -499,13 +512,16 @@ def _build_metrics_with_blocked_markers(
     config: dict[str, Any],
     dataset_audit: dict[str, Any],
 ) -> dict[str, Any]:
-    del config
     by_agent: dict[str, list[EvaluationResult]] = defaultdict(list)
     for agent_id, _seed, result in all_results:
         by_agent[agent_id].append(result)
 
     c5_audit = _build_c5_calibration_audit(all_results)
     c5_status = str(c5_audit["C5_calibration_status"])
+    if not _ckpt_paths_all_provided(config):
+        c5_status = C5_DEGENERATE_OR_UNTRAINED
+        c5_audit = dict(c5_audit)
+        c5_audit["C5_calibration_status"] = c5_status
     agents_payload: dict[str, dict[str, Any]] = {}
     blocked_count = 0
     for agent_id, results in by_agent.items():
@@ -556,6 +572,8 @@ def _build_metrics_with_blocked_markers(
             payload["C3_recovery_delay"] = _metric(_mean(values("recovery_delay")))
         if c5_status == C5_DEGENERATE_PREDICTOR:
             payload["C5_calibration_ece"] = _blocked("BLOCKED_DEGENERATE_PREDICTOR")
+        elif c5_status == C5_DEGENERATE_OR_UNTRAINED:
+            payload["C5_calibration_ece"] = _blocked("BLOCKED_DEGENERATE_OR_UNTRAINED")
         elif dataset_audit.get("selected_hypothesis_confidence_coverage", 0) == 0:
             payload["C5_calibration_ece"] = _blocked("BLOCKED_no_confidence_label")
         elif c5_status == C5_NO_DATA:
@@ -604,12 +622,7 @@ def _write_manifest(
     *,
     write: bool = True,
 ) -> dict[str, Any]:
-    text_specs = [
-        spec
-        for spec in config.get("agents", [])
-        if spec.get("class") == "TextFRCGModelAgent"
-    ]
-    ckpt_paths_all_provided = all(bool(spec.get("ckpt_path")) for spec in text_specs)
+    ckpt_paths_all_provided = _ckpt_paths_all_provided(config)
     valid_trained_eval = ckpt_paths_all_provided
     random_init_ok = ckpt_paths_all_provided
     hard_checks_all_pass = (
@@ -621,6 +634,9 @@ def _write_manifest(
         git_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     except Exception:
         git_sha = "unknown"
+    c5_status = metrics_payload.get("C5_calibration_status")
+    if not valid_trained_eval:
+        c5_status = C5_DEGENERATE_OR_UNTRAINED
     manifest = {
         "run_mode": config.get("run_mode", "real_episode_eval"),
         "created_at_utc": _datetime.datetime.now(_datetime.UTC).isoformat(),
@@ -634,7 +650,7 @@ def _write_manifest(
         "ckpt_paths_all_provided": ckpt_paths_all_provided,
         "valid_trained_eval": valid_trained_eval,
         "hard_checks_all_pass": hard_checks_all_pass,
-        "C5_calibration_status": metrics_payload.get("C5_calibration_status"),
+        "C5_calibration_status": c5_status,
         "dataset_audit": dataset_audit,
         "fake_metric_count": metrics_payload.get("fake_metric_count"),
         "blocked_metric_count": metrics_payload.get("blocked_metric_count"),
