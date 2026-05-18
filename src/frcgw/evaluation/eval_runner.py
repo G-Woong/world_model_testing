@@ -19,6 +19,8 @@ from frcgw.evaluation.metrics import (
     alternative_rollout_fidelity,
     assert_no_hidden_labels_in_input,
     compute_wrong_grammar_persistence_v1,
+    evidence_accumulation_quality,
+    fair_ppc,
     failed_action_repetition_rate,
     false_planning_call_rate,
     falsification_calibration,
@@ -29,6 +31,7 @@ from frcgw.evaluation.metrics import (
     regime_shift_f1,
     recovery_delay,
     task_success_rate,
+    threshold_free_c3_auroc,
     wrong_control_grammar_persistence,
 )
 from frcgw.schemas.step_schema import CandidateAction, PublicHistoryItem, PublicObservation
@@ -45,7 +48,10 @@ METRIC_FUNCTIONS = {
     "falsification_calibration": falsification_calibration,
     "ood_shift_f1": ood_shift_f1,
     "regime_shift_f1": regime_shift_f1,
+    "threshold_free_c3_auroc": threshold_free_c3_auroc,
+    "evidence_accumulation_quality": evidence_accumulation_quality,
     "progress_per_compute": progress_per_compute,
+    "fair_ppc": fair_ppc,
     "false_planning_call_rate": false_planning_call_rate,
     "action_switch_delay": action_switch_delay,
     "alternative_rollout_fidelity": alternative_rollout_fidelity,

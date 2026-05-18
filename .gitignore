@@ -114,3 +114,26 @@ CLAUDE.local.md
 # =========================
 .agent_tasks/codex_logs/
 .agent_tasks/.lock
+
+# =========================
+# STEP 10 risk_hunt outputs - keep gitkeep markers
+# =========================
+!outputs/risk_hunt/
+!outputs/risk_hunt/**/.gitkeep
+
+# =========================
+# Lifecycle Automation v2 (Phase 1 reservation)
+# =========================
+# outputs/lifecycle/ — generated audit output (only .gitkeep tracked)
+!outputs/lifecycle/
+outputs/lifecycle/*
+!outputs/lifecycle/.gitkeep
+
+# .lifecycle_trash/ — quarantined files (only .gitkeep tracked)
+.lifecycle_trash/*
+!.lifecycle_trash/.gitkeep
+
+# .self_evolving_memory/ — Phase 2: run_summaries/ auto-generated, ignored
+.self_evolving_memory/run_summaries/*
+!.self_evolving_memory/run_summaries/.gitkeep
+# hook_execution_log.md remains tracked (audit trail in chore(turn) commits)

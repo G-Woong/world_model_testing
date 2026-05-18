@@ -1,0 +1,41 @@
+{
+  "validation_timestamp": "2026-05-18T13:08:44.615715+00:00",
+  "total_risks": 58,
+  "valid_risks": 58,
+  "invalid_risks": [],
+  "category_counts": {
+    "CORE": 4,
+    "THR": 3,
+    "FORE": 4,
+    "PCG": 3,
+    "LAT": 3,
+    "REG": 3,
+    "DUP": 3,
+    "ENV": 3,
+    "OXE": 3,
+    "CF": 2,
+    "ARC": 3,
+    "LOSS": 3,
+    "LONG": 2,
+    "EVAL": 4,
+    "DTB": 2,
+    "FAI": 2,
+    "STAT": 3,
+    "REV": 3,
+    "NOV": 3,
+    "LEAK": 2
+  },
+  "missing_categories": [],
+  "severity_counts": {
+    "CRITICAL": 7,
+    "HIGH": 31,
+    "MEDIUM": 20,
+    "LOW": 0
+  },
+  "status_counts": {
+    "OPEN": 57,
+    "ACTIVE_CONSTRAINT": 1
+  },
+  "schema_valid": true,
+  "gate_o_risk_pass": true
+}

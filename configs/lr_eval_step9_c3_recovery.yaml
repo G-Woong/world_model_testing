@@ -27,7 +27,9 @@ metrics:
   - falsification_precision_recall
   - ood_shift_f1
   - regime_shift_f1
+  - threshold_free_c3_auroc
   - progress_per_compute
+  - fair_ppc
   - false_planning_call_rate
 splits:
   - test_id

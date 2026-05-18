@@ -530,3 +530,157 @@ def compute_h_exec_null_rate(episodes: list) -> float | None:
             if predicted is None:
                 null_count += 1
     return null_count / total if total > 0 else None
+
+
+def _roc_auc_numpy(y_true: list[int], y_score: list[float]) -> float:
+    """Compute ROC-AUC without sklearn using numpy trapezoid integration."""
+    import numpy as np
+
+    yt = np.array(y_true, dtype=float)
+    ys = np.array(y_score, dtype=float)
+    thresholds = np.sort(np.unique(ys))[::-1]
+    tpr_list = [0.0]
+    fpr_list = [0.0]
+    pos = yt.sum()
+    neg = len(yt) - pos
+    if pos == 0 or neg == 0:
+        return 0.0
+    for t in thresholds:
+        pred = (ys >= t).astype(float)
+        tp = ((pred == 1) & (yt == 1)).sum()
+        fp = ((pred == 1) & (yt == 0)).sum()
+        tpr_list.append(float(tp / pos))
+        fpr_list.append(float(fp / neg))
+    tpr_list.append(1.0)
+    fpr_list.append(1.0)
+    return float(np.trapezoid(tpr_list, fpr_list))
+
+
+def _pr_auc_numpy(y_true: list[int], y_score: list[float]) -> float:
+    """Compute PR-AUC (average precision) without sklearn using numpy."""
+    import numpy as np
+
+    yt = np.array(y_true, dtype=float)
+    ys = np.array(y_score, dtype=float)
+    thresholds = np.sort(np.unique(ys))[::-1]
+    precision_list = []
+    recall_list = []
+    pos = yt.sum()
+    if pos == 0:
+        return 0.0
+    for t in thresholds:
+        pred = (ys >= t).astype(float)
+        tp = ((pred == 1) & (yt == 1)).sum()
+        fp = ((pred == 1) & (yt == 0)).sum()
+        fn = ((pred == 0) & (yt == 1)).sum()
+        p = float(tp / (tp + fp)) if (tp + fp) > 0 else 0.0
+        r = float(tp / (tp + fn)) if (tp + fn) > 0 else 0.0
+        precision_list.append(p)
+        recall_list.append(r)
+    if not recall_list:
+        return 0.0
+    # Sort by recall
+    pairs = sorted(zip(recall_list, precision_list))
+    recalls = [p[0] for p in pairs]
+    precs = [p[1] for p in pairs]
+    return float(np.trapezoid(precs, recalls))
+
+
+def threshold_free_c3_auroc(episodes: list[dict]) -> dict[str, float]:
+    """Threshold-free AUROC/AUPRC for C3 falsification detection.
+
+    Uses wrong_prob (continuous) vs true_wrong_hypothesis (binary label).
+    true_wrong_hypothesis is eval-only and never enters inference input.
+
+    Source MD: paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md MET-FALS-003 (threshold-free)
+    """
+    y_true: list[int] = []
+    y_score: list[float] = []
+    for ep in episodes:
+        for step in _field(ep, "steps", []) or []:
+            label_dict = _field(step, "eval_labels", {}) or {}
+            twh = _field(label_dict, "true_wrong_hypothesis")
+            wp = _field(step, "wrong_prob")
+            if twh is not None and wp is not None:
+                y_true.append(int(bool(twh)))
+                y_score.append(float(wp))
+    n_pos = sum(y_true)
+    n_total = len(y_true)
+    if n_total < 2 or n_pos == 0 or n_pos == n_total:
+        return {"auroc": 0.0, "auprc": 0.0, "n_positive": n_pos, "n_total": n_total}
+    auroc = _roc_auc_numpy(y_true, y_score)
+    auprc = _pr_auc_numpy(y_true, y_score)
+    return {"auroc": auroc, "auprc": auprc, "n_positive": n_pos, "n_total": n_total}
+
+
+def evidence_accumulation_quality(episodes: list[dict], window: int = 10) -> dict[str, float]:
+    """Sliding window AUROC for evidence accumulation quality.
+
+    Compares per-step AUROC (instantaneous) vs window-averaged wrong_prob AUROC.
+    Measures whether accumulated evidence improves detection over instantaneous.
+
+    Source MD: paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md MET-FALS-004 (accumulation)
+    """
+    y_true_inst: list[int] = []
+    y_score_inst: list[float] = []
+    y_true_accum: list[int] = []
+    y_score_accum: list[float] = []
+    for ep in episodes:
+        wp_history: list[float] = []
+        for step in _field(ep, "steps", []) or []:
+            label_dict = _field(step, "eval_labels", {}) or {}
+            twh = _field(label_dict, "true_wrong_hypothesis")
+            wp = _field(step, "wrong_prob")
+            if twh is None or wp is None:
+                continue
+            wp_val = float(wp)
+            wp_history.append(wp_val)
+            window_vals = wp_history[-window:]
+            accum_wp = sum(window_vals) / len(window_vals)
+            y_true_inst.append(int(bool(twh)))
+            y_score_inst.append(wp_val)
+            y_true_accum.append(int(bool(twh)))
+            y_score_accum.append(accum_wp)
+
+    def _safe_auc(yt: list[int], ys: list[float]) -> float:
+        if len(yt) < 2 or sum(yt) == 0 or sum(yt) == len(yt):
+            return 0.0
+        return _roc_auc_numpy(yt, ys)
+
+    return {
+        "instantaneous_auroc": _safe_auc(y_true_inst, y_score_inst),
+        "window_auroc": _safe_auc(y_true_accum, y_score_accum),
+        "window_size": float(window),
+        "n_steps": float(len(y_true_inst)),
+    }
+
+
+def fair_ppc(episodes: list[dict]) -> dict[str, float]:
+    """Fair compute-matched progress per compute.
+
+    Denominator = wall_clock_seconds when available, else self-report units.
+    Avoids self-report bias: ABL-036 heuristic has tiny self-report vs model agents.
+
+    Source MD: paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md MET-COMPUTE-001 (fair)
+    """
+    total_progress = 0.0
+    total_wall_clock = 0.0
+    total_self_report = 0.0
+    for ep in episodes:
+        total_progress += float(_field(ep, "total_progress", 0.0) or 0.0)
+        clog = _field(ep, "compute_log") or {}
+        total_wall_clock += float(_field(clog, "wall_clock_seconds", 0.0) or 0.0)
+        total_self_report += (
+            float(_field(clog, "planning_calls", 0.0) or 0.0)
+            + float(_field(clog, "rollout_steps", 0.0) or 0.0)
+            + float(_field(clog, "candidate_actions_scored", 0.0) or 0.0)
+        )
+    ppc_wall = total_progress / total_wall_clock if total_wall_clock > 0 else 0.0
+    ppc_self = total_progress / total_self_report if total_self_report > 0 else 0.0
+    return {
+        "ppc_wall_clock": ppc_wall,
+        "ppc_self_report": ppc_self,
+        "total_wall_clock_seconds": total_wall_clock,
+        "total_self_report_units": total_self_report,
+        "total_progress": total_progress,
+    }

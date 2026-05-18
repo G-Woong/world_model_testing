@@ -1,0 +1,33 @@
+{
+  "audit_timestamp": "2026-05-18T13:07:48.601878+00:00",
+  "sentinel_list": [
+    "P1.5.passed",
+    "P1.passed",
+    "P2.passed",
+    "P3.passed",
+    "P3_EVAL.passed",
+    "P3_LR_EVAL.passed",
+    "P3_LR_REAL_EVAL.passed",
+    "P3_STEP3_DATASET_BACKFILL.passed",
+    "P3_STEP4_EVIDENCE_INTEGRITY.passed",
+    "P3_STEP5_TRAINED_EVIDENCE_READY.passed",
+    "P3_STEP6_FALSIFICATION_ENABLED_EVIDENCE.passed",
+    "P3_STEP7_FULL_EVIDENCE_VALIDATION.passed",
+    "P3_STEP8_FINAL_EVIDENCE_VALIDATION.passed",
+    "P3_STEP9_C3_RECOVERY.passed"
+  ],
+  "pretrain_v0_4_long_manifest_exists": false,
+  "abl001_checkpoint_exists": false,
+  "abl003_checkpoint_exists": false,
+  "v0_4_total_episodes": 5000,
+  "lr_eval_long_has_regime_shift_f1": false,
+  "lr_eval_recovery_has_regime_shift_f1": true,
+  "tau_f_in_frcg_agent": "0.0",
+  "no_state_change_proxy_present": true,
+  "planner_state_update_called": true,
+  "lr_scorer_in_frcg_agent": false,
+  "abl040_forced_F_t_present": true,
+  "codex_queue_stale_task_count": 5,
+  "last_known_leakage_count": 0,
+  "last_known_fake_metric_count": 0
+}
