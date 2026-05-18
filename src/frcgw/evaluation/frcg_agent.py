@@ -27,6 +27,18 @@ def _sigmoid(x: float) -> float:
     return 1.0 / (1.0 + math.exp(-x))
 
 
+_GRAMMAR_IDX_TO_NAME: list[str] = [
+    "direct_search",
+    "required_dropdown_then_search",
+    "modal_confirm_then_action",
+    "container_scroll_then_select",
+    "wait_until_enabled_then_click",
+    "permission_accept_then_action",
+    "filter_open_then_select",
+    "pagination_or_infinite_scroll",
+]
+
+
 class TextFRCGModelAgent(BaselineAgent):
     """FRCG full model wrapped as a BaselineAgent for evaluation.
 
@@ -107,7 +119,11 @@ class TextFRCGModelAgent(BaselineAgent):
             grammar_probs = F.softmax(model_out.z_grammar_logits, dim=-1)
             best_grammar_idx = int(grammar_probs.argmax().item())
             max_grammar_prob = float(grammar_probs.max().item())
-            self._last_selected_hypothesis_id = f"grammar_{best_grammar_idx}"
+            self._last_selected_hypothesis_id = (
+                _GRAMMAR_IDX_TO_NAME[best_grammar_idx]
+                if best_grammar_idx < len(_GRAMMAR_IDX_TO_NAME)
+                else f"grammar_{best_grammar_idx}"
+            )
             self._last_selected_hypothesis_confidence = max_grammar_prob
 
             action, plan_meta = text_frcg_plan(
