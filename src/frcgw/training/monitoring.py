@@ -52,10 +52,46 @@ def check_losses_finite(losses: list[float]) -> bool:
     return all(math.isfinite(float(loss)) for loss in losses)
 
 
+@dataclass
+class FtVarianceMonitor:
+    """Accumulate F_t observations and expose population variance."""
+
+    values: list[float] = field(default_factory=list)
+    steps: list[int] = field(default_factory=list)
+
+    def record_f_t(self, step: int, f_t: float) -> None:
+        """Record one finite F_t value for later variance checks."""
+        value = float(f_t)
+        if not math.isfinite(value):
+            raise FloatingPointError(f"non-finite F_t at step {step}: {value}")
+        self.steps.append(int(step))
+        self.values.append(value)
+
+    @property
+    def variance(self) -> float:
+        """Return population variance over recorded F_t values."""
+        if not self.values:
+            return 0.0
+        mean = sum(self.values) / len(self.values)
+        return sum((value - mean) ** 2 for value in self.values) / len(self.values)
+
+
 def check_grad_norm(norm: float, threshold: float = 100.0) -> bool:
     """Return True when the gradient norm is finite and within threshold."""
     value = float(norm)
     return math.isfinite(value) and 0.0 <= value <= threshold
+
+
+def check_f_t_variance_nonzero(f_t_values: list[float], threshold: float = 1e-6) -> bool:
+    """Return True when finite F_t values have variance above threshold."""
+    if len(f_t_values) < 2:
+        return False
+    numeric_values = [float(value) for value in f_t_values]
+    if not check_losses_finite(numeric_values):
+        return False
+    mean = sum(numeric_values) / len(numeric_values)
+    variance = sum((value - mean) ** 2 for value in numeric_values) / len(numeric_values)
+    return variance >= float(threshold)
 
 
 def check_f_t_variance(values: list[float], threshold: float = 1e-4) -> str:
@@ -72,6 +108,15 @@ def check_f_t_variance(values: list[float], threshold: float = 1e-4) -> str:
     if variance < threshold:
         return "DEGENERATE_LOW_VARIANCE"
     return "OK"
+
+
+def build_nan_repair_lr(original_lr: float, attempt: int = 0) -> float:
+    """Return retry learning rate for one NaN repair attempt."""
+    if attempt < 0:
+        raise ValueError("attempt must be non-negative")
+    if attempt > 0:
+        raise ValueError("max 1 NaN repair retry")
+    return float(original_lr) * (0.5 ** (attempt + 1))
 
 
 @dataclass
