@@ -2,6 +2,7 @@
 
 version: step8_full
 dataset_root: data/frcgw_text/v0_4
+dataset_path: data/frcgw_text/v0_4
 checkpoint_path: outputs/checkpoints/pretrain_v0_4_long/checkpoint_best.pt
 model_config: configs/model_text.yaml
 max_episodes: null
@@ -10,14 +11,16 @@ compute_budget:
   rollout_steps_cap: 10
 agents:
   - id: FRCG-LR
-    type: frcg_lr
-    checkpoint: outputs/checkpoints/pretrain_v0_4_long/checkpoint_best.pt
+    class: TextFRCGModelAgent
+    ckpt_path: outputs/checkpoints/pretrain_v0_4_long/checkpoint_best.pt
   - id: ABL-024
-    type: no_alternative_hypothesis
-    checkpoint: outputs/checkpoints/pretrain_v0_4_long/checkpoint_best.pt
+    class: TextFRCGModelAgent
+    ablation: no_alternative_hypothesis
+    ckpt_path: outputs/checkpoints/pretrain_v0_4_long/checkpoint_best.pt
   - id: ABL-036
-    type: no_compute_gate
-    checkpoint: outputs/checkpoints/pretrain_v0_4_long/checkpoint_best.pt
+    class: TextFRCGModelAgent
+    ablation: no_compute_gate
+    ckpt_path: outputs/checkpoints/pretrain_v0_4_long/checkpoint_best.pt
 metrics:
   - task_success_rate
   - falsification_precision_recall

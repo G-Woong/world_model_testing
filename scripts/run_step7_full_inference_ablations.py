@@ -102,6 +102,18 @@ EXECUTED_ABLATIONS: tuple[Step7AblationSpec, ...] = (
         "no compute gate",
         "false_planning_call_rate increase",
     ),
+    Step7AblationSpec(
+        "ABL-025",
+        "random_alternative",
+        "random alternative hypothesis selection",
+        "falsification_precision decrease, recovery_delay increase",
+    ),
+    Step7AblationSpec(
+        "ABL-026",
+        "no_rollout",
+        "no short rollout before rewrite",
+        "alternative_rollout_fidelity decrease",
+    ),
 )
 
 POSITIVE_CONTROL_ABLATIONS: tuple[Step7AblationSpec, ...] = (
@@ -179,9 +191,14 @@ def _split_names(config: dict[str, Any]) -> list[str]:
 def _dataset_path_for_split(config: dict[str, Any], split: str) -> str:
     if config.get("dataset_path"):
         dataset_path = Path(str(config["dataset_path"]))
-        if len(_split_names(config)) == 1:
+        # If it's a directory, construct {dir}/{split}.jsonl
+        if dataset_path.is_dir():
+            return (dataset_path / f"{split}.jsonl").as_posix()
+        # If it's already a specific JSONL file, use as-is (single-split config)
+        if dataset_path.suffix == ".jsonl":
             return dataset_path.as_posix()
-        return (dataset_path.parent / f"{split}.jsonl").as_posix()
+        # Fallback: treat as directory
+        return (dataset_path / f"{split}.jsonl").as_posix()
 
     dataset_root = Path(str(config.get("dataset_root", "data/frcgw_text/v0_3")))
     return (dataset_root / f"{split}.jsonl").as_posix()

@@ -13,6 +13,7 @@ model_config: "configs/model_text.yaml"
 data_config: "configs/data_collection_text.yaml"
 dataset_version: "v0_4"
 dataset_root: "data/frcgw_text/v0_4"
+manifest_path: "data/frcgw_text/v0_4/manifest.json"
 split: "train"
 objective_weights:
   l_action_effect: 1.0

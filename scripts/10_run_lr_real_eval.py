@@ -30,9 +30,11 @@ from frcgw.evaluation.ablations import ABLATION_REGISTRY, apply_ablation
 from frcgw.evaluation.baselines import (
     CATTSStyleUncertaintyGateAgent,
     ComputeMatchedRandomAgent,
+    CUWMFaithfulCandidate,
     CUWMStyleCandidateSimulationAgent,
     VerifierRecoveryAgent,
     VLAALoopHeuristicAgent,
+    WACFaithfulCandidate,
     WACStyleConsequenceCorrectionAgent,
     WebWorldStyleSearchAgent,
 )
@@ -124,7 +126,9 @@ def _build_agent_dispatch_table(config: dict[str, Any]) -> dict[str, AgentFactor
         "CATTSStyleUncertaintyGateAgent": CATTSStyleUncertaintyGateAgent,
         "ComputeMatchedRandomAgent": ComputeMatchedRandomAgent,
         "WACStyleConsequenceCorrectionAgent": WACStyleConsequenceCorrectionAgent,
+        "WACFaithfulCandidate": WACFaithfulCandidate,
         "CUWMStyleCandidateSimulationAgent": CUWMStyleCandidateSimulationAgent,
+        "CUWMFaithfulCandidate": CUWMFaithfulCandidate,
         "WebWorldStyleSearchAgent": WebWorldStyleSearchAgent,
         "VLAALoopHeuristicAgent": VLAALoopHeuristicAgent,
     }
@@ -869,6 +873,10 @@ def main() -> int:
 
         dataset_path = str(config["dataset_path"])
         split = config.get("split", "test_id")
+        # If dataset_path is a directory, resolve to the split-specific JSONL file.
+        if Path(dataset_path).is_dir():
+            dataset_path = str(Path(dataset_path) / f"{split}.jsonl")
+            config["dataset_path"] = dataset_path
         seeds = list(config.get("seeds", [0]))
         runner_config = {
             "seeds": seeds,
