@@ -53,6 +53,56 @@ def assert_no_hidden_labels_in_input(obs_dict: dict, context: str = "") -> None:
         raise AssertionError(f"Forbidden agent observation keys{suffix}: {forbidden}")
 
 
+def ood_shift_f1(episodes: list[dict]) -> dict[str, float]:
+    """OOD shift detection F1 for the MET-OOD-003 STEP 7 proxy.
+
+    Uses EvaluationLabels.ood_type as a split-time label, not inference input.
+    Agent prediction uses any step with predicted_wrong=True as the shift signal.
+    This is a proxy; the true regime-shift metric is deferred to STEP 8.
+    """
+    true_positives = 0
+    false_positives = 0
+    false_negatives = 0
+    true_negatives = 0
+
+    for episode in episodes:
+        labels = _field(episode, "eval_labels")
+        ood_type = _field(labels, "ood_type")
+        if ood_type is None:
+            continue
+
+        is_ood_shift = str(ood_type).startswith("OOD")
+        shift_detected = False
+        for step in _field(episode, "steps", []) or []:
+            if bool(_field(step, "predicted_wrong", False)):
+                shift_detected = True
+                break
+
+        if shift_detected and is_ood_shift:
+            true_positives += 1
+        elif shift_detected and not is_ood_shift:
+            false_positives += 1
+        elif not shift_detected and is_ood_shift:
+            false_negatives += 1
+        else:
+            true_negatives += 1
+
+    precision_denom = true_positives + false_positives
+    recall_denom = true_positives + false_negatives
+    precision = true_positives / precision_denom if precision_denom else 0.0
+    recall = true_positives / recall_denom if recall_denom else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+    return {
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "true_positives": true_positives,
+        "false_positives": false_positives,
+        "false_negatives": false_negatives,
+        "true_negatives": true_negatives,
+    }
+
+
 def task_success_rate(episodes: list[dict]) -> float:
     if not episodes:
         return 0.0
