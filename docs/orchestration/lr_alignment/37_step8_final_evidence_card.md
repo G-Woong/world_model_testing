@@ -1,195 +1,197 @@
-# STEP 8 Final Evidence Card Template
+# STEP 8 Final Evidence Card
 
-date: [FILL AFTER EVAL]
-branch: [FILL AFTER EVAL]
-owner: Claude final evaluator
-scope: Template scaffold only. Replace every `[FILL AFTER EVAL]` slot after STEP 8 evaluation runs complete.
+date: 2026-05-18
+branch: memory-redesign-2026-05-16
+phase_gate_target: P3_STEP8_FINAL_EVIDENCE_VALIDATION
 
-## 1. Executive Summary - STATUS: [FILL AFTER EVAL]
+---
 
-5 lines max, non-expert readable.
+## 1. Executive Summary
 
-1. [FILL AFTER EVAL]
-2. [FILL AFTER EVAL]
-3. [FILL AFTER EVAL]
-4. [FILL AFTER EVAL]
-5. [FILL AFTER EVAL]
+STEP 8 generated the first real eval evidence for FRCG-WM on 5000-episode v0_4 data. The falsification training signal is non-degenerate (F_t variance=0.191, l_falsification=0.635). The compute gate shows a 93% progress_per_compute gap vs no-gate ablation. Task success is 0.994/0.998 but is non-discriminative due to task triviality (ceiling effect across all ablations). C3 eval is degenerate (falsification_precision=0.0) with unidentified root cause — root cause resolution is the STEP 9 critical path.
 
-## 2. Verdict: ALIVE / AT_RISK / BLOCKED / PIVOT_REQUIRED - STATUS: [FILL AFTER EVAL]
+---
 
-- Verdict: ALIVE / AT_RISK / BLOCKED / PIVOT_REQUIRED
-- Confidence: HIGH / MEDIUM / LOW
-- Reason: [FILL AFTER EVAL]
-- Rubric applied:
-  - ALIVE = C3 READY_CANDIDATE + C4 READY_FOR_REPORT + [FILL AFTER EVAL] faithful direct-threat baseline + ABL-040 pass
-  - AT_RISK = C3 PRELIMINARY+ + C4 PRELIMINARY + partial gap
-  - BLOCKED = C3 BLOCKED post-Stage-B
-  - PIVOT_REQUIRED = C3 BLOCKED + C4 DOWNSHIFT
+## 2. Verdict
 
-## 3. Repo State: before/after SHA, branch, scope - STATUS: [FILL AFTER EVAL]
+**VERDICT: AT_RISK**
+**Confidence: MEDIUM**
+**Reason**: Training mechanism alive (F_t_variance=0.191) but eval metric degenerate (C3 fp=0.0). C6 compute gate strong (93% ppc gap). Task success non-discriminative. n=5 seeds incomplete. Root cause investigation required in STEP 9.
 
-| Field | Value |
-|---|---|
-| Before SHA | [FILL AFTER EVAL] |
-| After SHA | [FILL AFTER EVAL] |
-| Branch | [FILL AFTER EVAL] |
-| Scope executed | [FILL AFTER EVAL] |
-| Out-of-scope items confirmed deferred | [FILL AFTER EVAL] |
-| Dirty tree before final commit | [FILL AFTER EVAL] |
-| Dirty tree after final commit | [FILL AFTER EVAL] |
+Rubric (from 36_step8_execution_plan.md §6):
+- NOT ALIVE: C3 not READY_CANDIDATE, n=5 stats missing
+- NOT BLOCKED: Training F_t non-degenerate, root cause unidentified
+- AT_RISK: C3 PRELIMINARY_PENDING_EVAL + C4 NON_DISCRIMINATIVE + heuristic approx level + missing seeds
 
-## 4. Data: v0_4 episodes, splits, coverage gate status, leakage audit result - STATUS: [FILL AFTER EVAL]
+---
 
-| Field | Value | Evidence path |
+## 3. Repo State
+
+Before SHA: c2cd0a7 (P3_STEP7_FULL_EVIDENCE_VALIDATION)
+After SHA: 8316bd6
+Branch: memory-redesign-2026-05-16
+
+---
+
+## 4. Data
+
+| Item | Value | Gate |
 |---|---|---|
-| v0_4 total episodes | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Train split | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Validation split | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Test ID split | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Test OOD split | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| blocker_removed OOD coverage | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| delayed_effect OOD coverage | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Coverage gate status | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Leakage audit result | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
+| v0_4 total episodes | 5000 | O3 PASS |
+| train/valid/test_id/test_ood | 3500/500/500/500 | PASS |
+| blocker_removed (test_ood) | 50 >= 30 | PASS |
+| delayed_effect (test_ood) | 50 >= 30 | PASS |
+| leakage_count | 0 | PASS |
+| correct_hypothesis_id | NOT EMITTED | STEP 9 required |
+| v0_3 sha256 | unchanged | PASS |
 
-## 5. Training: config, steps, epochs, losses, l_falsification, F_t variance, checkpoint, valid_trained_eval - STATUS: [FILL AFTER EVAL]
+---
 
-| Field | Value | Evidence path |
-|---|---|---|
-| Training config | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Steps | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Epochs | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Final total loss | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Final l_falsification | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| F_t variance | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Checkpoint | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| valid_trained_eval | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
+## 5. Training
 
-## 6. C3 Final Status table: condition | C3 F1 | F_t variance | wrong_prob diversity | status - STATUS: [FILL AFTER EVAL]
+| Config | Steps | l_falsification | l_total | Status |
+|---|---|---|---|---|
+| Stage A | 1000 | 0.647 | 1.433 | complete |
+| Stage B | 2000 | 0.635 | 1.141 | complete |
+| ABL-015 (l_cg=0.0) | 2000 | 0.635 | 1.068 | complete |
 
-| Condition | C3 F1 | F_t variance | wrong_prob diversity | Status |
-|---|---:|---:|---:|---|
-| Main Stage-B checkpoint | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| ABL-016 control | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| ABL-022 comparison | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| ABL-023 comparison | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Final C3 verdict | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | READY_CANDIDATE / PRELIMINARY+ / BLOCKED / PIVOT_REQUIRED |
+ABL-015 training differentiation: l_control_grammar=2.075 vs Stage B 0.055 — training-time signal confirmed.
 
-## 7. C4 Final Status table: condition | C4 fidelity | ID | OOD | seeds | status - STATUS: [FILL AFTER EVAL]
+---
 
-| Condition | C4 fidelity | ID | OOD | Seeds | Status |
-|---|---:|---:|---:|---:|---|
-| FRCG-LR main | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| ABL-024 | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| ABL-036 | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Final C4 verdict | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | READY_FOR_REPORT / PRELIMINARY / DOWNSHIFT |
+## 6. C3 Final Status
 
-## 8. C1/C2/C5 table: Claim | Status | Evidence | Blocker - STATUS: [FILL AFTER EVAL]
+| Condition | F_t variance | predicted_wrong true_count | falsification_fp | Status |
+|---|---|---|---|---|
+| Post-Stage B training audit | 0.191 | 0 | 0.0 (eval) | PRELIMINARY_PENDING_EVAL |
+
+Root cause candidates for eval degeneration:
+1. ABL-040 injection inert → eval harness propagation suspect
+2. Training-to-inference predicted_wrong flag divergence
+3. F_t=None silent zero in training (unverified)
+
+---
+
+## 7. C4 Final Status
+
+| Split | FRCG-LR tsr | ABL-036 tsr | ABL-040 tsr | Status |
+|---|---|---|---|---|
+| test_id | 0.994 | 0.994 | 0.994 | NON_DISCRIMINATIVE |
+| test_ood | 0.998 | 0.998 | 0.998 | NON_DISCRIMINATIVE |
+
+Ceiling effect confirmed. All agents identical. C4 is not a discriminative metric in current setup.
+
+C6 progress_per_compute (discriminative):
+- FRCG-LR: 0.221 (ID) / 0.290 (OOD)
+- ABL-036 (no_compute_gate): 0.015 / 0.020 → 93% gap
+
+---
+
+## 8. C1/C2/C5
 
 | Claim | Status | Evidence | Blocker |
 |---|---|---|---|
-| C1 wrong-control-grammar persistence | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| C2 OOD/regime separation proxy | PRELIMINARY_PROXY / [FILL AFTER EVAL] | [FILL AFTER EVAL] | true regime_shift_f1 pending unless STEP 9 completed |
-| C5 calibration | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
+| C1 persistence_v1 | BLOCKED | compute proxy | correct_hypothesis_id missing from v0_4 |
+| C2 ood_shift_f1 proxy | PRELIMINARY_PROXY | proxy metric | true regime_shift_f1 → STEP 9 |
+| C5 ECE calibration | BLOCKED_DEGENERATE | — | C3 eval degenerate |
 
-## 9. Ablation Results: 11 inference + ABL-015 faithful + ABL-025/ABL-026 + ABL-040 + collapsed/survived - STATUS: [FILL AFTER EVAL]
+---
 
-| Ablation set | Faithful/proxy level | Result | Collapsed/survived | Evidence path |
+## 9. Ablation Results
+
+FRCG-LR ppc reference: 0.221 (ID), 0.290 (OOD)
+
+| ABL | Description | ppc (ID) | ppc (OOD) | Collapse |
 |---|---|---|---|---|
-| 11 inference-time ablations | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| ABL-015 faithful | faithful retrain | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| ABL-025 | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| ABL-026 | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| ABL-040 positive control | positive_control isolation | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Collapsed variants summary | [FILL AFTER EVAL] | [FILL AFTER EVAL] | collapsed | [FILL AFTER EVAL] |
-| Survived variants summary | [FILL AFTER EVAL] | [FILL AFTER EVAL] | survived | [FILL AFTER EVAL] |
+| ABL-036 | no compute gate | 0.015 | 0.020 | COLLAPSE (93%) |
+| ABL-034 | no progress/reward | 0.025 | 0.036 | COLLAPSE |
+| ABL-023 | uncertainty instead | 0.086 | 0.118 | PARTIAL |
+| ABL-022 | no falsif gate | 0.108 | 0.145 | PARTIAL |
+| ABL-024 | no alt hypothesis | 0.108 | 0.145 | PARTIAL |
+| ABL-011/025/026/035 | no rollout variants | 0.044 | 0.064 | COLLAPSE |
+| ABL-006 | collapsed latent | 0.216 | 0.290 | NO COLLAPSE |
+| ABL-033 | no rewrite | 0.216 | 0.290 | NO COLLAPSE |
+| ABL-040 (positive ctrl) | oracle probe | tsr=0.994 | same as all | INERT (no discrimination) |
 
-## 10. Direct-Threat Baselines: BASE-026/027/028 | faithful level | result | reviewer risk - STATUS: [FILL AFTER EVAL]
+ABL-015 (faithful retrain, l_cg=0.0): eval pending with separate checkpoint.
 
-| Baseline | Faithful level | Result | Reviewer risk |
+Executed: 12 inference ablations (ABL-006,011,017,022,023,024,025,026,033,034,035,036)
+Positive control isolated: ABL-040
+Deferred: ABL-001, ABL-003 (STEP 9), ABL-015 (training done, eval pending)
+
+---
+
+## 10. Direct-Threat Baselines
+
+| Baseline | approx_level | ppc (ID) | ppc (OOD) | Gate |
+|---|---|---|---|---|
+| BASE-026-faithful | partial | 0.037 | 0.053 | PASS |
+| BASE-027-faithful | partial | 0.025 | 0.036 | PASS |
+| BASE-026-heuristic | heuristic | 0.037 | 0.053 | PASS |
+| BASE-027-heuristic | heuristic | 0.025 | 0.036 | PASS |
+| BASE-028-heuristic | heuristic | — | — | STEP 9 |
+
+forbidden_wording_count=0. FRCG-LR ppc vs BASE-026-faithful: 6× advantage (ID).
+
+---
+
+## 11. Claim Readiness
+
+| Claim | Readiness | Paper wording allowed | Forbidden |
 |---|---|---|---|
-| BASE-026 WAC | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| BASE-027 CUWM | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| BASE-028 WebWorld | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
+| C1 | BLOCKED | "blocked pending correct_hypothesis_id" | Any persistence values |
+| C2 | PRELIMINARY_PROXY | "ood_shift_f1 proxy (STEP 7)" | "PRELIMINARY", "confirmed" |
+| C3 | PRELIMINARY_PENDING_EVAL | "training F_t=0.191 non-degenerate; eval root cause unknown" | "falsification fp=[any positive]" |
+| C4 | NON_DISCRIMINATIVE | "task success ceiling; C6 ppc 93% gap preliminary" | tsr as claim evidence |
+| C5 | BLOCKED | "blocked pending C3" | Any ECE |
+| C6 | PRELIMINARY | "93% ppc gap (preliminary)" | "proven", "defeats", "superior" |
 
-## 11. Claim Readiness table: Claim | Readiness | Paper wording allowed | Forbidden wording - STATUS: [FILL AFTER EVAL]
+---
 
-| Claim | Readiness | Paper wording allowed | Forbidden wording |
-|---|---|---|---|
-| FC-01 / C1 wrong-control-grammar persistence | [FILL AFTER EVAL] | [FILL AFTER EVAL] | "resolved", "proven", "defeated", "outperforms" FORBIDDEN |
-| FC-02 / C2 OOD-regime separation | PRELIMINARY_PROXY (not PRELIMINARY) | OOD shift F1 proxy only until true regime_shift_f1 exists | "resolved", "proven", "defeated", "outperforms" FORBIDDEN; "defeats WAC", "outperforms CUWM", "superior to WebWorld" FORBIDDEN |
-| FC-03 / C3 falsification F1 | [FILL AFTER EVAL] | [FILL AFTER EVAL] | "resolved", "proven", "defeated", "outperforms" FORBIDDEN |
-| FC-04 / C4 alternative-hypothesis world model | [FILL AFTER EVAL] | [FILL AFTER EVAL] | "resolved", "proven", "defeated", "outperforms" FORBIDDEN |
-| FC-05 / C5 calibration | [FILL AFTER EVAL] | [FILL AFTER EVAL] | "resolved", "proven", "defeated", "outperforms" FORBIDDEN |
+## 12. Tests
 
-Notes:
-- FC-02 (C2) must be PRELIMINARY_PROXY, never PRELIMINARY, until true regime_shift_f1 is implemented.
-- StressWeb (2604.16385) should be cited as motivation evidence for C1/C3 claims.
-- Do not use comparative victory language unless the faithful direct-threat baseline evidence supports it and the forbidden wording list is updated by review.
+STEP 8 targeted: 70/70 PASS
+Full regression: 606 passed, 4 pre-existing failures, 2 skipped
 
-## 12. Tests: targeted / regression / failures / unrelated - STATUS: [FILL AFTER EVAL]
+---
 
-| Test category | Command or scope | Result | Notes |
-|---|---|---|---|
-| Targeted | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Regression | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Failures | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Unrelated failures | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
+## 13. Safety
 
-## 13. Safety: leakage_count / fake_metric_count / forbidden_source / overwrite / Codex_outputs_write - STATUS: [FILL AFTER EVAL]
+hidden_label_leakage_count=0, fake_metric_count=0, forbidden_source=none_read, Codex outputs/** write=0, visibility.py unchanged=True
 
-| Safety check | Value | Evidence |
-|---|---|---|
-| leakage_count | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| fake_metric_count | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| forbidden_source | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| overwrite | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Codex_outputs_write | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
+---
 
-## 14. Team Agents / Codex: used / tasks / accepted / rejected / red-team verdict - STATUS: [FILL AFTER EVAL]
+## 14. Team Agents / Codex
 
-| Agent or Codex task | Used | Task | Accepted | Rejected | Red-team verdict |
-|---|---|---|---|---|---|
-| exp_design_step8_v04_ablation_R1 | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| claim_metric_step8_alignment_R1 | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| novelty_step8_threat_R1 | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Codex STEP 8 tasks | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
+Agents used: 8 (Round 1: 6, Round 3: 2)
+Codex tasks: 8 accepted (TASK_1087~1095)
+Area-chair verdict: AT_RISK MEDIUM
 
-## 15. User Feedback Events: decisions / impact - STATUS: [FILL AFTER EVAL]
+---
 
-| Event | Decision | Impact |
-|---|---|---|
-| [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| [FILL AFTER EVAL] | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
+## 15. User Feedback Events
 
-## 16. Commit: hash / message / files - STATUS: [FILL AFTER EVAL]
+Key user-decision events: ABL-015 naming corrected (l_control_grammar=0.0), Stage A extended to 1000 steps, gradient clipping added, v0_4 OOD stratified sampling required.
 
-| Field | Value |
-|---|---|
-| Commit hash | [FILL AFTER EVAL] |
-| Commit message | [FILL AFTER EVAL] |
-| Files | [FILL AFTER EVAL] |
+---
 
-## 17. Final Human-readable Summary (5-10 lines) - STATUS: [FILL AFTER EVAL]
+## 16. Commit
 
-1. [FILL AFTER EVAL]
-2. [FILL AFTER EVAL]
-3. [FILL AFTER EVAL]
-4. [FILL AFTER EVAL]
-5. [FILL AFTER EVAL]
-6. [FILL AFTER EVAL]
-7. [FILL AFTER EVAL]
-8. [FILL AFTER EVAL]
-9. [FILL AFTER EVAL]
-10. [FILL AFTER EVAL]
+Hash: 8316bd6
+Message: fix(step8): eval runner dataset_path + faithful baselines + ABL-025/026 ablation runner
 
-## 18. STEP 9 Handoff: remaining blockers / paper rewrite / training / baselines / ICLR readiness - STATUS: [FILL AFTER EVAL]
+---
 
-| Area | Remaining blocker | STEP 9 owner/action |
-|---|---|---|
-| Paper rewrite | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Training | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Baselines | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Metrics | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| Architecture | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
-| ICLR readiness | [FILL AFTER EVAL] | [FILL AFTER EVAL] |
+## 17. Final Human-Readable Summary
+
+FRCG-WM STEP 8 produced the first real eval on v0_4 (5000 episodes). The strongest finding is a 93% compute-efficiency advantage for FRCG-LR vs the always-plan ablation, providing preliminary C6 (compute gate) evidence. Training confirms the falsification mechanism is alive (F_t variance=0.191). Task success is non-discriminative (all agents score 0.994-0.998, task triviality ceiling). The C3 falsification eval metric shows 0.0 precision — the root cause is unknown but has candidate explanations to investigate in STEP 9. Verdict: AT_RISK. The project is not blocked — the mechanism trains — but ICLR readiness requires resolving C3 eval degeneration and completing n=5 seed statistics.
+
+---
+
+## 18. STEP 9 Handoff
+
+See: docs/orchestration/lr_alignment/38_step9_handoff.md
+
+Priority 1: C3 root cause — assert F_t is not None, verify ABL-040 injection propagates.
+Priority 2: v0_4 correct_hypothesis_id in evaluation_labels.
+Priority 3: ABL-001/003 faithful retrain + true regime_shift_f1 (R2 lock review).
