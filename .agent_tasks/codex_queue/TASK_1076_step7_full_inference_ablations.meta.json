@@ -1,0 +1,8 @@
+﻿{
+    "task_number":  1076,
+    "task_name":  "step7_full_inference_ablations",
+    "task_file":  ".agent_tasks/codex_queue/TASK_1076_step7_full_inference_ablations.md",
+    "base_sha":  "0a22336893cce245e9d9b95c6f57107afe5a5d31",
+    "assigned_at":  "2026-05-18T15:24:21Z",
+    "assigned_by":  "claude"
+}
