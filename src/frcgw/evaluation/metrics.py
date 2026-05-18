@@ -215,6 +215,138 @@ def action_switch_delay(episodes: list[dict]) -> float:
     return _mean(values)
 
 
+def _float_or_none(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _counterfactuals_for_step(step: Any) -> list[Any]:
+    counterfactuals = _field(step, "counterfactuals")
+    if counterfactuals is None:
+        counterfactuals = _field(step, "counterfactual")
+    if counterfactuals is None:
+        return []
+    if isinstance(counterfactuals, Mapping):
+        return [counterfactuals]
+    return list(counterfactuals)
+
+
+def _actual_progress_delta_for_step(step: Any) -> float | None:
+    direct = _float_or_none(_field(step, "progress_delta"))
+    if direct is not None:
+        return direct
+
+    for container_name in ("training_labels", "targets"):
+        container = _field(step, container_name)
+        value = _float_or_none(_field(container, "progress_delta"))
+        if value is not None:
+            return value
+    return None
+
+
+def _predicted_top1_delta_for_step(step: Any, counterfactuals: list[Any]) -> float | None:
+    for key in (
+        "predicted_top1_delta",
+        "predicted_progress_delta",
+        "model_predicted_progress_delta",
+        "rollout_predicted_progress_delta",
+    ):
+        value = _float_or_none(_field(step, key))
+        if value is not None:
+            return value
+
+    predicted_deltas: list[float] = []
+    for counterfactual in counterfactuals:
+        for key in (
+            "predicted_progress_delta",
+            "model_predicted_progress_delta",
+            "rollout_predicted_progress_delta",
+        ):
+            value = _float_or_none(_field(counterfactual, key))
+            if value is not None:
+                predicted_deltas.append(value)
+                break
+    if not predicted_deltas:
+        return None
+    return max(predicted_deltas)
+
+
+def alternative_rollout_fidelity(episodes: list) -> dict:
+    """MET-WM-001: counterfactual top-1 predicted delta vs actual progress delta.
+
+    paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md MET-WM-001 SSoT.
+
+    Step-level fidelity = 1.0 - min(1.0, abs(predicted_top1_delta - actual_delta)).
+    Episode mean, then overall mean. Counterfactual-free steps are skipped.
+    All-empty episodes increment count_blocked.
+
+    Returns:
+        dict with keys:
+          mean_fidelity: float | None
+          count_episodes_with_counterfactuals: int
+          count_blocked: int
+          status: "OK" | "BLOCKED_no_counterfactuals" |
+              "BLOCKED_no_model_rollout_prediction"
+    """
+    episode_means: list[float] = []
+    count_episodes_with_counterfactuals = 0
+    count_blocked = 0
+    saw_model_rollout_prediction = False
+
+    for episode in episodes:
+        step_fidelities: list[float] = []
+        episode_has_counterfactuals = False
+
+        for step in _field(episode, "steps", []) or []:
+            counterfactuals = _counterfactuals_for_step(step)
+            if not counterfactuals:
+                continue
+
+            episode_has_counterfactuals = True
+            predicted_delta = _predicted_top1_delta_for_step(step, counterfactuals)
+            if predicted_delta is None:
+                continue
+            saw_model_rollout_prediction = True
+
+            actual_delta = _actual_progress_delta_for_step(step)
+            if actual_delta is None:
+                continue
+
+            step_fidelities.append(1.0 - min(1.0, abs(predicted_delta - actual_delta)))
+
+        if episode_has_counterfactuals:
+            count_episodes_with_counterfactuals += 1
+        else:
+            count_blocked += 1
+
+        if step_fidelities:
+            episode_means.append(_mean(step_fidelities))
+
+    if not episode_means:
+        status = (
+            "BLOCKED_no_model_rollout_prediction"
+            if count_episodes_with_counterfactuals > 0 and not saw_model_rollout_prediction
+            else "BLOCKED_no_counterfactuals"
+        )
+        return {
+            "mean_fidelity": None,
+            "count_episodes_with_counterfactuals": count_episodes_with_counterfactuals,
+            "count_blocked": count_blocked,
+            "status": status,
+        }
+
+    return {
+        "mean_fidelity": _mean(episode_means),
+        "count_episodes_with_counterfactuals": count_episodes_with_counterfactuals,
+        "count_blocked": count_blocked,
+        "status": "OK",
+    }
+
+
 def compute_wrong_grammar_persistence_v1(episodes: list) -> dict:
     """MET-PERSIST-001: first_falsifying_evidence_t 이후 correct grammar switch까지 step 수.
 

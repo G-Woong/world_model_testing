@@ -16,6 +16,7 @@ from typing import Any
 from frcgw.evaluation.compute_budget import ComputeBudgetLog
 from frcgw.evaluation.metrics import (
     action_switch_delay,
+    alternative_rollout_fidelity,
     assert_no_hidden_labels_in_input,
     failed_action_repetition_rate,
     false_planning_call_rate,
@@ -41,6 +42,7 @@ METRIC_FUNCTIONS = {
     "progress_per_compute": progress_per_compute,
     "false_planning_call_rate": false_planning_call_rate,
     "action_switch_delay": action_switch_delay,
+    "alternative_rollout_fidelity": alternative_rollout_fidelity,
 }
 
 
@@ -112,6 +114,7 @@ class EvaluationRunner:
                     wrong_prob_val = float(agent.last_wrong_prob)
                 else:
                     wrong_prob_val = float(step.get("wrong_prob") or 0.0)
+                predicted_progress_delta_val = getattr(agent, "last_predicted_progress_delta", None)
 
                 eval_labels = dict(step.get("evaluation_labels") or step.get("eval_labels") or {})
                 targets = dict(step.get("training_labels") or step.get("targets") or {})
@@ -134,6 +137,10 @@ class EvaluationRunner:
                         "predicted_wrong": predicted_wrong_val,
                         "wrong_prob": wrong_prob_val,
                         "progress_delta": float(targets.get("progress_delta") or 0.0),
+                        "predicted_progress_delta": predicted_progress_delta_val,
+                        "counterfactuals": list(
+                            step.get("counterfactuals") or step.get("counterfactual") or []
+                        ),
                         "planning_events": planning_events,
                     }
                 )
@@ -319,8 +326,13 @@ def _without_none(value: Any) -> Any:
     if value is None:
         return 0.0
     if isinstance(value, dict):
-        return {str(key): _without_none(child) for key, child in value.items()}
-    return float(value)
+        return {
+            str(key): None if child is None else _without_none(child)
+            for key, child in value.items()
+        }
+    if isinstance(value, (int, float)):
+        return float(value)
+    return value
 
 
 def _result_to_dict(result: EvaluationResult, report_path: str) -> dict[str, Any]:
