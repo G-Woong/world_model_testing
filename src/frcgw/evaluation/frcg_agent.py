@@ -7,6 +7,7 @@ Source MDs:
 from __future__ import annotations
 
 import math
+import time
 from dataclasses import replace  # used for always_plan gate_mode override
 from pathlib import Path
 
@@ -126,6 +127,7 @@ class TextFRCGModelAgent(BaselineAgent):
             )
             self._last_selected_hypothesis_confidence = max_grammar_prob
 
+            _t_start = time.perf_counter()
             action, plan_meta = text_frcg_plan(
                 obs,
                 self._step_idx,
@@ -134,6 +136,7 @@ class TextFRCGModelAgent(BaselineAgent):
                 self._planner_state,
                 plan_gate_config,
             )
+            wall_clock_seconds = max(0.0, time.perf_counter() - _t_start)
 
         self._last_F_t = float(plan_meta.F_t)
         tau_f = float(self.gate_config.tau_f)
@@ -149,7 +152,7 @@ class TextFRCGModelAgent(BaselineAgent):
             rollout_steps=3 if planned else 0,
             candidate_actions_scored=len(candidates) if planned else 1,
             top_k_alternatives=3 if planned else 0,
-            wall_clock_seconds=0.0,
+            wall_clock_seconds=wall_clock_seconds,
         )
         return action, compute_log
 

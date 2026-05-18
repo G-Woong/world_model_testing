@@ -179,6 +179,8 @@ class EvaluationRunner:
                     "success": success,
                     "total_return": total_return,
                     "total_progress": total_progress,
+                    "compute_log": asdict(episode_compute_log),
+                    "compute_logs": [asdict(episode_compute_log)],
                     "eval_labels": episode_eval_labels,
                     "rewrite_timestamp": _first_present(episode.get("steps", []), "rewrite_timestamp"),
                     "planning_events": episode_planning_events,
