@@ -114,6 +114,7 @@ class EvaluationRunner:
                     wrong_prob_val = float(agent.last_wrong_prob)
                 else:
                     wrong_prob_val = float(step.get("wrong_prob") or 0.0)
+                f_t_val = _safe_float_or_none(getattr(agent, "last_F_t", None))
                 predicted_progress_delta_val = getattr(agent, "last_predicted_progress_delta", None)
 
                 eval_labels = dict(step.get("evaluation_labels") or step.get("eval_labels") or {})
@@ -136,6 +137,7 @@ class EvaluationRunner:
                         "eval_labels": eval_labels,
                         "predicted_wrong": predicted_wrong_val,
                         "wrong_prob": wrong_prob_val,
+                        "f_t": f_t_val,
                         "progress_delta": float(targets.get("progress_delta") or 0.0),
                         "predicted_progress_delta": predicted_progress_delta_val,
                         "counterfactuals": list(
@@ -156,6 +158,7 @@ class EvaluationRunner:
                     "eval_labels": episode_eval_labels,
                     "rewrite_timestamp": _first_present(episode.get("steps", []), "rewrite_timestamp"),
                     "planning_events": episode_planning_events,
+                    "degenerate_f_t_count": _count_degenerate_f_t_steps(step_results),
                     "steps": step_results,
                 }
             )
@@ -320,6 +323,30 @@ def _first_present(steps: list[dict[str, Any]], key: str) -> Any:
         if value is not None:
             return value
     return None
+
+
+def _safe_float_or_none(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _step_f_t_value(step_result: dict[str, Any]) -> float | None:
+    for key in ("f_t", "F_t", "last_F_t"):
+        if key in step_result:
+            return _safe_float_or_none(step_result.get(key))
+    return None
+
+
+def _count_degenerate_f_t_steps(step_results: list[dict[str, Any]]) -> int:
+    return sum(
+        1
+        for step_result in step_results
+        if _step_f_t_value(step_result) == 0.0
+    )
 
 
 def _without_none(value: Any) -> Any:
