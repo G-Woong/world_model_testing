@@ -278,6 +278,83 @@ class NoComputeGateAblation(AblatedAgent):
         )
 
 
+REAL_NO_GATE_ABLATION_CONFIG = AblationConfig(
+    ablation_id="real_no_gate",
+    tdd_ref="ABL-036b",
+    severity="HIGH",
+    description=(
+        "Always-plan with full FRCG model forward pass; faithful no-gate "
+        "baseline for fair compute accounting."
+    ),
+    expected_collapse={
+        "progress_per_compute": "decrease",
+        "false_planning_call_rate": "increase",
+    },
+    masking={"gate_mode": "always_plan", "force_planning_call": True},
+)
+
+
+class RealNoGateAblation(AblatedAgent):
+    """ABL-036b: Always-plan with full FRCG model forward.
+
+    Unlike heuristic NoComputeGateAblation, this uses TextFRCGModelAgent with
+    gate_mode=always_plan to provide a faithful no-gate compute denominator.
+
+    Source MD: paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md C6 fair_ppc
+    """
+
+    ablation_id = "real_no_gate"
+    always_plan = True
+
+    def __init__(
+        self,
+        agent: Any | None = None,
+        config: AblationConfig | None = None,
+        **agent_kwargs: Any,
+    ) -> None:
+        if agent is None:
+            from frcgw.evaluation.frcg_agent import TextFRCGModelAgent
+
+            agent = TextFRCGModelAgent(**agent_kwargs)
+        elif agent_kwargs:
+            raise TypeError("agent_kwargs are only valid when RealNoGateAblation builds the agent")
+        super().__init__(agent, config or REAL_NO_GATE_ABLATION_CONFIG)
+
+    def act(
+        self,
+        obs: PublicObservation,
+        eval_labels: dict | None = None,
+    ) -> tuple[CandidateAction, ComputeBudgetLog]:
+        from dataclasses import replace as dc_replace
+
+        from frcgw.planning.decision_gate import GateConfig
+
+        sentinel = object()
+        old_cfg = getattr(self._agent, "gate_config", sentinel)
+        orig_cfg = old_cfg if old_cfg is not sentinel and old_cfg is not None else GateConfig()
+        always_plan_cfg = dc_replace(orig_cfg, gate_mode="always_plan")
+
+        try:
+            self._agent.gate_config = always_plan_cfg
+            action, log = self._agent.act(obs, eval_labels=eval_labels)
+        finally:
+            if old_cfg is sentinel:
+                try:
+                    delattr(self._agent, "gate_config")
+                except AttributeError:
+                    pass
+            else:
+                self._agent.gate_config = old_cfg
+
+        return action, ComputeBudgetLog(
+            planning_calls=1,
+            rollout_steps=log.rollout_steps,
+            candidate_actions_scored=log.candidate_actions_scored,
+            top_k_alternatives=log.top_k_alternatives,
+            wall_clock_seconds=log.wall_clock_seconds,
+        )
+
+
 class NoRegimeAblationAgent(AblatedAgent):
     """ABL-001: Remove regime latent to test C2 regime/control-grammar separability.
 
@@ -665,6 +742,8 @@ __all__ = [
     "AblatedAgent",
     "LeakageSanityProbeAblation",
     "NoShortRolloutAblation",
+    "REAL_NO_GATE_ABLATION_CONFIG",
     "RandomAlternativeHypothesisAblation",
+    "RealNoGateAblation",
     "apply_ablation",
 ]

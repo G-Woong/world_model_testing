@@ -13,7 +13,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from frcgw.evaluation.ablations import NoComputeGateAblation, RealNoGateAblation
 from frcgw.evaluation.compute_budget import ComputeBudgetLog
+from frcgw.evaluation.frcg_agent import TextFRCGModelAgent
 from frcgw.evaluation.metrics import (
     action_switch_delay,
     alternative_rollout_fidelity,
@@ -55,6 +57,12 @@ METRIC_FUNCTIONS = {
     "false_planning_call_rate": false_planning_call_rate,
     "action_switch_delay": action_switch_delay,
     "alternative_rollout_fidelity": alternative_rollout_fidelity,
+}
+
+AGENT_CLASSES: dict[str, type] = {
+    "TextFRCGModelAgent": TextFRCGModelAgent,
+    "RealNoGateAblation": RealNoGateAblation,
+    "NoComputeGateAblation": NoComputeGateAblation,
 }
 
 
@@ -403,4 +411,4 @@ def _result_to_dict(result: EvaluationResult, report_path: str) -> dict[str, Any
     return data
 
 
-__all__ = ["EvaluationResult", "EvaluationRunner", "_compute_episode_timestamps"]
+__all__ = ["AGENT_CLASSES", "EvaluationResult", "EvaluationRunner", "_compute_episode_timestamps"]
