@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 import time
+from copy import deepcopy
 from dataclasses import replace  # used for always_plan gate_mode override
 from pathlib import Path
 
@@ -87,6 +88,7 @@ class TextFRCGModelAgent(BaselineAgent):
         self._last_tau_f: float = self.gate_config.tau_f
         self._last_selected_hypothesis_id: str | None = None
         self._last_selected_hypothesis_confidence: float | None = None
+        self.last_action_changed_by_rollout: bool = False
 
     def reset(self) -> None:
         self._planner_state = PlannerState()
@@ -97,6 +99,7 @@ class TextFRCGModelAgent(BaselineAgent):
         self._last_tau_f = self.gate_config.tau_f
         self._last_selected_hypothesis_id = None
         self._last_selected_hypothesis_confidence = None
+        self.last_action_changed_by_rollout = False
 
     def act(
         self,
@@ -112,6 +115,8 @@ class TextFRCGModelAgent(BaselineAgent):
         plan_gate_config = self.gate_config
         if self.gate_config.gate_mode == "always_plan":
             plan_gate_config = replace(self.gate_config, tau_f=float("-inf"))
+        rollout_off_gate_config = replace(self.gate_config, gate_mode="never_plan")
+        rollout_off_planner_state = deepcopy(self._planner_state)
 
         with torch.no_grad():
             # Forward pass to get posterior for falsification signal
@@ -137,12 +142,21 @@ class TextFRCGModelAgent(BaselineAgent):
                 plan_gate_config,
             )
             wall_clock_seconds = max(0.0, time.perf_counter() - _t_start)
+            rollout_off_action, _rollout_off_meta = text_frcg_plan(
+                obs,
+                self._step_idx,
+                candidates,
+                self.model,
+                rollout_off_planner_state,
+                rollout_off_gate_config,
+            )
 
         self._last_F_t = float(plan_meta.F_t)
         tau_f = float(self.gate_config.tau_f)
         self._last_tau_f = tau_f
         self._last_wrong_prob = _sigmoid(self._last_F_t - tau_f)
         self._last_predicted_wrong = self._last_wrong_prob > 0.5
+        self.last_action_changed_by_rollout = action.action_id != rollout_off_action.action_id
         self._step_idx += 1
 
         planned = plan_meta.planned
