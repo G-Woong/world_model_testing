@@ -1,0 +1,148 @@
+{
+  "run_mode": "real_episode_eval",
+  "agents": {
+    "ABL-001-no-regime": {
+      "task_success_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "normalized_return": {
+        "value": null,
+        "status": "OK"
+      },
+      "C3_falsification_precision": {
+        "value": 0.49529512403763903,
+        "status": "OK"
+      },
+      "C3_falsification_recall": {
+        "value": 0.6376651982378855,
+        "status": "OK"
+      },
+      "C3_falsification_f1": {
+        "value": 0.5575349061145884,
+        "status": "OK"
+      },
+      "C6_progress_per_compute": {
+        "value": 0.21595463137996196,
+        "status": "OK"
+      },
+      "false_planning_call_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "failed_action_repetition_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "action_switch_delay": {
+        "value": null,
+        "status": "OK"
+      },
+      "C1_persistence": {
+        "value": null,
+        "status": "OK"
+      },
+      "C3_recovery_delay": {
+        "value": null,
+        "status": "OK"
+      },
+      "C5_calibration_ece": {
+        "value": null,
+        "status": "BLOCKED_DEGENERATE_PREDICTOR"
+      },
+      "C4_rollout_fidelity": {
+        "value": null,
+        "status": "BLOCKED_no_model_rollout_prediction"
+      },
+      "C4_alternative_adoption_rate": {
+        "value": null,
+        "status": "BLOCKED_counterfactual_metric_not_implemented"
+      },
+      "C2_regime_split": {
+        "value": 0.0,
+        "status": "OK"
+      }
+    },
+    "FRCG-LR-reference": {
+      "task_success_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "normalized_return": {
+        "value": null,
+        "status": "OK"
+      },
+      "C3_falsification_precision": {
+        "value": 0.4669354838709677,
+        "status": "OK"
+      },
+      "C3_falsification_recall": {
+        "value": 0.6376651982378855,
+        "status": "OK"
+      },
+      "C3_falsification_f1": {
+        "value": 0.5391061452513967,
+        "status": "OK"
+      },
+      "C6_progress_per_compute": {
+        "value": 0.21595463137996196,
+        "status": "OK"
+      },
+      "false_planning_call_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "failed_action_repetition_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "action_switch_delay": {
+        "value": null,
+        "status": "OK"
+      },
+      "C1_persistence": {
+        "value": null,
+        "status": "OK"
+      },
+      "C3_recovery_delay": {
+        "value": null,
+        "status": "OK"
+      },
+      "C5_calibration_ece": {
+        "value": null,
+        "status": "BLOCKED_DEGENERATE_PREDICTOR"
+      },
+      "C4_rollout_fidelity": {
+        "value": null,
+        "status": "BLOCKED_no_model_rollout_prediction"
+      },
+      "C4_alternative_adoption_rate": {
+        "value": null,
+        "status": "BLOCKED_counterfactual_metric_not_implemented"
+      },
+      "C2_regime_split": {
+        "value": 0.0,
+        "status": "OK"
+      }
+    }
+  },
+  "dataset_audit": {
+    "hypothesis_update_timestamp_coverage": 0.7477148080438757,
+    "recovery_timestamp_coverage": 0.6654478976234004,
+    "selected_hypothesis_confidence_coverage": 1.0,
+    "counterfactual_coverage": 1.0,
+    "ood_split_exists": true,
+    "total_episodes_sampled": 100
+  },
+  "fake_metric_count": 0,
+  "blocked_metric_count": 6,
+  "C5_calibration_status": "DEGENERATE_PREDICTOR",
+  "C5_calibration_audit": {
+    "n_steps": 5290,
+    "variance_wrong_prob": 0.06271007841504064,
+    "unique_wrong_prob_count": 2633,
+    "mean_wrong_prob": 0.5051549861176887,
+    "mean_f_t": -0.05114838750240708,
+    "C5_calibration_status": "DEGENERATE_PREDICTOR"
+  }
+}

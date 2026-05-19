@@ -1,0 +1,334 @@
+{
+  "run_mode": "real_episode_eval",
+  "agents": {
+    "FRCG-LR-seed42": {
+      "task_success_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "normalized_return": {
+        "value": null,
+        "status": "OK"
+      },
+      "C3_falsification_precision": {
+        "value": 0.4931506849315068,
+        "status": "OK"
+      },
+      "C3_falsification_recall": {
+        "value": 0.7058823529411765,
+        "status": "OK"
+      },
+      "C3_falsification_f1": {
+        "value": 0.5806451612903226,
+        "status": "OK"
+      },
+      "C6_progress_per_compute": {
+        "value": 0.1926056338028169,
+        "status": "OK"
+      },
+      "false_planning_call_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "failed_action_repetition_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "action_switch_delay": {
+        "value": null,
+        "status": "OK"
+      },
+      "C1_persistence": {
+        "value": null,
+        "status": "OK"
+      },
+      "C3_recovery_delay": {
+        "value": null,
+        "status": "OK"
+      },
+      "C5_calibration_ece": {
+        "value": null,
+        "status": "BLOCKED_DEGENERATE_PREDICTOR"
+      },
+      "C4_rollout_fidelity": {
+        "value": null,
+        "status": "BLOCKED_no_model_rollout_prediction"
+      },
+      "C4_alternative_adoption_rate": {
+        "value": null,
+        "status": "BLOCKED_counterfactual_metric_not_implemented"
+      },
+      "C2_regime_split": {
+        "value": 0.0,
+        "status": "OK"
+      }
+    },
+    "FRCG-LR-seed123": {
+      "task_success_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "normalized_return": {
+        "value": null,
+        "status": "OK"
+      },
+      "C3_falsification_precision": {
+        "value": 0.5666666666666667,
+        "status": "OK"
+      },
+      "C3_falsification_recall": {
+        "value": 0.3333333333333333,
+        "status": "OK"
+      },
+      "C3_falsification_f1": {
+        "value": 0.4197530864197531,
+        "status": "OK"
+      },
+      "C6_progress_per_compute": {
+        "value": 0.1926056338028169,
+        "status": "OK"
+      },
+      "false_planning_call_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "failed_action_repetition_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "action_switch_delay": {
+        "value": null,
+        "status": "OK"
+      },
+      "C1_persistence": {
+        "value": null,
+        "status": "OK"
+      },
+      "C3_recovery_delay": {
+        "value": null,
+        "status": "OK"
+      },
+      "C5_calibration_ece": {
+        "value": null,
+        "status": "BLOCKED_DEGENERATE_PREDICTOR"
+      },
+      "C4_rollout_fidelity": {
+        "value": null,
+        "status": "BLOCKED_no_model_rollout_prediction"
+      },
+      "C4_alternative_adoption_rate": {
+        "value": null,
+        "status": "BLOCKED_counterfactual_metric_not_implemented"
+      },
+      "C2_regime_split": {
+        "value": 0.0,
+        "status": "OK"
+      }
+    },
+    "FRCG-LR-seed456": {
+      "task_success_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "normalized_return": {
+        "value": null,
+        "status": "OK"
+      },
+      "C3_falsification_precision": {
+        "value": 0.46296296296296297,
+        "status": "OK"
+      },
+      "C3_falsification_recall": {
+        "value": 0.49019607843137253,
+        "status": "OK"
+      },
+      "C3_falsification_f1": {
+        "value": 0.47619047619047616,
+        "status": "OK"
+      },
+      "C6_progress_per_compute": {
+        "value": 0.1926056338028169,
+        "status": "OK"
+      },
+      "false_planning_call_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "failed_action_repetition_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "action_switch_delay": {
+        "value": null,
+        "status": "OK"
+      },
+      "C1_persistence": {
+        "value": null,
+        "status": "OK"
+      },
+      "C3_recovery_delay": {
+        "value": null,
+        "status": "OK"
+      },
+      "C5_calibration_ece": {
+        "value": null,
+        "status": "BLOCKED_DEGENERATE_PREDICTOR"
+      },
+      "C4_rollout_fidelity": {
+        "value": null,
+        "status": "BLOCKED_no_model_rollout_prediction"
+      },
+      "C4_alternative_adoption_rate": {
+        "value": null,
+        "status": "BLOCKED_counterfactual_metric_not_implemented"
+      },
+      "C2_regime_split": {
+        "value": 0.0,
+        "status": "OK"
+      }
+    },
+    "FRCG-LR-seed789": {
+      "task_success_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "normalized_return": {
+        "value": null,
+        "status": "OK"
+      },
+      "C3_falsification_precision": {
+        "value": 0.5,
+        "status": "OK"
+      },
+      "C3_falsification_recall": {
+        "value": 0.6862745098039216,
+        "status": "OK"
+      },
+      "C3_falsification_f1": {
+        "value": 0.5785123966942148,
+        "status": "OK"
+      },
+      "C6_progress_per_compute": {
+        "value": 0.1926056338028169,
+        "status": "OK"
+      },
+      "false_planning_call_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "failed_action_repetition_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "action_switch_delay": {
+        "value": null,
+        "status": "OK"
+      },
+      "C1_persistence": {
+        "value": null,
+        "status": "OK"
+      },
+      "C3_recovery_delay": {
+        "value": null,
+        "status": "OK"
+      },
+      "C5_calibration_ece": {
+        "value": null,
+        "status": "BLOCKED_DEGENERATE_PREDICTOR"
+      },
+      "C4_rollout_fidelity": {
+        "value": null,
+        "status": "BLOCKED_no_model_rollout_prediction"
+      },
+      "C4_alternative_adoption_rate": {
+        "value": null,
+        "status": "BLOCKED_counterfactual_metric_not_implemented"
+      },
+      "C2_regime_split": {
+        "value": 0.0,
+        "status": "OK"
+      }
+    },
+    "FRCG-LR-seed999": {
+      "task_success_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "normalized_return": {
+        "value": null,
+        "status": "OK"
+      },
+      "C3_falsification_precision": {
+        "value": 0.4931506849315068,
+        "status": "OK"
+      },
+      "C3_falsification_recall": {
+        "value": 0.7058823529411765,
+        "status": "OK"
+      },
+      "C3_falsification_f1": {
+        "value": 0.5806451612903226,
+        "status": "OK"
+      },
+      "C6_progress_per_compute": {
+        "value": 0.1926056338028169,
+        "status": "OK"
+      },
+      "false_planning_call_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "failed_action_repetition_rate": {
+        "value": null,
+        "status": "OK"
+      },
+      "action_switch_delay": {
+        "value": null,
+        "status": "OK"
+      },
+      "C1_persistence": {
+        "value": null,
+        "status": "OK"
+      },
+      "C3_recovery_delay": {
+        "value": null,
+        "status": "OK"
+      },
+      "C5_calibration_ece": {
+        "value": null,
+        "status": "BLOCKED_DEGENERATE_PREDICTOR"
+      },
+      "C4_rollout_fidelity": {
+        "value": null,
+        "status": "BLOCKED_no_model_rollout_prediction"
+      },
+      "C4_alternative_adoption_rate": {
+        "value": null,
+        "status": "BLOCKED_counterfactual_metric_not_implemented"
+      },
+      "C2_regime_split": {
+        "value": 0.0,
+        "status": "OK"
+      }
+    }
+  },
+  "dataset_audit": {
+    "hypothesis_update_timestamp_coverage": 0.7477148080438757,
+    "recovery_timestamp_coverage": 0.6654478976234004,
+    "selected_hypothesis_confidence_coverage": 1.0,
+    "counterfactual_coverage": 1.0,
+    "ood_split_exists": true,
+    "total_episodes_sampled": 100
+  },
+  "fake_metric_count": 0,
+  "blocked_metric_count": 15,
+  "C5_calibration_status": "DEGENERATE_PREDICTOR",
+  "C5_calibration_audit": {
+    "n_steps": 1420,
+    "variance_wrong_prob": 0.06285793944241974,
+    "unique_wrong_prob_count": 965,
+    "mean_wrong_prob": 0.4997025372440523,
+    "mean_f_t": -0.07579607245787769,
+    "C5_calibration_status": "DEGENERATE_PREDICTOR"
+  }
+}
