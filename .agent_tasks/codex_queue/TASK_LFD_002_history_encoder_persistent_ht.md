@@ -1,4 +1,5 @@
 TASK_NAME: TASK_LFD_002_history_encoder_persistent_ht
+SANDBOX_MODE: bypass
 
 BACKGROUND:
 HistoryEncoder.forward (encoders.py:109) currently discards GRU hidden state:
