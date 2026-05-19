@@ -35,6 +35,7 @@ class BatchTargets:
     true_wrong_hypothesis: bool | None
     h_exec_id: str | None
     correct_hypothesis_id: str | None
+    regime_switch_step: int | None = None   # v0_5 eval-only; None for v0_4
 
 
 @dataclass
@@ -167,6 +168,7 @@ def _step_to_sample(
         true_wrong_hypothesis=evaluation_labels.get("true_wrong_hypothesis"),
         h_exec_id=evaluation_labels.get("h_exec_id"),
         correct_hypothesis_id=evaluation_labels.get("correct_hypothesis_id"),
+        regime_switch_step=evaluation_labels.get("regime_switch_t"),  # eval-only; never in public_input
     )
     step_id = step.get("step_id") or f"{episode_id}:step:{fallback_idx}"
     return StepSample(public_input=public_observation, targets=targets, step_id=str(step_id))

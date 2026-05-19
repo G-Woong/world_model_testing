@@ -27,6 +27,7 @@ class ModelOutput:
     posterior_entropy: Tensor
     aux_precondition: Tensor
     aux_failure_risk: Tensor
+    h_t_next: Tensor | None = None  # [1, batch, hidden_dim]; set when h_t passed to forward()
 
 
 class TextFRCGModel(nn.Module):
@@ -94,14 +95,29 @@ class TextFRCGModel(nn.Module):
             "hypothesis_embed_dim": 32,
         }
 
-    def forward(self, public_input: PublicObservation | list[PublicObservation]) -> ModelOutput:
+    def forward(
+        self,
+        public_input: PublicObservation | list[PublicObservation],
+        h_t: Tensor | None = None,
+    ) -> ModelOutput:
+        """Forward pass with optional episode-level h_t carry-over.
+
+        Args:
+            public_input: Single or batched PublicObservation.
+            h_t: Optional GRU hidden state [1, batch, hidden_dim] from previous step.
+                 None (default) = stateless path (v0_4 compat, h0=zeros).
+        """
         public_batch = [public_input] if isinstance(public_input, PublicObservation) else list(public_input)
         instructions = [pub.instruction for pub in public_batch]
         histories = [pub.history_public for pub in public_batch]
         dom_texts = [self._public_dom_text(pub) for pub in public_batch]
 
         text_h = self.text_encoder(instructions, dom_texts)
-        hist_h = self.history_encoder(histories)
+        if h_t is not None:
+            hist_h, h_t_next = self.history_encoder(histories, h0=h_t, return_hidden=True)
+        else:
+            hist_h = self.history_encoder(histories)
+            h_t_next = None
         sample = self.latent_posterior(text_h, hist_h)
         return ModelOutput(
             z_state=sample.z_state,
@@ -113,6 +129,7 @@ class TextFRCGModel(nn.Module):
             posterior_entropy=sample.posterior_entropy,
             aux_precondition=sample.aux_precondition,
             aux_failure_risk=sample.aux_failure_risk,
+            h_t_next=h_t_next,
         )
 
     def action_embed(self, action_type: str) -> Tensor:

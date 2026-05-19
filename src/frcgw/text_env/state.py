@@ -65,6 +65,9 @@ class TextEpisodeSpec:
     max_steps: int = 12
     seed: int = 0
     ood_type: str | None = None  # None for id split, "grammar_shift" for ood split
+    # v0_5 intra-episode switch fields (None = v0_4 single-regime episode)
+    regime_switch_step: int | None = None       # step at which regime switches
+    hidden_regime_after: str | None = None      # regime after switch (eval-only)
 
 
 @dataclass

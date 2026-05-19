@@ -248,6 +248,29 @@ def _build_evaluation_labels(
     )
 
 
+def _backfill_v0_5_switch_labels(
+    steps: list[StepRecord],
+    regime_switch_step: int | None,
+) -> list[StepRecord]:
+    """Backfill regime_switch_t into all step EvaluationLabels for v0_5 episodes.
+
+    regime_switch_t records WHEN the switch happened (eval-only, FORBIDDEN_AGENT_FIELDS).
+    It is set on EVERY step of a switch episode (not just post-switch steps) so
+    metrics can compute detection_delay = alarm_step - regime_switch_t.
+    MUST NOT appear in TrainingLabels or PublicObservation.
+    """
+    if regime_switch_step is None:
+        return steps
+
+    import dataclasses
+
+    patched = []
+    for step in steps:
+        new_eval = dataclasses.replace(step.evaluation_labels, regime_switch_t=regime_switch_step)
+        patched.append(dataclasses.replace(step, evaluation_labels=new_eval))
+    return patched
+
+
 def _backfill_episode_timestamps(
     steps: list[StepRecord],
     ood_type: str | None,
@@ -451,6 +474,11 @@ def collect_episode(
     # Post-pass: backfill episode-level timestamps.
     ood_type = getattr(spec, "ood_type", None)
     steps = _backfill_episode_timestamps(steps, ood_type)
+
+    # Post-pass: backfill v0_5 regime_switch_t (eval-only, FORBIDDEN_AGENT_FIELDS).
+    # regime_switch_t never enters PublicObservation; it goes only to EvaluationLabels.
+    regime_switch_step = getattr(spec, "regime_switch_step", None)
+    steps = _backfill_v0_5_switch_labels(steps, regime_switch_step)
 
     episode = EpisodeRecord(
         episode_id=spec.episode_id,

@@ -81,6 +81,7 @@ class EvaluationLabels:
     recovery_timestamp: int | None = None
     ood_type: str | None = None
     true_regime: str | None = None
+    regime_switch_t: int | None = None          # v0_5 switch timing (EVALUATION_ONLY, FORBIDDEN_AGENT_FIELDS)
 
 
 @dataclass

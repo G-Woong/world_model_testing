@@ -106,15 +106,29 @@ class HistoryEncoder(nn.Module):
         )
         self.gru = nn.GRU(input_size=64, hidden_size=hidden_dim, num_layers=1, batch_first=True)
 
-    def forward(self, history_list: list[list[PublicHistoryItem]]) -> Tensor:
-        """Encode public per-step history summaries."""
+    def forward(
+        self,
+        history_list: list[list[PublicHistoryItem]],
+        h0: Tensor | None = None,
+        return_hidden: bool = False,
+    ) -> Tensor | tuple[Tensor, Tensor]:
+        """Encode public per-step history summaries.
+
+        Args:
+            history_list: Per-item history sequences.
+            h0: Optional initial GRU hidden state [1, batch, hidden_dim].
+                None uses GRU default (zeros). Enables episode-level carry-over.
+            return_hidden: If True, returns (out, h_t_next) tuple.
+                           If False (default), returns out Tensor only (v0_4 compat).
+        """
         batch_size = len(history_list)
         device = self.action_embedding.weight.device
         out = torch.zeros((batch_size, self.hidden_dim), dtype=self.action_embedding.weight.dtype, device=device)
         lengths = [len(history) for history in history_list]
         max_len = max(lengths, default=0)
         if max_len == 0:
-            return out
+            h_t_next = torch.zeros((1, batch_size, self.hidden_dim), dtype=out.dtype, device=device)
+            return (out, h_t_next) if return_hidden else out
 
         action_ids = torch.zeros((batch_size, max_len), dtype=torch.long, device=device)
         effect_ids = torch.zeros((batch_size, max_len), dtype=torch.long, device=device)
@@ -139,8 +153,8 @@ class HistoryEncoder(nn.Module):
                 dim=-1,
             )
         )
-        gru_out, _ = self.gru(step_features)
+        gru_out, h_t_next = self.gru(step_features, h0)
         for row, length in enumerate(lengths):
             if length > 0:
                 out[row] = gru_out[row, length - 1]
-        return out
+        return (out, h_t_next) if return_hidden else out

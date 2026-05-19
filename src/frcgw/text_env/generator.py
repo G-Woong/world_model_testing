@@ -270,11 +270,61 @@ class EpisodeSpecGenerator:
             seed=ep_seed,
         )
 
+    def generate_v0_5(
+        self,
+        family: str | None = None,
+        rng: random.Random | None = None,
+    ) -> TextEpisodeSpec:
+        """Generate a v0_5 episode with an intra-episode regime switch.
+
+        After regime_switch_step, the hidden control grammar changes to a
+        different family grammar (same-action / different-effect pattern).
+        regime_switch_t is written to EvaluationLabels by the collector —
+        it is FORBIDDEN_AGENT_FIELDS and must never enter PublicObservation.
+        """
+        if rng is None:
+            rng = random.Random(self._base_seed + self._counter)
+        self._counter += 1
+
+        if family is None:
+            family = rng.choice(ID_GRAMMAR_FAMILIES)
+
+        spec = self._generate_spec(family, rng)
+
+        # Sample switch step in [2, max_steps-2] to ensure non-trivial switch
+        switch_step = rng.randint(2, max(2, spec.max_steps - 2))
+
+        # Pick a different family for the post-switch grammar
+        other_families = [f for f in TaskFamily if f != family]
+        family_after = rng.choice(other_families)
+
+        return TextEpisodeSpec(
+            episode_id=spec.episode_id + "_v0_5",
+            task_family=spec.task_family,
+            public_instruction=spec.public_instruction,
+            initial_state_template=spec.initial_state_template,
+            hidden_regime=spec.hidden_regime,
+            hidden_control_grammar=spec.hidden_control_grammar,
+            event_schedule=spec.event_schedule,
+            max_steps=spec.max_steps,
+            seed=spec.seed,
+            ood_type="regime_switch",
+            regime_switch_step=switch_step,
+            hidden_regime_after=family_after,
+        )
+
     def generate_batch(
         self, n: int, family: str | None = None
     ) -> list[TextEpisodeSpec]:
         rng = random.Random(self._base_seed)
         return [self.generate(family=family, rng=rng) for _ in range(n)]
+
+    def generate_v0_5_batch(
+        self, n: int, family: str | None = None
+    ) -> list[TextEpisodeSpec]:
+        """Generate n v0_5 episodes with intra-episode regime switches."""
+        rng = random.Random(self._base_seed)
+        return [self.generate_v0_5(family=family, rng=rng) for _ in range(n)]
 
     def generate_ood(self, n: int, ood_type: str = "grammar_shift") -> list[TextEpisodeSpec]:
         """Generate OOD episode specs using held-out grammar families."""
