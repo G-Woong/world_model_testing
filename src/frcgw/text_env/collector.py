@@ -39,6 +39,20 @@ from frcgw.text_env.grammar import GrammarEngine
 from frcgw.text_env.policies import PolicyMixtureRunner
 from frcgw.text_env.state import TextEpisodeSpec, TextState
 
+# v0_5: TaskFamily -> ControlGrammar string mapping.
+# Mirrors generator._FAMILY_GRAMMAR; kept local to avoid circular import.
+# Source: paper_context_ref/12_DATA_COLLECTION_METHODOLOGY.md §8 v0_5 switch.
+_V0_5_FAMILY_TO_GRAMMAR: dict[str, str] = {
+    "search_form":           "direct_search",
+    "required_dropdown":     "required_dropdown_then_search",
+    "modal_blocker":         "modal_confirm_then_action",
+    "nested_scroll":         "container_scroll_then_select",
+    "loading_delayed":       "wait_until_enabled_then_click",
+    "permission_gate":       "permission_accept_then_action",
+    "filter_accordion":      "filter_open_then_select",
+    "pagination_vs_infinite": "pagination_or_infinite_scroll",
+}
+
 
 @dataclass
 class CollectorConfig:
@@ -232,10 +246,22 @@ def _build_evaluation_labels(
     engine: GrammarEngine,
     policy_id: str,
     event_type: str,
+    is_post_v0_5_switch: bool = False,
 ) -> EvaluationLabels:
-    is_wrong = engine.is_wrong_grammar_failure(
-        pre_state._hidden_preconditions, action_id, event_type
-    )
+    """Build EvaluationLabels for one step.
+
+    is_post_v0_5_switch: when True (v0_5 intra-episode switch has occurred),
+    true_wrong_hypothesis is set to True unconditionally — the agent is
+    executing under the original grammar while the environment runs the new
+    grammar, which is definitionally a wrong-hypothesis situation.
+    This label stays in EvaluationLabels and never enters PublicObservation.
+    """
+    if is_post_v0_5_switch:
+        is_wrong = True
+    else:
+        is_wrong = engine.is_wrong_grammar_failure(
+            pre_state._hidden_preconditions, action_id, event_type
+        )
     return EvaluationLabels(
         true_wrong_hypothesis=is_wrong,
         h_exec_id=None,
@@ -353,13 +379,50 @@ def collect_episode(
     Visibility contract is enforced per-step via assert_agent_observation_safe().
     Hidden fields are only ever written to TrainingLabels/EvaluationLabels/
     StepAuditMetadata, never to PublicObservation or history_public.
+
+    v0_5 intra-episode switch (TASK_COLLECTOR_V05_SWITCH):
+    When spec.regime_switch_step is set, the active GrammarEngine is replaced
+    with the engine for spec.hidden_regime_after at that step. The agent
+    continues to select actions under the original grammar (PolicyMixtureRunner
+    does not observe the switch), so post-switch actions produce no_state_change
+    in the new engine — this is the genuine action-outcome mismatch signal that
+    the Learned Falsification Detector (LFD) is trained to detect.
+    true_wrong_hypothesis=True is written to EvaluationLabels ONLY (never
+    PublicObservation or training visible fields).
     """
     engine = GrammarEngine(spec.hidden_control_grammar)
+    # v0_5: active_engine switches at regime_switch_step; engine (original) kept
+    # for label resolution and policy context.
+    active_engine = engine
+    v0_5_switch_step: int | None = getattr(spec, "regime_switch_step", None)
+    v0_5_after_family: str | None = getattr(spec, "hidden_regime_after", None)
+    _v0_5_switched = False  # tracks whether switch has been applied
+
     state = build_initial_state(spec)
     history: list[PublicHistoryItem] = []
     steps: list[StepRecord] = []
 
     for step_index in range(spec.max_steps):
+        # v0_5: apply grammar switch at the designated step (oracle-free transition)
+        if (
+            v0_5_switch_step is not None
+            and step_index == v0_5_switch_step
+            and v0_5_after_family is not None
+            and not _v0_5_switched
+        ):
+            # TaskFamily is a str,Enum — use .value to get "modal_blocker" etc.
+            after_family_str = (
+                v0_5_after_family.value
+                if hasattr(v0_5_after_family, "value")
+                else str(v0_5_after_family)
+            )
+            after_grammar = _V0_5_FAMILY_TO_GRAMMAR.get(after_family_str)
+            if after_grammar is not None:
+                try:
+                    active_engine = GrammarEngine(after_grammar)
+                    _v0_5_switched = True
+                except ValueError:
+                    pass  # unknown grammar — keep original engine
         state.step_index = step_index
 
         # 1. Build sanitized public observation
@@ -384,8 +447,12 @@ def collect_episode(
         )
 
         # 3. Apply grammar engine to hidden state
+        # v0_5: use active_engine (may be the switched grammar post-switch) so
+        # that post-switch actions produce no_state_change in the new grammar.
+        # The original engine is still used for policy selection (step 2 above)
+        # and terminal check (end of loop) to preserve agent's wrong hypothesis.
         scheduled_event = _pick_scheduled_event(spec.event_schedule, step_index)
-        new_flags, progress_delta, raw_effect_type = engine.apply(
+        new_flags, progress_delta, raw_effect_type = active_engine.apply(
             state._hidden_preconditions, action_type
         )
 
@@ -415,12 +482,16 @@ def collect_episode(
 
         # 6. Build training/eval labels from hidden state — never from obs
         prev_effects = [h.effect_summary for h in history]
+        # Training labels use active_engine to correctly reflect post-switch effects.
         training_labels = _build_training_labels(
-            state, post_state, action_type, engine, scheduled_event,
+            state, post_state, action_type, active_engine, scheduled_event,
             progress_delta, prev_effects,
         )
+        # v0_5: is_post_v0_5_switch=True after switch; sets true_wrong_hypothesis=True
+        # in EvaluationLabels only (FORBIDDEN_AGENT_FIELDS, never inference input).
         evaluation_labels = _build_evaluation_labels(
-            state, action_type, engine, policy.policy_id, event_type
+            state, action_type, engine, policy.policy_id, event_type,
+            is_post_v0_5_switch=_v0_5_switched,
         )
 
         # 7. Build audit metadata (never agent input)
@@ -446,7 +517,7 @@ def collect_episode(
                 state,
                 action_record.action_type,
                 list(obs.candidate_actions_public),
-                engine,
+                active_engine,
                 rng,
             ),
             audit_metadata=audit,

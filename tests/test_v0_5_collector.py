@@ -1,15 +1,20 @@
-"""Tests for v0_5 intra-episode regime switch collector (TASK_LFD_004).
+"""Tests for v0_5 intra-episode regime switch collector.
 
-Source: .agent_tasks/codex_queue/TASK_LFD_004_v0_5_intra_episode_switch.md
+Sources:
+  .agent_tasks/codex_queue/TASK_LFD_004_v0_5_intra_episode_switch.md
+  TASK_COLLECTOR_V05_SWITCH (2026-05-19): collect_episode() integration tests.
 """
 from __future__ import annotations
 
+import dataclasses
 import random
 
 import pytest
 
-from frcgw.text_env.collector import CollectorConfig, _backfill_v0_5_switch_labels
+from frcgw.schemas.visibility import assert_agent_observation_safe
+from frcgw.text_env.collector import CollectorConfig, _backfill_v0_5_switch_labels, collect_episode
 from frcgw.text_env.generator import EpisodeSpecGenerator
+from frcgw.text_env.policies import PolicyMixtureRunner
 
 
 def test_evaluation_labels_has_regime_switch_t_for_v0_5() -> None:
@@ -142,6 +147,117 @@ def test_public_obs_no_regime_switch_t() -> None:
     assert not hasattr(obs, "regime_switch_t"), (
         "PublicObservation must NOT have regime_switch_t"
     )
+
+
+# ---------------------------------------------------------------------------
+# TASK_COLLECTOR_V05_SWITCH: collect_episode() integration tests
+# ---------------------------------------------------------------------------
+
+def _collect_v0_5_episode(seed: int = 42, switch_step_override: int | None = 3):
+    gen = EpisodeSpecGenerator(seed=seed, max_steps=10)
+    spec = gen.generate_v0_5()
+    if switch_step_override is not None:
+        spec = dataclasses.replace(spec, regime_switch_step=switch_step_override)
+    runner = PolicyMixtureRunner()
+    config = CollectorConfig(dataset_version="0.5_test")
+    rng = random.Random(seed)
+    return collect_episode(spec, runner, rng, config), spec
+
+
+def test_collect_episode_v0_5_completes() -> None:
+    """collect_episode() completes on v0_5 spec without error."""
+    episode, spec = _collect_v0_5_episode()
+    assert episode is not None
+    assert len(episode.steps) > 0
+
+
+def test_collect_episode_v0_5_true_wrong_post_switch() -> None:
+    """true_wrong_hypothesis=True for all steps >= regime_switch_step.
+
+    switch_step=0: grammar switches from step 0 so all steps are post-switch.
+    This ensures the test does not depend on episode length exceeding switch_step.
+    """
+    switch_step = 0  # switch from the very first step
+    episode, spec = _collect_v0_5_episode(switch_step_override=switch_step)
+    # All collected steps are >= 0, so all are post-switch
+    assert len(episode.steps) > 0, "Episode must have at least one step"
+    for step in episode.steps:
+        assert step.evaluation_labels.true_wrong_hypothesis is True, (
+            f"Step {step.step_index}: expected true_wrong_hypothesis=True "
+            f"(all steps are post-switch when switch_step=0)"
+        )
+
+
+def test_collect_episode_v0_5_regime_switch_t_backfilled() -> None:
+    """EvaluationLabels.regime_switch_t set on all steps for v0_5 episode."""
+    switch_step = 0
+    episode, spec = _collect_v0_5_episode(switch_step_override=switch_step)
+    for step in episode.steps:
+        assert step.evaluation_labels.regime_switch_t == switch_step
+
+
+def test_collect_episode_v0_5_post_switch_mismatch_effect() -> None:
+    """Post-switch actions produce no_state_change (grammar mismatch).
+
+    switch_step=0: all steps are post-switch, so the entire episode runs
+    under the new grammar. Agent actions from the original grammar produce
+    no_state_change in the new grammar — this is the mismatch signal.
+    """
+    switch_step = 0
+    episode, spec = _collect_v0_5_episode(seed=42, switch_step_override=switch_step)
+    mismatches = [s for s in episode.steps
+                  if s.observed_effect_public.effect_type == "no_state_change"]
+    assert len(mismatches) > 0, (
+        f"Post-switch should show no_state_change mismatch. "
+        f"Effects: {[s.observed_effect_public.effect_type for s in episode.steps]}"
+    )
+
+
+def test_collect_episode_v0_5_no_leakage_in_obs() -> None:
+    """No FORBIDDEN_AGENT_FIELDS appear in any PublicObservation."""
+    episode, _ = _collect_v0_5_episode()
+    for step in episode.steps:
+        assert_agent_observation_safe(step.public_observation)
+
+
+def test_collect_episode_v0_4_unaffected() -> None:
+    """v0_4 episodes are unaffected by v0_5 switch logic."""
+    gen = EpisodeSpecGenerator(seed=99, max_steps=10)
+    spec = gen.generate()
+    assert spec.regime_switch_step is None
+    runner = PolicyMixtureRunner()
+    rng = random.Random(99)
+    episode = collect_episode(spec, runner, rng, CollectorConfig())
+    assert episode is not None
+    for step in episode.steps:
+        assert step.evaluation_labels.regime_switch_t is None
+    assert_agent_observation_safe(episode.steps[0].public_observation)
+
+
+def test_collect_episode_v0_5_batch_audit() -> None:
+    """Batch 20 v0_5 episodes: switch_count==20, mismatch>0, leakage==0."""
+    gen = EpisodeSpecGenerator(seed=0, max_steps=10)
+    runner = PolicyMixtureRunner()
+    config = CollectorConfig(dataset_version="0.5_audit")
+    mismatch_count = 0
+    wrong_count = 0
+    leakage_violations = 0
+    for i in range(20):
+        spec = gen.generate_v0_5()
+        episode = collect_episode(spec, runner, random.Random(i), config)
+        sw = spec.regime_switch_step or 0
+        for step in episode.steps:
+            try:
+                assert_agent_observation_safe(step.public_observation)
+            except Exception:
+                leakage_violations += 1
+            if step.step_index >= sw and step.observed_effect_public.effect_type == "no_state_change":
+                mismatch_count += 1
+            if step.evaluation_labels.true_wrong_hypothesis is True:
+                wrong_count += 1
+    assert mismatch_count > 0, "No mismatch effects found in batch"
+    assert wrong_count > 0, "No wrong_hypothesis=True labels found"
+    assert leakage_violations == 0, f"Leakage violations: {leakage_violations}"
 
 
 def test_batch_targets_regime_switch_step_not_in_public_input() -> None:
