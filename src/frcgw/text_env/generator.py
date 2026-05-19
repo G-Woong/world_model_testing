@@ -33,6 +33,17 @@ ID_GRAMMAR_FAMILIES = [
     family for family in TaskFamily if family not in OOD_GRAMMAR_FAMILIES
 ]
 
+# v0_5 compatible switch pairs (P0 fix — must have non-empty action-set overlap).
+# Source: TASK_COLLECTOR_V05_SWITCH Reviewer-2 FATAL-1 resolution.
+# Only pairs where at least one shared action exists so that post-switch steps
+# can produce genuine wrong-hypothesis failures (recognisable action + failed
+# precondition) rather than vocabulary-mismatch no-ops.
+# Key pair: search_form <-> required_dropdown share {type_query, submit_search}.
+_V0_5_COMPATIBLE_AFTER: dict[str, str] = {
+    TaskFamily.SEARCH_FORM:      TaskFamily.REQUIRED_DROPDOWN,
+    TaskFamily.REQUIRED_DROPDOWN: TaskFamily.SEARCH_FORM,
+}
+
 
 # ---------------------------------------------------------------------------
 # Per-family action sets (public labels only — no grammar tokens)
@@ -294,9 +305,13 @@ class EpisodeSpecGenerator:
         # Sample switch step in [2, max_steps-2] to ensure non-trivial switch
         switch_step = rng.randint(2, max(2, spec.max_steps - 2))
 
-        # Pick a different family for the post-switch grammar
-        other_families = [f for f in TaskFamily if f != family]
-        family_after = rng.choice(other_families)
+        # Pick compatible after-family (action-set overlap → genuine wrong-hypothesis
+        # failures post-switch, not vocabulary-mismatch no-ops).
+        # Falls back to any other family only if no compatible pair is defined.
+        family_after = _V0_5_COMPATIBLE_AFTER.get(family)
+        if family_after is None:
+            other_families = [f for f in TaskFamily if f != family]
+            family_after = rng.choice(other_families)
 
         return TextEpisodeSpec(
             episode_id=spec.episode_id + "_v0_5",

@@ -247,17 +247,28 @@ def _build_evaluation_labels(
     policy_id: str,
     event_type: str,
     is_post_v0_5_switch: bool = False,
+    active_engine: GrammarEngine | None = None,
 ) -> EvaluationLabels:
     """Build EvaluationLabels for one step.
 
-    is_post_v0_5_switch: when True (v0_5 intra-episode switch has occurred),
-    true_wrong_hypothesis is set to True unconditionally — the agent is
-    executing under the original grammar while the environment runs the new
-    grammar, which is definitionally a wrong-hypothesis situation.
+    Post-switch (is_post_v0_5_switch=True) uses active_engine
+    (the new grammar) to evaluate is_wrong_grammar_failure. This produces
+    genuine wrong-hypothesis labels: the action is recognisable in the new
+    grammar but fails its precondition — exactly the wrong-hypothesis
+    persistence pattern defined in paper §CONST-04-001.
+
+    P1 fix (TASK_COLLECTOR_V05_SWITCH): replaced unconditional is_wrong=True
+    override with active_engine.is_wrong_grammar_failure(), so only steps
+    where the action is in the new grammar's action space AND the precondition
+    fails count as wrong-hypothesis. Vocabulary-mismatch steps (action not in
+    new grammar) do NOT count — they are no_state_change with is_wrong=False.
     This label stays in EvaluationLabels and never enters PublicObservation.
     """
-    if is_post_v0_5_switch:
-        is_wrong = True
+    if is_post_v0_5_switch and active_engine is not None:
+        # Use new grammar to check: is this action recognisable but precondition-blocked?
+        is_wrong = active_engine.is_wrong_grammar_failure(
+            pre_state._hidden_preconditions, action_id, event_type
+        )
     else:
         is_wrong = engine.is_wrong_grammar_failure(
             pre_state._hidden_preconditions, action_id, event_type
@@ -487,11 +498,13 @@ def collect_episode(
             state, post_state, action_type, active_engine, scheduled_event,
             progress_delta, prev_effects,
         )
-        # v0_5: is_post_v0_5_switch=True after switch; sets true_wrong_hypothesis=True
-        # in EvaluationLabels only (FORBIDDEN_AGENT_FIELDS, never inference input).
+        # v0_5: pass active_engine so post-switch uses new grammar's is_wrong_grammar_failure.
+        # P1 fix: unconditional is_wrong=True override removed; genuine wrong-hypothesis
+        # requires action to be recognisable in new grammar AND precondition to fail.
         evaluation_labels = _build_evaluation_labels(
             state, action_type, engine, policy.policy_id, event_type,
             is_post_v0_5_switch=_v0_5_switched,
+            active_engine=active_engine if _v0_5_switched else None,
         )
 
         # 7. Build audit metadata (never agent input)
