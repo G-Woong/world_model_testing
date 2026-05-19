@@ -1,0 +1,63 @@
+{
+  "CUSUM": {
+    "mean_detection_delay": 2.3557,
+    "false_alarm_rate_per_step": 0.0856,
+    "regime_shift_f1": 0.6351,
+    "auroc_wrong_hypothesis": 0.913,
+    "auprc_wrong_hypothesis": 0.8405
+  },
+  "SPRT": {
+    "mean_detection_delay": 5.8723,
+    "false_alarm_rate_per_step": 0.0754,
+    "regime_shift_f1": 0.0
+  },
+  "LFD_seed0": {
+    "mean_detection_delay": 0.0704,
+    "false_alarm_rate_per_step": 0.6257,
+    "regime_shift_f1": 0.5799,
+    "auroc_wrong_hypothesis": 0.9428,
+    "auprc_wrong_hypothesis": 0.9207,
+    "run_length_posterior_concentration": 0.8933
+  },
+  "LFD_seed_mean": {
+    "mean_detection_delay": 0.2883,
+    "regime_shift_f1": 0.6319,
+    "auroc_wrong_hypothesis": 0.9466,
+    "false_alarm_rate_per_step": 0.5812
+  },
+  "fair_ppc_seed0": {
+    "cusum_wall_clock_per_ep_s": 3.200817108154297e-05,
+    "lfd_wall_clock_per_ep_s": 0.18295022010803222,
+    "cusum_ppc": 17807.95280517236,
+    "lfd_ppc": 3.4708895109556694,
+    "ppc_ratio_lfd_over_cusum": 0.00019490671100316155,
+    "note": "progress_proxy=regime_shift_recall; LFD includes training amortized"
+  },
+  "cusum_threshold_sweep": {
+    "h=0.5": {
+      "mean_detection_delay": 0.0,
+      "false_alarm_rate_per_step": 0.13462574044157244,
+      "regime_shift_f1": 0.2311111111111111
+    },
+    "h=1.0": {
+      "mean_detection_delay": 0.7286432160804021,
+      "false_alarm_rate_per_step": 0.1308562197092084,
+      "regime_shift_f1": 0.5688487584650113
+    },
+    "h=2.0": {
+      "mean_detection_delay": 2.3557046979865772,
+      "false_alarm_rate_per_step": 0.08562197092084006,
+      "regime_shift_f1": 0.6350974930362117
+    },
+    "h=3.0": {
+      "mean_detection_delay": 4.615384615384615,
+      "false_alarm_rate_per_step": 0.04900376952073236,
+      "regime_shift_f1": 0.006872852233676977
+    },
+    "h=4.0": {
+      "mean_detection_delay": 5.609375,
+      "false_alarm_rate_per_step": 0.03446418955304254,
+      "regime_shift_f1": 0.0
+    }
+  }
+}

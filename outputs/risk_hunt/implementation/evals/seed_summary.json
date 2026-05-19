@@ -1,0 +1,39 @@
+{
+  "detection_delay": {
+    "mean": 0.2883,
+    "std": 0.3084,
+    "values": [
+      0.0704,
+      0.07,
+      0.7245
+    ]
+  },
+  "regime_shift_f1": {
+    "mean": 0.6319,
+    "std": 0.0551,
+    "values": [
+      0.5799,
+      0.6077,
+      0.7081
+    ]
+  },
+  "auroc_wrong_hypothesis": {
+    "mean": 0.9466,
+    "std": 0.0035,
+    "values": [
+      0.9428,
+      0.9458,
+      0.9512
+    ]
+  },
+  "false_alarm_rate_per_step": {
+    "mean": 0.5812,
+    "std": 0.0603,
+    "values": [
+      0.6257,
+      0.622,
+      0.496
+    ]
+  },
+  "n_seeds": 3
+}
