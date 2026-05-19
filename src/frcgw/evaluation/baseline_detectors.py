@@ -149,6 +149,7 @@ def run_sprt_on_episode(
         decisions.append(decision)
         if decision == "reject_H0":
             alarm_steps.append(step_idx)
+            break  # stop at first alarm — matches CUSUM single-alarm convention
 
     return {
         "alarm_steps": alarm_steps,

@@ -529,6 +529,33 @@ Claude Code가 후속 파일을 생성하거나 수정할 때 아래 계약을 �
 
 ---
 
+## 19.1 Phase 9 Update — Sequential Change-Point Detection Direct Threats
+
+**Update source**: Phase 9 end-to-end evidence run (2026-05-19), novelty-threat-scout report.
+**Cross-verification**: arXiv primary sources + Semantic Scholar.
+
+These two papers were identified as CONFIRMED_PRIMARY direct threats to LFD novelty during Phase 9 evaluation. They were not in the original threat map and must be addressed before any falsification detector claim.
+
+| Threat ID | Paper | Year | arXiv | Threat Level | What It Does | What It Does Not Do | Required Defense |
+|---|---|---|---|---|---|---|---|
+| CPD-001 | Neural Network-based CUSUM for Online Change-Point Detection (Gong & Lee, AAAI 2024) | 2024 | 2210.17312 | **CRITICAL** | Learned CPD that replaces the CUSUM statistic with a neural network, achieving theoretical guarantees (ARL/EDD) better than classical CUSUM without distributional assumptions. Semantic Scholar confirmed. | Web/GUI grammar-specific hypothesis falsification. Does not decompose regime × grammar latent. No alternative hypothesis rollout. | "LFD > CUSUM" claim must show advantage over NN-CUSUM, not just classical CUSUM. Until then, LFD AUROC advantage claim is relative to a weak baseline. |
+| CPD-002 | Restarted Bayesian Online Change-Point Detection for Non-Stationary MDPs (Parker-Holder et al.) | 2023 | 2304.00232 | **CRITICAL** | R-BOCPD applied to non-stationary RL: detects regime changes online and restarts policy. Structurally isomorphic to LFD: BOCPD run-length posterior + policy switch + online update. MLG Cambridge confirmed. | Grammar-specific control hypothesis decomposition. No wrong-control-grammar persistence metric. No alternative rollout conditioned on grammar latent. | Differentiation requires: (a) grammar-conditioned specific hypothesis (not generic regime), (b) persistence metric, (c) falsification vs change-detection distinction. If these three distinctions cannot be demonstrated experimentally, LFD collapses into R-BOCPD variant. |
+
+**Reviewer attack enabled by CPD-001 + CPD-002**:
+
+| Attack ID | Attack | Defense Required |
+|---|---|---|
+| ATK-023 | "NN-CUSUM (AAAI 2024) already provides a learned CPD with better theoretical guarantees than LFD AUROC +0.034." | LFD vs NN-CUSUM comparison, not just classical CUSUM. Grammar-specific signal required. |
+| ATK-024 | "R-BOCPD (2304.00232) already combines BOCPD with RL non-stationary regime detection. LFD is a web-specific re-implementation." | Distinguish grammar-conditioned control hypothesis (LFD) from generic regime change (R-BOCPD). Persistence metric + alternative rollout conditioned on grammar posterior are the only defensible distinguishing factors. |
+
+**Risk added**:
+
+| Risk ID | Risk | Severity |
+|---|---|---|
+| RISK-01-021 | NN-CUSUM and R-BOCPD pre-empt the LFD novelty at the CPD algorithm level. LFD must demonstrate grammar-specific signal beyond generic change-point detection. | CRITICAL |
+
+---
+
 ## 19. Final Statement of This File
 
 ```text
