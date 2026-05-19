@@ -1,0 +1,22 @@
+{
+  "n_episodes": 250,
+  "n_switch_episodes": 250,
+  "total_pre_steps": 985,
+  "total_post_steps": 584,
+  "post_switch_wrong_count": 86,
+  "post_switch_wrong_rate": 0.1473,
+  "pre_switch_wrong_count": 371,
+  "pre_switch_wrong_rate": 0.3766,
+  "shared_action_success_count": 33,
+  "vocabulary_mismatch_count": 465,
+  "leakage_violations": [],
+  "leakage_clean": true,
+  "inference_oracle_free": true,
+  "integrity_checks": {
+    "post_switch_wrong_count > 0": true,
+    "post_switch_wrong_count < total_post_steps": true,
+    "shared_action_success_count > 0": true,
+    "leakage_violations == 0": true
+  },
+  "integrity_all_pass": true
+}

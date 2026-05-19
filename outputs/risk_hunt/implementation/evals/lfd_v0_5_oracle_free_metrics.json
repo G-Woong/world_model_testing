@@ -1,0 +1,242 @@
+{
+  "run_config": {
+    "n_collect": 250,
+    "n_train": 200,
+    "n_eval": 50,
+    "n_seeds": 3,
+    "lfd_epochs": 15,
+    "lfd_lr": 0.0005,
+    "alarm_threshold": 0.5,
+    "proxy_off": true,
+    "oracle_free": true,
+    "max_steps": 12
+  },
+  "seed_results": [
+    {
+      "seed": 0,
+      "lfd_summary": {
+        "detector_name": "lfd_oracle_free",
+        "n_switch_episodes": 50,
+        "n_stable_episodes": 0,
+        "n_episodes_evaluated": 50,
+        "mean_detection_delay": 0.0,
+        "median_detection_delay": 0.0,
+        "p90_detection_delay": 0.0,
+        "false_alarm_rate_per_step": 0.5481727574750831,
+        "regime_shift_f1": 0.17777777777777778,
+        "regime_shift_precision": 0.2,
+        "regime_shift_recall": 0.16,
+        "auroc_wrong_hypothesis": 0.8406432748538014,
+        "auprc_wrong_hypothesis": 0.7034772452652828,
+        "run_length_posterior_concentration": 0.8541617364774212,
+        "recovery_delay_pearson_r": 0.0,
+        "threshold_metadata": {},
+        "alarm_threshold": 0.5,
+        "proxy_off": true,
+        "seed": 0,
+        "wrong_prob_std": 0.4145,
+        "wrong_prob_mean": 0.4765,
+        "proxy_off_check": "PASS"
+      },
+      "train_info": {
+        "train_losses": [
+          1.646394,
+          1.558848,
+          1.523933,
+          1.514942,
+          1.62372,
+          1.566431,
+          1.530443,
+          1.511717,
+          1.585128,
+          1.53611,
+          1.525422,
+          1.497551,
+          1.525918,
+          1.482244,
+          1.536524
+        ],
+        "final_loss": 1.536524,
+        "seed": 0,
+        "epochs": 15
+      },
+      "fair_ppc": {
+        "cusum_wall_clock_per_ep_s": 8.000469207763672e-05,
+        "lfd_wall_clock_per_ep_s": 3.4862926721572878,
+        "cusum_ppc": 2249.8680430558697,
+        "lfd_ppc": 0.04589402412419764,
+        "ppc_ratio_lfd_over_cusum": 2.0398540379222577e-05,
+        "note": "progress_proxy=regime_shift_recall; LFD includes training amortized"
+      },
+      "train_time_s": 172.76,
+      "eval_time_s": 1.55
+    },
+    {
+      "seed": 1,
+      "lfd_summary": {
+        "detector_name": "lfd_oracle_free",
+        "n_switch_episodes": 50,
+        "n_stable_episodes": 0,
+        "n_episodes_evaluated": 50,
+        "mean_detection_delay": 0.0,
+        "median_detection_delay": 0.0,
+        "p90_detection_delay": 0.0,
+        "false_alarm_rate_per_step": 0.3588039867109635,
+        "regime_shift_f1": 0.17777777777777778,
+        "regime_shift_precision": 0.2,
+        "regime_shift_recall": 0.16,
+        "auroc_wrong_hypothesis": 0.8388802889576882,
+        "auprc_wrong_hypothesis": 0.706578248630155,
+        "run_length_posterior_concentration": 0.848737970335371,
+        "recovery_delay_pearson_r": 0.0,
+        "threshold_metadata": {},
+        "alarm_threshold": 0.5,
+        "proxy_off": true,
+        "seed": 1,
+        "wrong_prob_std": 0.3565,
+        "wrong_prob_mean": 0.3091,
+        "proxy_off_check": "PASS"
+      },
+      "train_info": {
+        "train_losses": [
+          1.707227,
+          1.507564,
+          1.536691,
+          1.515006,
+          1.463132,
+          1.5718,
+          1.557812,
+          1.494639,
+          1.512018,
+          1.551989,
+          1.488629,
+          1.580524,
+          1.513312,
+          1.535923,
+          1.531863
+        ],
+        "final_loss": 1.531863,
+        "seed": 1,
+        "epochs": 15
+      },
+      "fair_ppc": {
+        "cusum_wall_clock_per_ep_s": 8.000469207763672e-05,
+        "lfd_wall_clock_per_ep_s": 2.639181904792786,
+        "cusum_ppc": 2249.8680430558697,
+        "lfd_ppc": 0.06062484730947802,
+        "ppc_ratio_lfd_over_cusum": 2.694595689582518e-05,
+        "note": "progress_proxy=regime_shift_recall; LFD includes training amortized"
+      },
+      "train_time_s": 130.35,
+      "eval_time_s": 1.61
+    },
+    {
+      "seed": 2,
+      "lfd_summary": {
+        "detector_name": "lfd_oracle_free",
+        "n_switch_episodes": 50,
+        "n_stable_episodes": 0,
+        "n_episodes_evaluated": 50,
+        "mean_detection_delay": 0.0,
+        "median_detection_delay": 0.0,
+        "p90_detection_delay": 0.0,
+        "false_alarm_rate_per_step": 0.23920265780730898,
+        "regime_shift_f1": 0.17777777777777778,
+        "regime_shift_precision": 0.2,
+        "regime_shift_recall": 0.16,
+        "auroc_wrong_hypothesis": 0.845330237358101,
+        "auprc_wrong_hypothesis": 0.7110801207903141,
+        "run_length_posterior_concentration": 0.848325099362611,
+        "recovery_delay_pearson_r": 0.0,
+        "threshold_metadata": {},
+        "alarm_threshold": 0.5,
+        "proxy_off": true,
+        "seed": 2,
+        "wrong_prob_std": 0.3345,
+        "wrong_prob_mean": 0.24,
+        "proxy_off_check": "PASS"
+      },
+      "train_info": {
+        "train_losses": [
+          1.654551,
+          1.546619,
+          1.556149,
+          1.519281,
+          1.606149,
+          1.532456,
+          1.53969,
+          1.55074,
+          1.493616,
+          1.504606,
+          1.525031,
+          1.540206,
+          1.56387,
+          1.511021,
+          1.532061
+        ],
+        "final_loss": 1.532061,
+        "seed": 2,
+        "epochs": 15
+      },
+      "fair_ppc": {
+        "cusum_wall_clock_per_ep_s": 8.000469207763672e-05,
+        "lfd_wall_clock_per_ep_s": 1.8411568307876587,
+        "cusum_ppc": 2249.8680430558697,
+        "lfd_ppc": 0.08690188544750475,
+        "ppc_ratio_lfd_over_cusum": 3.8625325478853766e-05,
+        "note": "progress_proxy=regime_shift_recall; LFD includes training amortized"
+      },
+      "train_time_s": 91.3,
+      "eval_time_s": 0.75
+    }
+  ],
+  "seed_stability": {
+    "detection_delay": {
+      "mean": 0.0,
+      "std": 0.0,
+      "values": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "regime_shift_f1": {
+      "mean": 0.1778,
+      "std": 0.0,
+      "values": [
+        0.1778,
+        0.1778,
+        0.1778
+      ]
+    },
+    "auroc_wrong_hypothesis": {
+      "mean": 0.8416,
+      "std": 0.0027,
+      "values": [
+        0.8406,
+        0.8389,
+        0.8453
+      ]
+    },
+    "auprc_wrong_hypothesis": {
+      "mean": 0.707,
+      "std": 0.0031,
+      "values": [
+        0.7035,
+        0.7066,
+        0.7111
+      ]
+    },
+    "false_alarm_rate_per_step": {
+      "mean": 0.3821,
+      "std": 0.1272,
+      "values": [
+        0.5482,
+        0.3588,
+        0.2392
+      ]
+    },
+    "n_seeds": 3
+  },
+  "blocked": false
+}
