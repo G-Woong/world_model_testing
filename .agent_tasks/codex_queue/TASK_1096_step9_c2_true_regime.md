@@ -1,4 +1,5 @@
 TASK_NAME: TASK_1096_step9_c2_true_regime
+SANDBOX_MODE: bypass
 
 BACKGROUND:
 FRCG-WM P3 STEP 9 C2/C1 Label Contract Recovery.

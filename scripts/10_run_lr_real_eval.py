@@ -26,7 +26,12 @@ SRC_ROOT = REPO_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from frcgw.evaluation.ablations import ABLATION_REGISTRY, apply_ablation
+from frcgw.evaluation.ablations import (
+    ABLATION_REGISTRY,
+    NoComputeGateAblation,
+    RealNoGateAblation,
+    apply_ablation,
+)
 from frcgw.evaluation.baselines import (
     CATTSStyleUncertaintyGateAgent,
     ComputeMatchedRandomAgent,
@@ -131,6 +136,8 @@ def _build_agent_dispatch_table(config: dict[str, Any]) -> dict[str, AgentFactor
         "CUWMFaithfulCandidate": CUWMFaithfulCandidate,
         "WebWorldStyleSearchAgent": WebWorldStyleSearchAgent,
         "VLAALoopHeuristicAgent": VLAALoopHeuristicAgent,
+        "RealNoGateAblation": RealNoGateAblation,
+        "NoComputeGateAblation": NoComputeGateAblation,
     }
     dispatch: dict[str, AgentFactory] = {}
 
@@ -144,6 +151,13 @@ def _build_agent_dispatch_table(config: dict[str, Any]) -> dict[str, AgentFactor
         def factory(spec: dict[str, Any] = agent_spec, agent_cls: type = cls) -> Any:
             if agent_cls is TextFRCGModelAgent:
                 agent = agent_cls(ckpt_path=spec.get("ckpt_path"))
+            elif agent_cls is RealNoGateAblation:
+                agent = agent_cls(ckpt_path=spec.get("ckpt_path"))
+            elif agent_cls is NoComputeGateAblation:
+                base_agent = TextFRCGModelAgent(ckpt_path=spec.get("ckpt_path"))
+                if "no_compute_gate" not in ABLATION_REGISTRY:
+                    raise KeyError("ABLATION_REGISTRY missing 'no_compute_gate' config")
+                agent = NoComputeGateAblation(base_agent, ABLATION_REGISTRY["no_compute_gate"])
             else:
                 agent = agent_cls()
 

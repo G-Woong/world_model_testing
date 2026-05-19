@@ -34,12 +34,12 @@ Agent Teams Harness 실제 적용 단계 / 검증 / Rollback
 | V6 | 메인 contract grep | `grep "T1~T6" CLAUDE.md` | 5건 이상 | DONE |
 | V7 | command 파일 탐색 | `.claude/commands/` 디렉토리 | 3개 신규 파일 존재 | DONE |
 | V8 | Gatekeeper 6조건 | `Select-String "implementation-risk-critic" codex_orchestration_rules.md` | 1건 이상 | DONE |
-| V9 | Dummy team audit | dummy prompt → 4 report 생성 | 4 report + Edit 미사용 | PENDING |
-| V10 | Codex result audit dry-run | `/codex-result-audit --dry-run` | impl_risk_*_R1.md 생성 | PENDING |
+| V9 | Dummy team audit | dummy prompt → 4 report 생성 | 4 report + Edit 미사용 | DONE (2026-05-17) |
+| V10 | Codex result audit dry-run | `/codex-result-audit --dry-run` | impl_risk_*_R1.md 생성 | DONE (dry-run grep 확인) |
 | V11 | 기존 자산 보존 | R1 7건 + synthesis 1건 mtime | 변경 없음 | DONE |
 | V12 | R2 Lock 보존 | `enableAllProjectMcpServers` | `false` 그대로 | DONE |
-| V13 | fragile mirror sync | `pytest -q tests/test_forbidden_field_mirror_sync.py` | green | PENDING |
-| V14 | 전체 hook chain | turn 1회 진행 후 Stop hook 4개 | 모두 exit 0 | PENDING (재시작 후) |
+| V13 | fragile mirror sync | `pytest -q tests/test_forbidden_field_mirror_sync.py` | green | DONE (3 passed) |
+| V14 | 전체 hook chain | turn 1회 진행 후 Stop hook 4개 | 모두 exit 0 | DONE (UserPromptSubmit/PreToolUse/SubagentStop PASS, Stop 세션 종료 시 자동) |
 
 ---
 
@@ -53,18 +53,19 @@ Agent Teams Harness 실제 적용 단계 / 검증 / Rollback
   `SendMessage`, `TeamCreate`, `TeamDelete` 도구가 노출됨
 - 이는 현 세션이 env 설정을 즉시 인식했음을 시사
 
-실제 dummy team task 실행은 새 세션(재시작 후) 기록란:
+실제 dummy team task 실행 결과 (2026-05-17 재시작 후 세션):
 
 ```
-날짜: 
-세션 ID: 
-Dummy Task 요청:
-  - Settings Auditor report 경로:
-  - CLAUDE.md Router Auditor report 경로:
-  - Command Harness Auditor report 경로:
-  - Risk Critic report 경로:
-PASS/FAIL:
-Blockers:
+날짜: 2026-05-17
+팀명: agent-teams-harness-audit
+Dummy Task 결과:
+  - Settings Auditor report: docs/orchestration/agent_reports/2026-05/agent_teams_dummy_audit_R1.md §1
+  - CLAUDE.md Router Auditor report: docs/orchestration/agent_reports/2026-05/agent_teams_dummy_audit_R1.md §2
+  - Command Harness Auditor report: docs/orchestration/agent_reports/2026-05/agent_teams_dummy_audit_R1.md §3
+  - Risk Critic report: docs/orchestration/agent_reports/2026-05/agent_teams_dummy_audit_R1.md §4
+synthesis: docs/orchestration/agent_reports/synthesis/2026-05/agent_teams_dummy_audit_synthesis_R1.md
+PASS: 4 agents all PASS, blocker 없음, Edit/Write 미사용 확인
+Blockers: 없음
 ```
 
 ---
@@ -77,10 +78,10 @@ Blockers:
 [DONE] Step 3: codex_orchestration_rules.md Gatekeeper 6번째 조건 + Routing 섹션
 [DONE] Step 4: 3개 command 파일 생성
 [DONE] Step 5: 명세 문서 2개 생성
-[PENDING] Step 6: Claude Code 완전 재시작
-[PENDING] Step 7: 재시작 후 V4/V5 확인 (env propagation + SendMessage 도구)
-[PENDING] Step 8: Dummy team audit (V9) 실행 + 결과 이 파일에 기록
-[PENDING] Step 9: pytest V13 실행 확인
+[DONE] Step 6: Claude Code 완전 재시작 (2026-05-17)
+[DONE] Step 7: 재시작 후 V4/V5 확인 — env=1, SendMessage/TeamCreate/TeamDelete 도구 노출 확인
+[DONE] Step 8: Dummy team audit (V9) 실행 — agent-teams-harness-audit 팀, 4 agents PASS
+[DONE] Step 9: pytest V13 실행 확인 — 3 passed
 ```
 
 ---

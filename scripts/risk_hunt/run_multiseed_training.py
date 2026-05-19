@@ -6,6 +6,7 @@ Source MD: paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md RH-STAT-01
 """
 import argparse
 import pathlib
+import shutil
 import subprocess
 import sys
 
@@ -15,7 +16,7 @@ BASE_CONFIG = "configs/train_text_v0_4_long.yaml"
 
 
 def run_seed(seed: int, dry_run: bool = False) -> bool:
-    ckpt_dir = f"outputs/checkpoints/pretrain_v0_4_seed{seed}"
+    ckpt_dir = REPO_ROOT / "outputs" / "checkpoints" / f"pretrain_v0_4_seed{seed}"
     cmd = [
         sys.executable,
         "scripts/02_train_text_smoke.py",
@@ -24,14 +25,22 @@ def run_seed(seed: int, dry_run: bool = False) -> bool:
         "--seed",
         str(seed),
         "--checkpoint-dir",
-        ckpt_dir,
+        ckpt_dir.relative_to(REPO_ROOT).as_posix(),
     ]
     print(f"[multiseed] seed={seed} ckpt_dir={ckpt_dir}")
     if dry_run:
         print(f"  DRY RUN: {' '.join(cmd)}")
         return True
     result = subprocess.run(cmd, cwd=REPO_ROOT)
-    return result.returncode == 0
+    if result.returncode != 0:
+        return False
+    ckpts = sorted(ckpt_dir.glob("checkpoint_ep*.pt"))
+    if not ckpts:
+        print(f"  NO checkpoint produced in {ckpt_dir}")
+        return False
+    shutil.copy2(ckpts[-1], ckpt_dir / "checkpoint_best.pt")
+    print(f"  promoted {ckpts[-1].name} -> checkpoint_best.pt")
+    return True
 
 
 if __name__ == "__main__":
