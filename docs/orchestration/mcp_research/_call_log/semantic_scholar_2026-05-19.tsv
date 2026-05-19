@@ -1,0 +1,13 @@
+timestamp	query	status	http_code	result_count	notes
+2026-05-19T03:00:00Z	Bayesian online change point detection	success	200	3	R-BOCPD-UCRL2 (Alami 2023) most relevant; RL MDP change detection
+2026-05-19T03:00:02Z	CUSUM sequential change detection reinforcement learning regime shift	success	200	3	Li et al. 2022 CUSUM-RL directly relevant; 2026 Asymptotic CUSUM theory
+2026-05-19T03:00:04Z	world model uncertainty planning Dreamer latent dynamics 2022-2026	success	200	3	AdaWM (2025) mismatch identification; Prismatic WM (2025) MoE for hybrid dynamics
+2026-05-19T03:00:06Z	JEPA joint embedding predictive architecture latent world model 2024 2025	success	200	3	ACT-JEPA (2025) IL+SSL; JEPA state-space (2025) ODE latent
+2026-05-19T03:00:08Z	robot failure prediction trajectory anomaly detection conformal prediction 2022-2026	success	200	3	Uncertainty-Aware Visual Anomaly (2025) RA-L; limited robot trajectory failure prediction
+2026-05-19T03:00:10Z	uncertainty gated adaptive planning world model when to plan compute 2023-2026	success	200	3	EvoPSF (2025) planner uncertainty trigger; WHALE (2024) OOD generalization + uncertainty
+2026-05-19T03:00:12Z	GUI agent web automation world model action verification 2024-2026	success	200	3	MobileDreamer (2026) DIRECT THREAT - GUI WM achieves SOTA Android World; VeriSafe (2025) logic-based action verification
+2026-05-19T03:00:14Z	recurrent neural network sequential change detection evidence accumulation belief update 2020-2026	success	200	1	Neural mechanisms of flexible perceptual inference (Schwarcz 2025) - Bayesian belief state in RNN; limited NLP/RL results
+2026-05-19T03:00:16Z	Open X-Embodiment out of distribution generalization robot passive dataset evaluation 2023-2026	success	200	3	WHALE-X 414M on 970K OXE trajectories (2024); Interleave-VLA OOD eval; passive validation potential
+2026-05-19T03:00:18Z	sequential probability ratio test SPRT model mismatch hypothesis testing neural 2019-2026	success	200	3	SPRT-TANDEM (Ebihara 2020) DNN-SPRT for non-iid data - directly applicable; Sequential multi-hypothesis (Novikov 2024)
+2026-05-19T03:00:20Z	Kalman filter innovation test anomaly latent dynamics model mismatch detection 2020-2026	success	200	0	No results - niche query; known reference: Mehra (1971) whiteness test as classical citation
+2026-05-19T03:00:22Z	Bayesian surprise prediction error accumulation world model intrinsic motivation	success	200	0	No targeted results; covered by BOCPD/SPRT sweep; Itti & Baldi (2009) Bayesian Surprise as classical reference
