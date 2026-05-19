@@ -151,6 +151,8 @@ def _mock_loss_dict(value: float) -> LossDict:
         l_reveal_shift=tensor,
         l_failed_action=tensor,
         l_temporal_consistency=tensor,
+        l_seq_falsification=tensor,
+        l_run_length_posterior=tensor,
         l_total=tensor,
         weights={},
     )

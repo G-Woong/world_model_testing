@@ -12,6 +12,7 @@ from torch import Tensor
 import torch.nn.functional as F
 
 from frcgw.data.text_dataset import BatchTargets
+from frcgw.models.falsification_head import LFDOutput
 from frcgw.models.text_frcg_model import ModelOutput
 from frcgw.models.world_model_heads import RolloutResult
 from frcgw.schemas.visibility import HiddenLabelLeakageError, assert_agent_observation_safe
@@ -72,6 +73,9 @@ DEFAULT_WEIGHTS: dict[str, float] = {
     "l_reveal_shift": 0.3,
     "l_failed_action": 0.3,
     "l_temporal_consistency": 0.1,
+    # LFD losses (active only when lfd_output is provided)
+    "l_seq_falsification": 1.0,
+    "l_run_length_posterior": 0.5,
 }
 
 
@@ -87,6 +91,8 @@ class LossDict:
     l_reveal_shift: Tensor
     l_failed_action: Tensor
     l_temporal_consistency: Tensor
+    l_seq_falsification: Tensor
+    l_run_length_posterior: Tensor
     l_total: Tensor
     weights: dict[str, float]
 
@@ -146,8 +152,96 @@ def L_failed_action(failed_score: Tensor, targets: list[BatchTargets]) -> Tensor
     return F.binary_cross_entropy(failed_score.reshape(-1).clamp(1.0e-7, 1.0 - 1.0e-7), y)
 
 
-def L_temporal_consistency(posterior_entropy: Tensor) -> Tensor:
-    return _zero(posterior_entropy)
+def L_temporal_consistency(posterior_entropy: Tensor | None) -> Tensor:
+    """Penalize sudden upward jumps in posterior entropy across a batch.
+
+    Replaces _zero() placeholder (TASK_LFD_005).
+    Treats consecutive batch items as a pseudo-sequence (proxy for per-episode
+    temporal consistency). For single-step or None input: returns zero gracefully.
+
+    Loss = mean(ReLU(entropy[t] - entropy[t-1] - margin)) over batch pairs.
+    """
+    if posterior_entropy is None:
+        return _zero(None)
+    entropy = posterior_entropy.reshape(-1)
+    if entropy.numel() <= 1:
+        return entropy.new_zeros(())
+    margin = 0.1
+    jumps = F.relu(entropy[1:] - entropy[:-1] - margin)
+    return jumps.mean()
+
+
+def L_seq_falsification(
+    lfd_wrong_probs: Tensor | None,
+    targets: list[BatchTargets],
+) -> Tensor:
+    """Cumulative BCE on LFD wrong_prob_learned across batch steps.
+
+    Source: TASK_LFD_005, paper_context_ref/08_LOSS_REWARD_TRAINING_OBJECTIVE.md L-LFD-001
+    Supervises FalsificationDetectorHead.wrong_prob_learned on true_wrong_hypothesis labels.
+
+    Note on gradient conflict with L_falsification: both supervise on the same
+    true_wrong_hypothesis label. L_falsification targets the deterministic F_t score
+    (world model head gradients); L_seq_falsification targets wrong_prob_learned
+    (FalsificationDetectorHead gradients). Shared upstream encoder receives both
+    gradient signals. If empirically conflicting, use l_falsification weight=0
+    when lfd_output is active (run ablation to verify).
+    """
+    labeled = [(idx, t) for idx, t in enumerate(targets) if t.true_wrong_hypothesis is not None]
+    if lfd_wrong_probs is None or not labeled:
+        return _zero(lfd_wrong_probs)
+    probs = lfd_wrong_probs.reshape(-1)
+    idx = torch.tensor([i for i, _ in labeled], dtype=torch.long, device=probs.device)
+    y = torch.tensor(
+        [float(bool(t.true_wrong_hypothesis)) for _, t in labeled],
+        dtype=probs.dtype,
+        device=probs.device,
+    )
+    return F.binary_cross_entropy(
+        probs.index_select(0, idx).clamp(1.0e-7, 1.0 - 1.0e-7), y
+    )
+
+
+def L_run_length_posterior(
+    run_length_posterior: Tensor | None,
+    targets: list[BatchTargets],
+) -> Tensor:
+    """Cross-entropy from BOCPD run-length posterior to soft target distribution.
+
+    Source: TASK_LFD_005, Adams & MacKay (2007) BOCPD
+    Soft target: Gaussian-like around expected run length derived from
+    true_wrong_hypothesis. wrong=True → short run (switch happened recently),
+    wrong=False → longer run (stable hypothesis).
+    unknown → uniform (returns zero contribution).
+    """
+    if run_length_posterior is None:
+        return _zero(run_length_posterior)
+    batch_size, max_rl = run_length_posterior.shape
+    device = run_length_posterior.device
+    dtype = run_length_posterior.dtype
+
+    soft_targets: list[Tensor] = []
+    for t in targets:
+        if t.true_wrong_hypothesis is True:
+            expected_rl = 1  # recent switch → short run length
+        elif t.true_wrong_hypothesis is False:
+            expected_rl = min(max_rl - 1, 5)  # stable → longer run
+        else:
+            # No label: contribute uniform (zero KL from uniform target)
+            soft_targets.append(torch.ones(max_rl, device=device, dtype=dtype) / max_rl)
+            continue
+        positions = torch.arange(max_rl, device=device, dtype=dtype)
+        sigma = 1.5
+        target = torch.exp(-0.5 * ((positions - expected_rl) / sigma) ** 2)
+        soft_targets.append(target / target.sum())
+
+    if not soft_targets:
+        return run_length_posterior.new_zeros(())
+
+    target_tensor = torch.stack(soft_targets)  # [batch, max_rl]
+    log_posterior = torch.log(run_length_posterior.clamp(min=1.0e-8))
+    # Forward cross-entropy: -sum(target * log(posterior)) per item, then mean
+    return -(target_tensor * log_posterior).sum(dim=-1).mean()
 
 
 def compute_total_loss(
@@ -157,6 +251,7 @@ def compute_total_loss(
     targets: list[BatchTargets],
     weights: dict[str, float] | None = None,
     public_input: list[Any] | None = None,
+    lfd_output: LFDOutput | None = None,
 ) -> LossDict:
     if public_input is not None:
         for item in public_input:
@@ -175,6 +270,14 @@ def compute_total_loss(
         l_progress = L_progress(world_model_output.progress_pred, targets)
         l_failed_action = L_failed_action(world_model_output.failed_score, targets)
 
+    # LFD losses: active when lfd_output is provided (v0_5 training); zero otherwise.
+    if lfd_output is not None:
+        l_seq_falsification = L_seq_falsification(lfd_output.wrong_prob_learned, targets)
+        l_run_length_posterior = L_run_length_posterior(lfd_output.run_length_posterior, targets)
+    else:
+        l_seq_falsification = _zero(model_output.z_state)
+        l_run_length_posterior = _zero(model_output.z_state)
+
     losses = {
         "l_action_effect": l_action_effect,
         "l_progress": l_progress,
@@ -186,6 +289,8 @@ def compute_total_loss(
         "l_reveal_shift": L_reveal_shift(model_output.z_reveal_shift_logits, targets),
         "l_failed_action": l_failed_action,
         "l_temporal_consistency": L_temporal_consistency(model_output.posterior_entropy),
+        "l_seq_falsification": l_seq_falsification,
+        "l_run_length_posterior": l_run_length_posterior,
     }
     l_total = sum(float(active_weights[name]) * loss for name, loss in losses.items())
     return LossDict(l_total=l_total, weights=active_weights, **losses)
