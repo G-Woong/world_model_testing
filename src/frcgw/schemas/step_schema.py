@@ -82,6 +82,11 @@ class EvaluationLabels:
     ood_type: str | None = None
     true_regime: str | None = None
     regime_switch_t: int | None = None          # v0_5 switch timing (EVALUATION_ONLY, FORBIDDEN_AGENT_FIELDS)
+    # LFD detector output fields (TASK_LFD_006) — written during eval, never inference input
+    detector_wrong_prob_learned: float | None = None   # LFD wrong_prob_learned at this step
+    detector_cusum_stat: float | None = None           # CUSUM statistic at this step
+    detector_run_length_posterior: list | None = None  # BOCPD run-length posterior vector
+    detection_delay_gt: int | None = None              # alarm_step - switch_step (FORBIDDEN_AGENT_FIELDS)
 
 
 @dataclass

@@ -44,6 +44,7 @@ PAPER_INFERENCE_FORBIDDEN: frozenset[str] = frozenset({
     "policy_id",
     "audit_metadata",
     "regime_switch_t",   # v0_5 intra-episode switch timing — added Gate-A 2026-05-19
+    "detection_delay_gt",  # oracle-derived timing — added Gate-B 2026-05-19
 })
 
 

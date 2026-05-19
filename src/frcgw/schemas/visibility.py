@@ -39,6 +39,7 @@ FORBIDDEN_AGENT_FIELDS: frozenset[str] = frozenset({
     "policy_id",
     "audit_metadata",
     "regime_switch_t",   # v0_5 intra-episode switch timing — eval-only label, never inference input
+    "detection_delay_gt",  # Gate-B: oracle-derived timing (alarm_step - switch_step); never inference input
 })
 
 
