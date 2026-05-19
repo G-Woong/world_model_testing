@@ -103,9 +103,14 @@ def run_cusum_on_episode(
 ) -> dict:
     """Run CUSUM over a single episode's effect-type stream.
 
+    Stops at first alarm (does not accumulate further alarms after first crossing).
+    Statistical Validity Critic finding: once S_t >= h, subsequent steps remain above
+    threshold — only the first crossing is a meaningful detection event.
+
     Returns:
-        alarm_steps: list of step indices where alarm was raised
-        S_t_trace: CUSUM statistic at each step
+        alarm_steps: list with at most one element (the first alarm step index)
+        S_t_trace: CUSUM statistic at each step (up to and including first alarm)
+        first_alarm: int | None
     """
     detector = CUSUMDetector(k=k, h=h)
     alarm_steps: list[int] = []
@@ -115,8 +120,9 @@ def run_cusum_on_episode(
         llr = compute_effect_llr(eff, expected_effect_type, mismatch_weight)
         S_t, alarm = detector.update(llr)
         S_t_trace.append(S_t)
-        if alarm and step_idx not in alarm_steps:
+        if alarm:
             alarm_steps.append(step_idx)
+            break  # stop at first alarm — subsequent steps remain above threshold
 
     return {
         "alarm_steps": alarm_steps,

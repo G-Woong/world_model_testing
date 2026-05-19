@@ -335,15 +335,25 @@ def false_alarm_rate_per_step(
     return alarms_on_stable / len(stable_steps)
 
 
-def run_length_posterior_ece(
+def run_length_posterior_concentration(
     run_length_probs: list[list[float]],
     true_run_lengths: list[int],
     n_bins: int = 10,
 ) -> float:
-    """ECE for run-length posterior calibration.
+    """Run-length posterior concentration score (NOT standard ECE).
 
-    Treats run-length as a discrete classification over n_bins buckets.
-    Lower is better (well-calibrated = 0.0).
+    Measures the probability mass the posterior assigns to the true run length.
+    Higher = more concentrated (sharper) posterior at correct index.
+    This is a sharpness/concentration score, not calibration.
+
+    Statistical Validity note (MODIFY verdict 2026-05-19):
+    Standard ECE measures |predicted_prob - empirical_freq| per bin.
+    This function always sets accuracy=1.0 (known true index), so it measures
+    concentration at the true run-length index, not calibration in the ECE sense.
+    For proper run-length calibration, use binary ECE of P(r_t=1) vs change-point
+    indicator at each step (rename plan: change_point_binary_ECE).
+
+    Returns: mean probability mass at true run-length index (higher = better).
     """
     if not run_length_probs or not true_run_lengths:
         return 0.0
@@ -381,10 +391,21 @@ def regime_shift_f1_sequential(
 ) -> dict[str, float]:
     """F1/precision/recall for regime switch detection with tolerance window.
 
+    Convention (non-standard — document clearly in paper):
+    A switch exists but alarm is outside tolerance window → counted as 1 FP + 1 FN.
+    This follows the Levenshtein/TDR convention: a mislocalized detection is
+    treated as a simultaneous spurious alarm and a miss, NOT as a partial TP.
+    This reduces both precision and recall relative to soft-window averaging.
+
+    Statistical Validity note (MODIFY verdict 2026-05-19):
+    Reviewer-2 MINOR attack: tolerance=2 on 10-step episodes = 20% of episode.
+    Report sensitivity table at tolerance=0,1,2,3 before citing this metric in paper.
+    Ranking must be stable across tolerance values.
+
     Args:
         predicted_switch_steps: Per-episode first alarm step (None = no alarm).
         true_switch_steps: Per-episode true switch step (None = no switch).
-        tolerance: Allowed step slack around true switch step.
+        tolerance: Allowed step slack (TDR convention, see docstring above).
     """
     tp = fp = fn = 0
     for pred, true in zip(predicted_switch_steps, true_switch_steps):
@@ -504,6 +525,211 @@ def _predicted_top1_delta_for_step(step: Any, counterfactuals: list[Any]) -> flo
     if not predicted_deltas:
         return None
     return max(predicted_deltas)
+
+
+# ---------------------------------------------------------------------------
+# LFD evaluation harness (TASK_LFD_007)
+# ---------------------------------------------------------------------------
+
+def auroc_wrong_hypothesis(
+    wrong_prob_scores: list[float],
+    true_wrong_hypothesis: list[bool],
+) -> float:
+    """AUROC for binary wrong-hypothesis classifier.
+
+    Uses trapezoidal rule. Returns 0.5 for trivially-equal or empty inputs.
+    Inputs are per-step model scores and eval-only ground-truth labels.
+    """
+    if not wrong_prob_scores or not true_wrong_hypothesis:
+        return 0.5
+    if len(wrong_prob_scores) != len(true_wrong_hypothesis):
+        raise ValueError("Length mismatch between scores and labels")
+
+    n_pos = sum(1 for y in true_wrong_hypothesis if y)
+    n_neg = len(true_wrong_hypothesis) - n_pos
+    if n_pos == 0 or n_neg == 0:
+        return 0.5
+
+    # Sort by score descending
+    pairs = sorted(zip(wrong_prob_scores, true_wrong_hypothesis), key=lambda x: -x[0])
+    tp = fp = 0
+    tpr_prev = fpr_prev = 0.0
+    auc = 0.0
+    for _, label in pairs:
+        if label:
+            tp += 1
+        else:
+            fp += 1
+        tpr = tp / n_pos
+        fpr = fp / n_neg
+        auc += (fpr - fpr_prev) * (tpr + tpr_prev) / 2.0
+        tpr_prev, fpr_prev = tpr, fpr
+    return auc
+
+
+def auprc_wrong_hypothesis(
+    wrong_prob_scores: list[float],
+    true_wrong_hypothesis: list[bool],
+) -> float:
+    """AUPRC (area under precision-recall curve) for wrong-hypothesis detection."""
+    if not wrong_prob_scores or not true_wrong_hypothesis:
+        return 0.0
+    if len(wrong_prob_scores) != len(true_wrong_hypothesis):
+        raise ValueError("Length mismatch between scores and labels")
+
+    n_pos = sum(1 for y in true_wrong_hypothesis if y)
+    if n_pos == 0:
+        return 0.0
+
+    pairs = sorted(zip(wrong_prob_scores, true_wrong_hypothesis), key=lambda x: -x[0])
+    tp = fp = 0
+    prec_prev = 1.0
+    rec_prev = 0.0
+    auc = 0.0
+    for _, label in pairs:
+        if label:
+            tp += 1
+        else:
+            fp += 1
+        prec = tp / (tp + fp)
+        rec = tp / n_pos
+        auc += (rec - rec_prev) * (prec + prec_prev) / 2.0
+        prec_prev, rec_prev = prec, rec
+    return auc
+
+
+def recovery_delay_correlation(
+    detection_delays: list[int],
+    recovery_delays: list[int],
+) -> dict[str, float]:
+    """Pearson r between detection delay and recovery delay (per Reviewer-2 MAJOR-5 defense).
+
+    Returns r, p_value_approx, n. p_value is approximated via t-distribution.
+    Caller must check r > 0.3 on OOD split to claim task-relevant detection.
+    """
+    import math
+
+    n = len(detection_delays)
+    if n < 3 or len(recovery_delays) != n:
+        return {"r": 0.0, "t_stat": 0.0, "n": n}
+
+    mean_d = sum(detection_delays) / n
+    mean_r = sum(recovery_delays) / n
+    cov = sum((d - mean_d) * (r - mean_r) for d, r in zip(detection_delays, recovery_delays)) / n
+    std_d = math.sqrt(sum((d - mean_d) ** 2 for d in detection_delays) / n)
+    std_r = math.sqrt(sum((r - mean_r) ** 2 for r in recovery_delays) / n)
+
+    if std_d < 1e-10 or std_r < 1e-10:
+        return {"r": 0.0, "t_stat": 0.0, "n": n}
+
+    r = cov / (std_d * std_r)
+    r = max(-1.0, min(1.0, r))
+
+    # t-statistic for Pearson r (df = n-2).
+    # p_value_approx was removed (Statistical Validity Critic: prior formula was invalid).
+    # For proper two-tailed p-value use: scipy.stats.t.sf(abs(t_stat), df=n-2) * 2
+    t_stat = r * math.sqrt(n - 2) / math.sqrt(max(1 - r * r, 1e-12))
+
+    return {"r": r, "t_stat": t_stat, "n": n}
+
+
+def aggregate_episode_metrics(
+    episodes: list[dict],
+    detector_name: str,
+    threshold_metadata: dict | None = None,
+) -> "DetectorEvalResult":  # type: ignore[name-defined]
+    """Aggregate per-episode metrics into DetectorEvalResult.
+
+    Each episode dict must have:
+      - 'switch_step': int | None (from evaluation_labels.regime_switch_t)
+      - 'first_alarm': int | None (from detector output)
+      - 'stable_steps': list[int] (pre-switch step indices)
+      - 'alarm_steps': list[int] (all alarm step indices)
+      - Optional: 'wrong_prob_scores', 'true_wrong_hypothesis', 'recovery_delay'
+    """
+    from frcgw.evaluation.metric_schema import DetectorEvalResult
+    import statistics
+
+    switch_eps = [ep for ep in episodes if ep.get("switch_step") is not None]
+    stable_eps = [ep for ep in episodes if ep.get("switch_step") is None]
+
+    # Detection delay
+    delays: list[int] = []
+    for ep in switch_eps:
+        d = detection_delay(ep["switch_step"], ep.get("first_alarm"))
+        if d is not None:
+            delays.append(d)
+
+    mean_dd = float(statistics.mean(delays)) if delays else None
+    median_dd = float(statistics.median(delays)) if delays else None
+    p90_dd = float(sorted(delays)[int(len(delays) * 0.9)]) if delays else None
+
+    # FAR: alarms on stable steps
+    all_alarm_steps = []
+    all_stable_steps = []
+    for ep in episodes:
+        all_alarm_steps.extend(ep.get("alarm_steps", []))
+        all_stable_steps.extend(ep.get("stable_steps", []))
+    far = false_alarm_rate_per_step(all_alarm_steps, all_stable_steps)
+
+    # Regime shift F1
+    predicted = [ep.get("first_alarm") for ep in episodes]
+    true_switches = [ep.get("switch_step") for ep in episodes]
+    f1_dict = regime_shift_f1_sequential(predicted, true_switches, tolerance=2)
+
+    # AUROC/AUPRC
+    all_scores: list[float] = []
+    all_labels: list[bool] = []
+    for ep in episodes:
+        scores = ep.get("wrong_prob_scores", [])
+        labels = ep.get("true_wrong_hypothesis", [])
+        if len(scores) == len(labels):
+            all_scores.extend(float(s) for s in scores)
+            all_labels.extend(bool(lb) for lb in labels)
+    auroc = auroc_wrong_hypothesis(all_scores, all_labels) if all_scores else None
+    auprc = auprc_wrong_hypothesis(all_scores, all_labels) if all_scores else None
+
+    # Run-length concentration (renamed from ECE — see run_length_posterior_concentration docstring)
+    all_rl_probs = []
+    all_true_rls = []
+    for ep in episodes:
+        rl_probs = ep.get("run_length_posteriors", [])
+        true_rls = ep.get("true_run_lengths", [])
+        if rl_probs and true_rls and len(rl_probs) == len(true_rls):
+            all_rl_probs.extend(rl_probs)
+            all_true_rls.extend(true_rls)
+    conc = run_length_posterior_concentration(all_rl_probs, all_true_rls) if all_rl_probs else None
+
+    # Recovery delay correlation
+    rec_delays = [int(ep["recovery_delay"]) for ep in episodes
+                  if ep.get("recovery_delay") is not None and ep.get("first_alarm") is not None]
+    det_delays = [detection_delay(ep["switch_step"], ep.get("first_alarm"))
+                  for ep in episodes
+                  if ep.get("recovery_delay") is not None and ep.get("first_alarm") is not None
+                  and ep.get("switch_step") is not None]
+    det_delays_clean = [d for d in det_delays if d is not None]
+    corr_r = None
+    if len(det_delays_clean) >= 3 and len(rec_delays) == len(det_delays_clean):
+        corr_r = recovery_delay_correlation(det_delays_clean, rec_delays).get("r")
+
+    return DetectorEvalResult(
+        detector_name=detector_name,
+        n_switch_episodes=len(switch_eps),
+        n_stable_episodes=len(stable_eps),
+        n_episodes_evaluated=len(episodes),
+        mean_detection_delay=mean_dd,
+        median_detection_delay=median_dd,
+        p90_detection_delay=p90_dd,
+        false_alarm_rate_per_step=far,
+        regime_shift_f1=f1_dict["f1"],
+        regime_shift_precision=f1_dict["precision"],
+        regime_shift_recall=f1_dict["recall"],
+        auroc_wrong_hypothesis=auroc,
+        auprc_wrong_hypothesis=auprc,
+        run_length_posterior_concentration=conc,
+        recovery_delay_pearson_r=corr_r,
+        threshold_metadata=threshold_metadata or {},
+    )
 
 
 def alternative_rollout_fidelity(episodes: list) -> dict:

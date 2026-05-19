@@ -33,8 +33,9 @@ class DetectorEvalResult:
     auroc_wrong_hypothesis: float | None = None
     auprc_wrong_hypothesis: float | None = None
 
-    # Run-length posterior calibration
-    run_length_posterior_ece: float | None = None
+    # Run-length posterior concentration (NOT standard ECE — sharpness score)
+    # See metrics.run_length_posterior_concentration docstring for distinction.
+    run_length_posterior_concentration: float | None = None
 
     # Causal link: detection delay → recovery delay (Pearson r)
     recovery_delay_pearson_r: float | None = None

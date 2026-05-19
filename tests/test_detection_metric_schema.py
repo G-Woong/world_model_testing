@@ -13,6 +13,7 @@ from frcgw.evaluation.metrics import (
     auroc_wrong_hypothesis,
     auprc_wrong_hypothesis,
     recovery_delay_correlation,
+    run_length_posterior_concentration,
 )
 
 
@@ -81,10 +82,11 @@ def test_recovery_delay_correlation_uncorrelated() -> None:
 
 
 def test_recovery_delay_correlation_too_few_samples() -> None:
-    """n < 3: returns r=0.0."""
+    """n < 3: returns r=0.0, t_stat=0.0."""
     result = recovery_delay_correlation([1, 2], [3, 4])
     assert result["r"] == 0.0
-    assert result["p_value_approx"] == 1.0
+    assert result["t_stat"] == 0.0
+    assert "p_value_approx" not in result, "p_value_approx was removed (invalid formula)"
 
 
 # ---------------------------------------------------------------------------
@@ -116,6 +118,7 @@ def test_detector_eval_result_all_optional_none() -> None:
     )
     assert result.mean_detection_delay is None
     assert result.auroc_wrong_hypothesis is None
+    assert result.run_length_posterior_concentration is None
     assert result.false_alarm_rate_per_step == 0.0
 
 
