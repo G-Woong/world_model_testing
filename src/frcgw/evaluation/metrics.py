@@ -312,6 +312,126 @@ def false_planning_call_rate(episodes: list[dict]) -> float:
     return false_calls / max(1, total_calls)
 
 
+# ---------------------------------------------------------------------------
+# Sequential detection metrics (TASK_LFD_001/007)
+# ---------------------------------------------------------------------------
+
+def detection_delay(switch_step: int, alarm_step: int | None) -> int | None:
+    """Steps from regime switch to first alarm. None if no alarm fired."""
+    if alarm_step is None:
+        return None
+    return max(0, alarm_step - switch_step)
+
+
+def false_alarm_rate_per_step(
+    alarm_steps: list[int],
+    stable_steps: list[int],
+) -> float:
+    """FAR = alarms on stable (pre-switch) steps / total stable steps."""
+    if not stable_steps:
+        return 0.0
+    stable_set = set(stable_steps)
+    alarms_on_stable = sum(1 for s in alarm_steps if s in stable_set)
+    return alarms_on_stable / len(stable_steps)
+
+
+def run_length_posterior_ece(
+    run_length_probs: list[list[float]],
+    true_run_lengths: list[int],
+    n_bins: int = 10,
+) -> float:
+    """ECE for run-length posterior calibration.
+
+    Treats run-length as a discrete classification over n_bins buckets.
+    Lower is better (well-calibrated = 0.0).
+    """
+    if not run_length_probs or not true_run_lengths:
+        return 0.0
+
+    examples: list[tuple[float, float]] = []
+    for probs, true_rl in zip(run_length_probs, true_run_lengths):
+        if not probs:
+            continue
+        max_rl = len(probs)
+        # Confidence = probability mass at the true run length (clamped)
+        idx = min(true_rl, max_rl - 1)
+        conf = float(probs[idx])
+        examples.append((conf, 1.0))
+
+    if not examples:
+        return 0.0
+
+    total = len(examples)
+    ece = 0.0
+    for b in range(n_bins):
+        lo, hi = b / n_bins, (b + 1) / n_bins
+        bucket = [(c, a) for c, a in examples if lo <= c < hi]
+        if not bucket:
+            continue
+        mean_conf = sum(c for c, _ in bucket) / len(bucket)
+        mean_acc = sum(a for _, a in bucket) / len(bucket)
+        ece += (len(bucket) / total) * abs(mean_conf - mean_acc)
+    return ece
+
+
+def regime_shift_f1_sequential(
+    predicted_switch_steps: list[int | None],
+    true_switch_steps: list[int | None],
+    tolerance: int = 2,
+) -> dict[str, float]:
+    """F1/precision/recall for regime switch detection with tolerance window.
+
+    Args:
+        predicted_switch_steps: Per-episode first alarm step (None = no alarm).
+        true_switch_steps: Per-episode true switch step (None = no switch).
+        tolerance: Allowed step slack around true switch step.
+    """
+    tp = fp = fn = 0
+    for pred, true in zip(predicted_switch_steps, true_switch_steps):
+        has_switch = true is not None
+        detected = pred is not None
+        if has_switch and detected:
+            if abs(pred - true) <= tolerance:
+                tp += 1
+            else:
+                fp += 1
+                fn += 1
+        elif not has_switch and detected:
+            fp += 1
+        elif has_switch and not detected:
+            fn += 1
+
+    prec_denom = tp + fp
+    rec_denom = tp + fn
+    precision = tp / prec_denom if prec_denom else 0.0
+    recall = tp / rec_denom if rec_denom else 0.0
+    f1_denom = precision + recall
+    f1 = 2 * precision * recall / f1_denom if f1_denom else 0.0
+    return {"f1": f1, "precision": precision, "recall": recall}
+
+
+def split_episodes_by_grammar_ood(
+    episodes: list[dict],
+) -> tuple[list[dict], list[dict]]:
+    """Split episodes into ID (in-distribution) and OOD (grammar shift) subsets.
+
+    OOD grammar families: filter_accordion, nested_scroll (per generator.py).
+    This implements the SPLIT-003 equivalent for Reviewer-2 FATAL-1 and FATAL-3 defense.
+
+    Episodes are labeled by task_family field. Families not in OOD_GRAMMAR_FAMILIES
+    are treated as ID.
+    """
+    OOD_FAMILIES = {"filter_accordion", "nested_scroll"}
+    id_episodes, ood_episodes = [], []
+    for ep in episodes:
+        family = str(_field(ep, "task_family", "") or "").lower()
+        if family in OOD_FAMILIES:
+            ood_episodes.append(ep)
+        else:
+            id_episodes.append(ep)
+    return id_episodes, ood_episodes
+
+
 def action_switch_delay(episodes: list[dict]) -> float:
     values = []
     for episode in episodes:

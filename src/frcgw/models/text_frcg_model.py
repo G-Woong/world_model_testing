@@ -11,6 +11,7 @@ import torch
 from torch import Tensor, nn
 
 from frcgw.models.encoders import HistoryEncoder, TextStateEncoder
+from frcgw.models.falsification_head import FalsificationDetectorHead, LFDOutput
 from frcgw.models.latent_heads import LatentPosterior
 from frcgw.models.world_model_heads import WorldModelHeads, _hash_token
 from frcgw.schemas.step_schema import PublicObservation
@@ -27,13 +28,18 @@ class ModelOutput:
     posterior_entropy: Tensor
     aux_precondition: Tensor
     aux_failure_risk: Tensor
-    h_t_next: Tensor | None = None  # [1, batch, hidden_dim]; set when h_t passed to forward()
+    h_t_next: Tensor | None = None      # [1, batch, hidden_dim]; set when h_t passed
+    lfd_output: LFDOutput | None = None  # set when return_lfd=True
 
 
 class TextFRCGModel(nn.Module):
     """Top-level public-observation model for the P3 text-only FRCG path."""
 
-    def __init__(self, cfg: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        cfg: dict[str, Any] | None = None,
+        use_lfd_head: bool = False,
+    ) -> None:
         super().__init__()
         self.cfg = self.get_default_cfg()
         if cfg is not None:
@@ -72,6 +78,13 @@ class TextFRCGModel(nn.Module):
             n_hypotheses=self.cfg["n_regimes"] * self.cfg["n_grammars"],
             vocab_size=self.cfg["vocab_size"],
         )
+        # Optional LFD head (disabled by default for v0_4 backward compat)
+        self.falsification_head: FalsificationDetectorHead | None = (
+            FalsificationDetectorHead(
+                h_dim=self.cfg["hidden_dim"],
+                z_state_dim=self.cfg["z_state_dim"],
+            ) if use_lfd_head else None
+        )
 
     @staticmethod
     def get_default_cfg() -> dict[str, Any]:
@@ -99,13 +112,20 @@ class TextFRCGModel(nn.Module):
         self,
         public_input: PublicObservation | list[PublicObservation],
         h_t: Tensor | None = None,
+        effect_scalar: Tensor | None = None,
+        F_t_deterministic: Tensor | None = None,
+        head_h0: Tensor | None = None,
+        return_lfd: bool = False,
     ) -> ModelOutput:
-        """Forward pass with optional episode-level h_t carry-over.
+        """Forward pass with optional episode-level h_t carry-over and LFD head.
 
         Args:
             public_input: Single or batched PublicObservation.
-            h_t: Optional GRU hidden state [1, batch, hidden_dim] from previous step.
-                 None (default) = stateless path (v0_4 compat, h0=zeros).
+            h_t: Optional GRU hidden state [1, batch, hidden_dim] (episode carry-over).
+            effect_scalar: [batch, 1] normalized effect residual for LFD head.
+            F_t_deterministic: [batch] from falsification_score() (may be zeros).
+            head_h0: [batch, h_dim] LFD head recurrent state.
+            return_lfd: If True and falsification_head is set, compute LFD output.
         """
         public_batch = [public_input] if isinstance(public_input, PublicObservation) else list(public_input)
         instructions = [pub.instruction for pub in public_batch]
@@ -119,6 +139,14 @@ class TextFRCGModel(nn.Module):
             hist_h = self.history_encoder(histories)
             h_t_next = None
         sample = self.latent_posterior(text_h, hist_h)
+
+        lfd_out: LFDOutput | None = None
+        if return_lfd and self.falsification_head is not None:
+            batch_size = len(public_batch)
+            eff_s = effect_scalar if effect_scalar is not None else torch.zeros(batch_size, 1, device=hist_h.device)
+            F_t = F_t_deterministic if F_t_deterministic is not None else torch.zeros(batch_size, device=hist_h.device)
+            lfd_out, _ = self.falsification_head(hist_h, sample.z_state, eff_s, F_t, head_h0)
+
         return ModelOutput(
             z_state=sample.z_state,
             z_regime_logits=sample.z_regime_logits,
@@ -130,6 +158,7 @@ class TextFRCGModel(nn.Module):
             aux_precondition=sample.aux_precondition,
             aux_failure_risk=sample.aux_failure_risk,
             h_t_next=h_t_next,
+            lfd_output=lfd_out,
         )
 
     def action_embed(self, action_type: str) -> Tensor:
