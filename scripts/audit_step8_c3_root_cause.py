@@ -101,7 +101,6 @@ def _public_observation_from_raw(raw: dict[str, Any]) -> Any:
         instruction=str(raw.get("instruction", "")),
         dom_snapshot_public=raw.get("dom_snapshot_public"),
         accessibility_tree_public=raw.get("accessibility_tree_public"),
-        screenshot_ref=raw.get("screenshot_ref"),
         history_public=history,
         candidate_actions_public=candidates,
     )

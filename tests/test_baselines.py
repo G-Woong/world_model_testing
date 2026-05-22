@@ -56,7 +56,6 @@ def _obs(
         instruction="click the right item",
         dom_snapshot_public={"visible": True},
         accessibility_tree_public={"role": "root"},
-        screenshot_ref="screen-1",
         history_public=history or [],
         candidate_actions_public=candidates
         if candidates is not None

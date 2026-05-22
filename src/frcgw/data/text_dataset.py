@@ -179,7 +179,6 @@ def _public_observation_from_dict(data: dict[str, Any]) -> PublicObservation:
         instruction=data["instruction"],
         dom_snapshot_public=data.get("dom_snapshot_public"),
         accessibility_tree_public=data.get("accessibility_tree_public"),
-        screenshot_ref=data.get("screenshot_ref"),
         history_public=[
             PublicHistoryItem(**item) for item in _coerce_public_list(data.get("history_public"))
         ],

@@ -97,7 +97,6 @@ def test_public_observation_dataclass_passes():
     obs = PublicObservation(
         instruction="navigate to settings",
         dom_snapshot_public={"root": "div"},
-        screenshot_ref="s3://bucket/shot.png",
     )
     assert_agent_observation_safe(obs)
 

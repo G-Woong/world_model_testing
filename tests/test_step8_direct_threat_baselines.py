@@ -13,7 +13,6 @@ def _mock_obs() -> PublicObservation:
         instruction="finish the visible task",
         dom_snapshot_public={"visible": True},
         accessibility_tree_public={"role": "root"},
-        screenshot_ref="screen-step8",
         history_public=[],
         candidate_actions_public=[
             CandidateAction("click-primary", "click", {"target": "primary"}),

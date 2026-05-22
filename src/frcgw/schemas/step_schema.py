@@ -29,7 +29,6 @@ class PublicObservation:
     instruction: str
     dom_snapshot_public: dict | None = None
     accessibility_tree_public: dict | None = None
-    screenshot_ref: str | None = None
     history_public: list[PublicHistoryItem] = field(default_factory=list)
     candidate_actions_public: list[CandidateAction] = field(default_factory=list)
 

@@ -281,7 +281,6 @@ def _build_public_observation(public_input: dict[str, Any]) -> PublicObservation
         instruction=str(public_input.get("instruction", "")),
         dom_snapshot_public=public_input.get("dom_snapshot_public"),
         accessibility_tree_public=public_input.get("accessibility_tree_public"),
-        screenshot_ref=public_input.get("screenshot_ref"),
         history_public=[
             PublicHistoryItem(
                 step_index=int(item.get("step_index", 0)),

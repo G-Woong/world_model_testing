@@ -61,7 +61,6 @@ def _obs() -> PublicObservation:
         instruction="click the visible submit button",
         dom_snapshot_public={"visible": True},
         accessibility_tree_public={"role": "root"},
-        screenshot_ref="screen-1",
         history_public=[],
         candidate_actions_public=[
             CandidateAction("a", "click", {"target": "left"}),

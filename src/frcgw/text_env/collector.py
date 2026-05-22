@@ -100,7 +100,6 @@ def build_public_observation(
         instruction=instruction,
         dom_snapshot_public=None,
         accessibility_tree_public=None,
-        screenshot_ref=None,
         history_public=list(history),
         candidate_actions_public=list(state.public_actions),
     )

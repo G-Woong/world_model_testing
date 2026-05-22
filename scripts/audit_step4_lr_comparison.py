@@ -130,7 +130,6 @@ def _public_observation_from_raw(raw: Any) -> PublicObservation:
         instruction=str(data.get("instruction") or ""),
         dom_snapshot_public=data.get("dom_snapshot_public"),
         accessibility_tree_public=data.get("accessibility_tree_public"),
-        screenshot_ref=_str_or_none(data.get("screenshot_ref")),
         history_public=history,
         candidate_actions_public=candidates,
     )

@@ -32,7 +32,6 @@ def _obs() -> PublicObservation:
         instruction="find the visible result",
         dom_snapshot_public={"visible": True},
         accessibility_tree_public={"role": "root"},
-        screenshot_ref="screen-1",
         history_public=[
             PublicHistoryItem(
                 step_index=0,
