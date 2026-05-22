@@ -104,32 +104,36 @@
     2,
     9
   ],
-  "total_steps": 646,
-  "pre_switch_steps": 418,
-  "post_switch_steps": 228,
-  "pre_switch_wrong_hypothesis_true": 147,
-  "pre_switch_wrong_hypothesis_false": 271,
-  "post_switch_wrong_hypothesis_true": 228,
-  "post_switch_wrong_hypothesis_false": 0,
+  "total_steps": 629,
+  "pre_switch_steps": 439,
+  "post_switch_steps": 190,
+  "pre_switch_wrong_hypothesis_true": 177,
+  "pre_switch_wrong_hypothesis_false": 262,
+  "post_switch_wrong_hypothesis_true": 32,
+  "post_switch_wrong_hypothesis_false": 158,
   "pre_switch_effects": {
-    "no_state_change": 210,
-    "blocker_removed": 30,
-    "task_complete": 68,
-    "state_change": 87,
-    "delayed_effect": 23
+    "no_state_change": 231,
+    "blocker_removed": 26,
+    "state_change": 93,
+    "task_complete": 67,
+    "delayed_effect": 22
   },
   "post_switch_effects": {
-    "no_state_change": 228
+    "no_state_change": 175,
+    "task_complete": 9,
+    "state_change": 6
   },
   "leakage_violations": [],
-  "mismatch_rate_post_switch": 1.0,
+  "mismatch_rate_post_switch": 0.9210526315789473,
   "switch_step_mean": 6.39,
   "switch_step_min": 2,
   "switch_step_max": 10,
-  "pre_switch_wrong_rate": 0.35167464114832536,
-  "post_switch_wrong_rate": 1.0,
+  "pre_switch_wrong_rate": 0.4031890660592255,
+  "post_switch_wrong_rate": 0.16842105263157894,
   "leakage_clean": true,
   "execution_mode": "REAL_COLLECT_EPISODE_V0_5",
-  "oracle_free": true,
+  "inference_oracle_free": true,
+  "label_oracle_sourced": true,
+  "oracle_free_note": "inference_oracle_free=True means the trained model receives no oracle fields at runtime. label_oracle_sourced=True means EvaluationLabels are computed using oracle switch_step (standard supervised learning).",
   "gate_result": "PASS"
 }
