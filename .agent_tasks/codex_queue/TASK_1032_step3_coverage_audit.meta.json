@@ -1,8 +1,0 @@
-﻿{
-    "task_number":  1032,
-    "task_name":  "step3_coverage_audit",
-    "task_file":  ".agent_tasks/codex_queue/TASK_1032_step3_coverage_audit.md",
-    "base_sha":  "1eab6c079ac5e573712ff6cbdfafa559c356f2fc",
-    "assigned_at":  "2026-05-17T22:00:00Z",
-    "assigned_by":  "claude"
-}

@@ -1,8 +1,0 @@
-﻿{
-    "task_number":  1001,
-    "task_name":  "C2_encoders",
-    "task_file":  ".agent_tasks/codex_queue/TASK_1001_C2_encoders.md",
-    "base_sha":  "ef7b2467fd5c8a83a6446e7c032b3a59de1efcd7",
-    "assigned_at":  "2026-05-09T17:25:18Z",
-    "assigned_by":  "claude"
-}

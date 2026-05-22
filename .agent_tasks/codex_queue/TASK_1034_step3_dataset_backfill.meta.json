@@ -1,8 +1,0 @@
-﻿{
-    "task_number":  1034,
-    "task_name":  "step3_dataset_backfill",
-    "task_file":  ".agent_tasks/codex_queue/TASK_1034_step3_dataset_backfill.md",
-    "base_sha":  "fc1a6393b39291368fc428d79a83ff9da4307349",
-    "assigned_at":  "2026-05-17T22:05:02Z",
-    "assigned_by":  "claude"
-}

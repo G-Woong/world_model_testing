@@ -1,8 +1,0 @@
-﻿{
-    "task_number":  1029,
-    "task_name":  "step2_real_eval_runner",
-    "task_file":  ".agent_tasks/codex_queue/TASK_1029_step2_real_eval_runner.md",
-    "base_sha":  "2fa8a0a926523528612e0f1c98414d8295981fdf",
-    "assigned_at":  "2026-05-17T20:43:54Z",
-    "assigned_by":  "claude"
-}
