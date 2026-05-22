@@ -1,69 +1,54 @@
-# FRCG-WM
+# FGLC
 
-**FRCG-WM: falsification-guided control-grammar world model for Web/GUI agents (research scaffold P0).**
+**FGLC: Falsification-Guided Latent Correction for Robotics World Models.**
 
-This is not a generic Web/GUI world model.
-The target is falsification-guided planning:
-action-effect evidence → current hypothesis falsification → alternative control-grammar hypothesis → short rollout → decision-relevant compute gate → action-interface rewrite.
-
----
-
-## First Rule
-
-> **Read `paper_context_ref/00_CONTEXT_INDEX.md` before any task.**
-
-Then read only the specific MD files routed by that index.
+This is not a generic robotics world model.
+The target is falsification-guided latent correction:
+standardized predictive mismatch → dynamics hypothesis falsification
+→ causal attention over grouped latent subspace → sparse residual correction
+→ necessity/sufficiency validation → robust MPC planning.
 
 ---
 
-## Required Execution Order
+## Core Equations
 
 ```
-1. docs/scaffold
-2. schema and visibility tests
-3. text-only data
-4. text-only model and ablations
-5. synthetic GUI MVE data
-6. frozen VLM MVE
-7. compute-matched baselines and ablations
-8. paper-main planning only after gates pass
+pθ(z_{t+1}|z_t,a_t,h_t) = N(μ_t, Σ_t)
+ρ_t = Σ_t^{-1/2}(z_{t+1} − μ_t)          [standardized mismatch]
+β_t = FalsificationGate(ρ_t, h_t)          [calibrated β gate]
+α_t = CausalAttention(ρ_t, z_t, a_t, ∇Q)  [sparse, value-aware]
+μ̃_t^k = μ_t^k + β_t α_t^k δ_t^k         [grouped latent correction]
 ```
 
-Do not jump to the impressive part.
+## Status
 
----
+- R0: ✅ Contract reset complete (FRCG-WM → FGLC pivot)
+- R1..R16: Pending (see `docs/ROADMAP/00_ROADMAP_OVERVIEW.md`)
 
-## Forbidden Assumptions
+## Package
 
-- **hidden label leakage**: `true_regime`, `true_control_grammar`, `true_change_point`, etc. are never inference inputs.
-- **success-rate-only evaluation**: mechanism metrics (persistence, recovery delay, falsification PR) are required.
-- **generic Web/GUI world model novelty**: this paper targets wrong-control-grammar persistence, not generic WM.
-- **7B-first training**: text-only and MVE gates must pass before paper-main VLM training.
-- **fake empirical results**: all reported numbers must come from real run artifacts.
-
----
-
-## Install
-
-```bash
-pip install -e ".[dev]"
-pytest -q
+```python
+import fglc  # src/fglc/ (stub — full implementation in R1+)
 ```
 
----
+## Documentation
 
-## Context Router
+- Architecture: `docs/main/main.md`
+- Methodology survey: `docs/main/deep-research-report.md`
+- Idea units (44 atomic): `docs/idea/00_OVERVIEW.md`
+- Roadmap (R0..R16): `docs/ROADMAP/00_ROADMAP_OVERVIEW.md`
 
-| File | Role |
-|---|---|
-| `paper_context_ref/00_CONTEXT_INDEX.md` | **Start here** — routes to correct docs |
-| `paper_context_ref/13_CLAUDE_CODE_EXECUTION_ROADMAP_v1.md` | Phase order, gates, commands |
-| `paper_context_ref/14_TRD_TECHNICAL_REQUIREMENTS_DOCUMENT_v1.md` | MUST/SHOULD requirements |
-| `paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md` | Module design and interfaces |
-| `docs/README.md` | Operational docs router |
+## Algorithms
 
----
+| Algorithm | Priority | Key mechanism |
+|---|---|---|
+| CIRCA | 1 | Randomized Bernoulli gate + conformal + α-distill + robust MPC |
+| I3G | 2 | iVAE + ICP/anchor + SPCI gate + sparse group gates |
+| ASAP | 3 | Top-k proposal + MC interventional ASV + α-distill |
+| IVI | 4 | Influence-rank + randomized knockout + sparse α-distill |
 
-## License / Citation
+## Benchmarks
 
-TBD
+ManiSkill PickCube/PushCube/LiftCube (state-only → RGB-D)
+OOD axes: mass × {0.5,1,2} / friction × {0.5,1,2} / latency / noise / action-gain
+Transfer: robosuite, DROID, BridgeData V2
