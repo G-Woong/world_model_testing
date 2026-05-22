@@ -67,6 +67,7 @@ Never violate hidden-label, evaluation, baseline, or phase-gate rules.
 | `14_TRD_TECHNICAL_REQUIREMENTS_DOCUMENT.md` | 기술 요구사항 | 무엇을 반드시 구현해야 하는지 확인 시 |
 | `15_TDD_TECHNICAL_DESIGN_DOCUMENT.md` | 기술 설계 | class/function/config/test 구현 직전 |
 | `FINAL_RESEARCH_BLUEPRINT.md` | 최종 연구 설계도 | 전체 논문 방향, final claim, method/eval 통합 확인 시 |
+| `core_theory_ssot.md` | 8개 핵심 계약 압축 SSoT (concept taxonomy + loss anchor + BASE/ABL anchor + forbidden field + phase gate + term lock) | 빠른 cross-check, agent skill에서 짧은 reference. **원본이 우선; 충돌 시 03/10/FINAL 승.** |
 
 ---
 
@@ -180,6 +181,23 @@ Hard rule:
 
 ```text
 Do not claim generic Web/GUI world-model novelty.
+```
+
+### 6.5 SSoT Quick-Check Bundle
+
+Read when needing a fast cross-reference of core theory terms, loss IDs, baseline/ablation IDs, forbidden fields, or phase gate status without loading full source MDs.
+
+```text
+core_theory_ssot.md
+00_CONTEXT_INDEX.md
+```
+
+Hard rule:
+
+```text
+This bundle gives compressed views only.
+If any item here conflicts with 03/10/FINAL, the source file wins.
+Never treat core_theory_ssot.md as a replacement for source MDs.
 ```
 
 ---

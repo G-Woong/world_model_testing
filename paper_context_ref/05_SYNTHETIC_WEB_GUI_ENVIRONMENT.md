@@ -1,3 +1,15 @@
+> **DEPRECATED for active implementation (2026-05-22).**
+>
+> The synthetic Web/GUI environment SSoT below is **preserved for paper framing, related-work threat-map, and BASE-026/027/028 direct-threat baselines**. It must **not** be referenced from runtime code paths.
+>
+> Code modules removed: `src/frcgw/gui_env/*`, `tests/test_gui_env_*`, `scripts/04|06|07_*.py`, `configs/data_collection_gui_mve.yaml`, `outputs/runs/p4_gui_lr_smoke/`.
+>
+> Scientific contract preserved: nothing in this MD is deleted. BASE-026/027/028 remain in `10_EVALUATION_BASELINE_ABLATION.md`.
+>
+> Replacement runtime: TBD (next-generation environment — deferred).
+
+---
+
 # 05_SYNTHETIC_WEB_GUI_ENVIRONMENT.md
 
 ---
