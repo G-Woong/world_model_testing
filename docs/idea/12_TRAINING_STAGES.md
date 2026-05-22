@@ -1,71 +1,70 @@
-# 12_TRAINING_STAGES
+# 12_TRAINING_STAGES — 학습 단계
 
-## Source
-- main.md §13 (training stages), §20 (training loop pseudocode)
+## 출처
+- main.md §13 (학습 단계), §20 (학습 루프 의사 코드)
 
-## Claim
+## 주장
 
-FGLC must train in 4 sequential stages. End-to-end training from scratch will fail
-because the correction module will absorb all base WM gradients before the base WM
-learns to produce meaningful predictions.
+FGLC는 4개의 순차적 단계로 학습해야 합니다. 처음부터 end-to-end 학습하면 correction 모듈이
+기본 WM 기울기를 모두 흡수하여 기본 WM이 의미 있는 예측을 생성하기 전에 학습 실패합니다.
 
-## Stages
+## 단계
 
 ```
-Stage 1: Base WM pretraining (ID data only)
-  Train: encoder E, GRU h_t, dynamics fθ, reward Rθ, value Vθ
-  Freeze: nothing
-  Loss: L_base_dynamics + L_reward + L_value + L_calibration
-  Gate criterion: ID one-step NLL convergence + OOD NLL increases
+Stage 1: 기본 WM 사전 학습 (ID 데이터만)
+  학습: encoder E, GRU h_t, dynamics fθ, 보상 Rθ, 가치 Vθ
+  동결: 없음
+  손실: L_base_dynamics + L_reward + L_value + L_calibration
+  Gate 기준: ID NLL 수렴 + OOD NLL > ID NLL (문제 존재 확인)
 
-Stage 2: Correction module training (ID + OOD data)
-  Freeze: encoder E (or very low LR), base dynamics fθ (or low LR)
-  Train: β-gate MLP, causal attention Aφ, correction adapter Gψ
-  Loss: + L_corrected_dynamics + L_sparse + L_size + L_temporal + L_nec + L_suf + L_rand
-  Gate criterion: OOD corrected NLL < uncorrected NLL; correction size < δ_max/2
+Stage 2: Correction 모듈 학습 (ID + OOD 데이터)
+  동결: encoder E (또는 매우 낮은 LR), base dynamics fθ (또는 낮은 LR)
+  학습: β-gate MLP, causal attention Aφ, correction 어댑터 Gψ
+  손실: + L_corrected_dynamics + L_sparse + L_size + L_temporal + L_nec + L_suf + L_rand
+  Gate 기준: OOD 보정된 NLL < 비보정 NLL; correction 크기 < δ_max/2
 
-Stage 3: Planner integration
-  Freeze: encoder, dynamics (Stage 1 weights stable)
-  Train: planner in closed-loop simulation (MPPI/CEM)
-  Loss: return-weighted rollout; value TD updates
-  Gate criterion: closed-loop return > TD-MPC2 baseline on at least 2 OOD conditions
+Stage 3: Planner 통합
+  동결: encoder, dynamics (Stage 1 가중치 안정)
+  학습: 폐쇄 루프 시뮬레이션에서 planner (MPPI/CEM)
+  손실: return 가중 rollout; 가치 TD 업데이트
+  Gate 기준: 폐쇄 루프 return이 최소 2개 OOD 조건에서 TD-MPC2 baseline 초과
 
-Stage 4: Optional online fine-tuning
-  Online: adapt correction module to new regime observations
-  Loss: Stage 2 losses applied to most-recent trajectory buffer
+Stage 4: 선택적 온라인 미세 조정
+  온라인: 새로운 regime 관측에 correction 모듈 적응
+  손실: 최근 궤적 버퍼에 Stage 2 손실 적용
 ```
 
-## Why Freeze Base in Stage 2
+## 왜 Stage 2에서 기본 WM을 동결하는가
 
-If base dynamics and correction adapter train simultaneously:
-1. Correction module receives gradient signal from BOTH correction losses AND base dynamics
-2. Correction module learns to capture base dynamics residuals → base WM learns nothing
-3. β_t gate can't distinguish "base WM is wrong due to OOD" from "correction filled the gap"
-4. The "base WM = H0 hypothesis, correction = H1" story collapses
+기본 dynamics와 correction 어댑터가 동시에 학습되면:
+1. Correction 모듈이 correction 손실과 기본 dynamics 모두에서 기울기 신호 받음
+2. Correction 모듈이 기본 dynamics residual을 캡처하도록 학습 → 기본 WM이 아무것도 학습 안 함
+3. β_t gate가 "기본 WM이 OOD로 인해 틀림"과 "correction이 공백을 채움"을 구분 불가
+4. "기본 WM = H0 가설, correction = H1" 이야기가 붕괴됨
 
-By freezing (or severely limiting) base WM LR in Stage 2, correction module can only improve
-upon what the base WM produces.
+Stage 2에서 기본 WM LR을 동결(또는 심각히 제한)하면 correction 모듈이 기본 WM이
+생성하는 것만 개선할 수 있습니다.
 
-## Connection Map
-- Upstream: M-16 (loss design), M-6 (base dynamics architecture)
-- Downstream: M-18 (planner in Stage 3), M-24 (pseudocode)
-- All implementation phases: R2→R3→R4→R5→R6→R7 in ROADMAP
+## 연결 맵
+- 상위: M-16 (손실 설계), M-6 (기본 dynamics 아키텍처)
+- 하위: M-18 (Stage 3의 planner), M-24 (의사 코드)
+- 모든 구현 단계: R2→R3→R4→R5→R6→R7 in ROADMAP
 
-## Checkpoints
+## 체크포인트
 
-- C1 Math validity: PASS — Staged training is a design decision, not a mathematical claim.
-  The argument for freezing is empirically motivated and reasonable.
-- C2 Novelty: NOT CLAIMED — Staged training is standard in adapter-based methods.
-- C3 Reviewer attack: LOW — "This requires careful staging" is expected. Mitigation: ablation
-  showing end-to-end training fails (correction absorbs base WM).
-- C4 Feasibility: PASS — Stage 1 ~2h on A100 per task, Stage 2 ~4h, Stage 3 ~6h.
-  Total ~12h per task; 3 tasks in 36h. Feasible within 8-week budget.
-- C5 Claim-metric: Stage 1 gate: ID NLL convergence + OOD NLL > ID NLL (shows OOD challenge).
-  Without this, there's nothing to correct.
-- C6 Impl risk: LOW
-- C7 Experiment design: Required: show Stage 1 alone fails on OOD (validates problem existence).
-  Required: show end-to-end training fails vs. staged training.
-- C8 Failure interp: If Stage 1 OOD NLL ≈ ID NLL: OOD shifts don't challenge the base WM.
-  This is a fundamental problem existence failure. Would force back to dataset design.
-- C9 Related work: N/A (standard practice)
-- C10 Context routing: Source = main.md §13,20. Downstream: 13_ALGORITHM_CIRCA.md, docs/ROADMAP/04_PHASE_R3...
+- C1 수학적 유효성: PASS — 단계적 학습은 설계 결정, 수학적 주장이 아님.
+  동결의 논거는 경험적으로 동기화됨.
+- C2 신규성: 해당 없음 — 단계적 학습은 어댑터 기반 방법에서 표준.
+- C3 Reviewer 공격: 낮음 — "신중한 단계 설정이 필요하다"는 예상된 것. 완화:
+  end-to-end 학습이 실패함을 보여주는 ablation (correction이 기본 WM을 흡수).
+- C4 타당성: PASS — 태스크당 Stage 1 ~2시간 A100, Stage 2 ~4시간, Stage 3 ~6시간.
+  태스크당 총 ~12시간; 3개 태스크 36시간. 8주 예산 내 실현 가능.
+- C5 Claim-지표: Stage 1 gate: ID NLL 수렴 + OOD NLL > ID NLL (OOD 도전이 존재함).
+  이것 없이는 보정할 것이 없음.
+- C6 구현 위험: 낮음
+- C7 실험 설계: 필수: Stage 1만으로 OOD 실패를 보여야 함 (문제 존재 검증).
+  필수: end-to-end 학습이 staged 학습 대비 실패함을 보여야 함.
+- C8 실패 해석: Stage 1 OOD NLL ≈ ID NLL이면: OOD 이동이 기본 WM에 도전하지 않음.
+  이것은 근본적인 문제 존재 실패입니다. 데이터셋 설계로 되돌아가야 함.
+- C9 관련 연구: 해당 없음 (표준 실습)
+- C10 컨텍스트 라우팅: 출처 = main.md §13,20. 하위: 13_ALGORITHM_CIRCA.md, docs/ROADMAP/04_PHASE_R3...

@@ -1,69 +1,69 @@
-# 21_METRICS — 4-Axis Metric Suite
+# 21_METRICS — 4축 지표 체계
 
-## Source
-- main.md §22 (experimental metrics)
-- deep-research-report.md §R-14 (4-axis metrics)
+## 출처
+- main.md §22 (실험 지표)
+- deep-research-report.md §R-14 (4축 지표)
 
-## Claim
+## 주장
 
-FGLC evaluation requires 4 independent metric axes. Reporting only NLL or only return
-is insufficient — the paper claims contributions in all 4 axes and each must be measured.
+FGLC 평가는 4개의 독립적인 지표 축이 필요합니다. NLL만 또는 return만 보고하는 것은
+불충분합니다 — 논문은 4개 축 모두에서 기여를 주장하며, 각각을 측정해야 합니다.
 
-## Axis 1: Prediction Accuracy
+## 축 1: 예측 정확도
 
-| Metric | Description | Required baseline |
+| 지표 | 설명 | 필수 baseline |
 |---|---|---|
-| one-step NLL | -log pθ(z_{t+1}|z_t,a_t,h_t) | All baselines |
-| MS-NLL | Multi-step rollout NLL (H=5,10,20) | All baselines |
-| Calibration ECE | Expected Calibration Error for σ predictions | Required for β_t χ² claim |
-| Reliability diagram | Bin predictions by confidence; plot vs. accuracy | Visual σ calibration |
+| one-step NLL | -log pθ(z_{t+1}\|z_t,a_t,h_t) | 모든 baselines |
+| MS-NLL | 다단계 rollout NLL (H=5,10,20) | 모든 baselines |
+| Calibration ECE | σ 예측에 대한 기대 보정 오차 | β_t χ² 주장에 필수 |
+| 신뢰도 다이어그램 | 신뢰도별 예측 빈화; 정확도 대비 도표 | 시각적 σ 보정 |
 
-## Axis 2: Falsification Detection
+## 축 2: Falsification 탐지
 
-| Metric | Description | Oracle labels needed |
+| 지표 | 설명 | 오라클 레이블 필요 |
 |---|---|---|
-| OOD detection AUROC | Using F_t scores; regime_id as oracle label | Yes (eval only) |
-| Detection delay | Steps from true regime change to β_t > 0.5 | Yes |
-| False alarm rate | β_t > 0.5 on ID data | No |
-| Calibration coverage | β_t gate fires at rate ≤ claimed α on ID | No |
-| β_t autocorrelation | AR(1) under true shift vs. ID noise | Partial (eval regime label) |
+| OOD 탐지 AUROC | F_t 점수 사용; regime_id가 오라클 레이블 | 예 (평가만) |
+| 탐지 지연 | 실제 regime 변화부터 β_t > 0.5까지 스텝 수 | 예 |
+| 오탐율 | ID 데이터에서 β_t > 0.5 | 아니오 |
+| 보정 커버리지 | β_t gate 발화율 ≤ ID에서 주장된 α | 아니오 |
+| β_t 자기상관 | OOD 실제 이동 vs. ID 노이즈 하에서 AR(1) | 부분 (평가 regime 레이블) |
 
-## Axis 3: Attribution / Causal Validity
+## 축 3: 귀인 / 인과 유효성
 
-| Metric | Description | Oracle needed |
+| 지표 | 설명 | 오라클 필요 |
 |---|---|---|
-| Necessity-Δ | L_without - L_with; should be > 0 | No |
-| Sufficiency-Δ | |L_selected - L_full|; should be < ε | No |
-| Random-Δ | L_random - L_selected; should be > 0 | No |
-| Counterfactual-Δ | NLL change under counterfactual physical params | Yes (sim oracle) |
-| Mask precision/recall | α activates correct group (vs. changed factor) | Yes (sim oracle) |
-| τ_g significance | p-value for group utility ATE per OOD type (CIRCA) | No |
+| Necessity-Δ | L_without - L_with; > 0이어야 함 | 아니오 |
+| Sufficiency-Δ | \|L_selected - L_full\|; < ε이어야 함 | 아니오 |
+| Random-Δ | L_random - L_selected; > 0이어야 함 | 아니오 |
+| Counterfactual-Δ | 반사실적 물리적 파라미터 하에서 NLL 변화 | 예 (시뮬레이션 오라클) |
+| 마스크 정밀도/재현율 | α가 올바른 그룹 활성화 (변경된 팩터 대비) | 예 (시뮬레이션 오라클) |
+| τ_g 유의성 | OOD 유형별 그룹 유틸리티 ATE에 대한 p-값 (CIRCA) | 아니오 |
 
-## Axis 4: Control Performance
+## 축 4: 제어 성능
 
-| Metric | Description | Oracle needed |
+| 지표 | 설명 | 오라클 필요 |
 |---|---|---|
-| Return | Average episode return (undiscounted and discounted) | No |
-| Success rate | Task completion rate per OOD condition | No |
-| Recovery time | Steps from regime change to baseline return recovery | Yes (regime timestamp) |
-| Planning calls per episode | Total β_t > 0.5 firings | No |
-| Return per compute | Return / total correction+planning rollouts | No |
-| Worst-case return | 5th percentile return under OOD-mixed | No |
-| Wrong-hypothesis duration | Steps with wrong dynamics (oracle comparison) | Yes |
+| Return | 평균 에피소드 return (비할인 및 할인) | 아니오 |
+| 성공률 | OOD 조건별 태스크 완료율 | 아니오 |
+| 회복 시간 | Regime 변화부터 기준 return 회복까지 스텝 수 | 예 (regime 타임스탬프) |
+| 에피소드당 planning 호출 수 | β_t > 0.5 발화 총 횟수 | 아니오 |
+| 계산당 return | Return / 총 correction+planning rollouts | 아니오 |
+| 최악의 경우 return | OOD-mixed 하에서 5백분위 return | 아니오 |
+| 잘못된 가설 지속 시간 | 잘못된 dynamics 스텝 수 (오라클 비교) | 예 |
 
-## Compute-Matched Experiment (Critical)
+## 계산 매칭 실험 (핵심)
 
-Per Attack 5 defense: give all baselines same compute budget as FGLC (same planning rollouts/ep).
-If FGLC's return-per-compute advantage disappears → gain from extra compute, not correction.
+공격 5 방어에 따라: 모든 baselines에 FGLC와 동일한 계산 예산 제공 (에피소드당 동일 planning rollouts).
+FGLC의 계산당 return 장점이 사라지면 → 추가 계산에서 이점, correction에서 아님.
 
-## Metric Reporting Requirements
+## 지표 보고 요구사항
 
-1. All metrics must be reported as mean ± std over ≥3 seeds
-2. Statistical significance: p < 0.05 (paired t-test vs. TD-MPC2) required for main claims
-3. Per-OOD-condition breakdown required (not just aggregate)
-4. Oracle metrics require explicit labeling as "oracle evaluation"
+1. 모든 지표는 ≥3개 시드에 걸쳐 평균 ± 표준편차로 보고되어야 함
+2. 통계적 유의성: 주요 주장에 대해 TD-MPC2 대비 p < 0.05 (짝지어진 t-검정) 필요
+3. OOD 조건별 세분화 필요 (집계만이 아닌)
+4. 오라클 지표는 "오라클 평가"로 명시적 레이블링 필요
 
-## Connection Map
-- Upstream: 19_BASELINES.md, 20_ABLATIONS.md
-- Downstream: 26_CROSSCHECK_SUMMARY.md
-- Implementation: src/fglc/evaluation/metrics.py (R4+ phases)
+## 연결 맵
+- 상위: 19_BASELINES.md, 20_ABLATIONS.md
+- 하위: 26_CROSSCHECK_SUMMARY.md
+- 구현: src/fglc/evaluation/metrics.py (R4+ 단계)

@@ -1,18 +1,18 @@
-# Phase R8 — Algorithm Variants (ASAP, I3G, IVI)
+# Phase R8 — 알고리즘 변형 (ASAP, I3G, IVI)
 
-## Goal
-Implement ASAP, I3G, IVI algorithms. All share Stage 1 base WM. Compare against CIRCA.
+## 목표
+ASAP, I3G, IVI 알고리즘 구현. 모두 Stage 1 기반 WM 공유. CIRCA와 비교.
 
-## Steps
+## 단계
 
-1. **ASAP**: Add interventional ASV computation on top-k groups; distill to α
-2. **I3G**: Add iVAE factored prior + ICP invariance penalty; SPCI calibration
-3. **IVI**: Add influence function (gradient norm) as first-pass ranker; randomized knockout validation
+1. **ASAP**: top-k 그룹에 대한 개입적 ASV 계산 추가; α에 증류
+2. **I3G**: iVAE 인수분해 사전 분포 + ICP 불변성 페널티 추가; SPCI 보정
+3. **IVI**: 1차 순위 매기기로서 영향 함수(기울기 norm) 추가; 무작위화된 knockout 검증
 
-## Gate Criteria
-- [ ] All 3 algorithms train without divergence
-- [ ] Shared Stage 1 weights confirmed identical (SHA256 match)
-- [ ] 4-algorithm comparison results on PickCube ID+OOD available
+## Gate 기준
+- [ ] 3가지 알고리즘 모두 발산 없이 학습됨
+- [ ] 공유 Stage 1 가중치 동일 확인 (SHA256 일치)
+- [ ] PickCube ID+OOD에서 4가지 알고리즘 비교 결과 사용 가능
 
-## Codex Delegation
-Yes — 3 separate algorithm training variants → TASK_R8_ALGORITHM_VARIANTS.md
+## Codex 위임
+예 — 3가지 별도 알고리즘 학습 변형 → TASK_R8_ALGORITHM_VARIANTS.md

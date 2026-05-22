@@ -1,54 +1,55 @@
 # FGLC
 
-**FGLC: Falsification-Guided Latent Correction for Robotics World Models.**
+**FGLC: Falsification-Guided Latent Correction for Robotics World Models**
+(허위 검증 유도 잠재 공간 보정 기반 로봇공학 세계 모델)
 
-This is not a generic robotics world model.
-The target is falsification-guided latent correction:
-standardized predictive mismatch → dynamics hypothesis falsification
-→ causal attention over grouped latent subspace → sparse residual correction
-→ necessity/sufficiency validation → robust MPC planning.
+일반적인 로봇공학 world model이 아닙니다.
+대상은 falsification-guided latent correction입니다:
+표준화된 예측 불일치 → dynamics 가설 위반 감지(falsification)
+→ 그룹화된 잠재 하위공간에 대한 causal attention → sparse residual correction
+→ necessity/sufficiency 검증 → robust MPC planning.
 
 ---
 
-## Core Equations
+## 핵심 수식
 
 ```
 pθ(z_{t+1}|z_t,a_t,h_t) = N(μ_t, Σ_t)
-ρ_t = Σ_t^{-1/2}(z_{t+1} − μ_t)          [standardized mismatch]
-β_t = FalsificationGate(ρ_t, h_t)          [calibrated β gate]
+ρ_t = Σ_t^{-1/2}(z_{t+1} − μ_t)          [표준화된 예측 불일치]
+β_t = FalsificationGate(ρ_t, h_t)          [보정된 β gate]
 α_t = CausalAttention(ρ_t, z_t, a_t, ∇Q)  [sparse, value-aware]
-μ̃_t^k = μ_t^k + β_t α_t^k δ_t^k         [grouped latent correction]
+μ̃_t^k = μ_t^k + β_t α_t^k δ_t^k         [그룹화된 latent correction]
 ```
 
-## Status
+## 현재 상태
 
-- R0: ✅ Contract reset complete (FRCG-WM → FGLC pivot)
-- R1..R16: Pending (see `docs/ROADMAP/00_ROADMAP_OVERVIEW.md`)
+- R0: ✅ 계약 초기화 완료 (FRCG-WM → FGLC 피벗)
+- R1..R16: 진행 예정 (`docs/ROADMAP/00_ROADMAP_OVERVIEW.md` 참조)
 
-## Package
+## 패키지
 
 ```python
-import fglc  # src/fglc/ (stub — full implementation in R1+)
+import fglc  # src/fglc/ (스텁 — 전체 구현은 R1+ 이후)
 ```
 
-## Documentation
+## 문서
 
-- Architecture: `docs/main/main.md`
-- Methodology survey: `docs/main/deep-research-report.md`
-- Idea units (44 atomic): `docs/idea/00_OVERVIEW.md`
-- Roadmap (R0..R16): `docs/ROADMAP/00_ROADMAP_OVERVIEW.md`
+- 아키텍처: `docs/main/main.md`
+- 방법론 조사: `docs/main/deep-research-report.md`
+- 아이디어 단위 (44개 원자): `docs/idea/00_OVERVIEW.md`
+- 로드맵 (R0..R16): `docs/ROADMAP/00_ROADMAP_OVERVIEW.md`
 
-## Algorithms
+## 알고리즘
 
-| Algorithm | Priority | Key mechanism |
+| 알고리즘 | 우선순위 | 핵심 메커니즘 |
 |---|---|---|
-| CIRCA | 1 | Randomized Bernoulli gate + conformal + α-distill + robust MPC |
+| CIRCA | 1 | 무작위 Bernoulli gate + conformal + α-distill + robust MPC |
 | I3G | 2 | iVAE + ICP/anchor + SPCI gate + sparse group gates |
-| ASAP | 3 | Top-k proposal + MC interventional ASV + α-distill |
-| IVI | 4 | Influence-rank + randomized knockout + sparse α-distill |
+| ASAP | 3 | Top-k 제안 + MC 개입적 ASV + α-distill |
+| IVI | 4 | Influence 순위 + 무작위 knockout + sparse α-distill |
 
-## Benchmarks
+## 벤치마크
 
-ManiSkill PickCube/PushCube/LiftCube (state-only → RGB-D)
-OOD axes: mass × {0.5,1,2} / friction × {0.5,1,2} / latency / noise / action-gain
-Transfer: robosuite, DROID, BridgeData V2
+**환경**: ManiSkill PickCube/PushCube/LiftCube (state-only → RGB-D)
+**OOD 축**: mass × {0.5,1,2} / friction × {0.5,1,2} / latency / noise / action-gain
+**전이 검증**: robosuite, DROID, BridgeData V2

@@ -1,41 +1,63 @@
-# Cluster 1+3 Mathematical Validity Report
+# 클러스터 1+3 수학적 유효성 보고서
 
-**Date**: 2026-05-22
-**Agent**: mathematical-validity-critic (T1 deep mode)
-**Clusters**: Cluster 1 (Problem Formulation: M-0, R-0, R-18) + Cluster 3 (Falsification Theory: M-7, M-8, R-6, R-7)
+**날짜**: 2026-05-22
+**에이전트**: mathematical-validity-critic (T1 deep mode)
+**클러스터**: 클러스터 1 (문제 정의: M-0, R-0, R-18) + 클러스터 3 (Falsification 이론: M-7, M-8, R-6, R-7)
 
-## Cluster 1 - Problem Formulation
+## 클러스터 1 - 문제 정의
 
-**C1-Math verdict: CONDITIONAL**
+**C1-수학 판정: CONDITIONAL (조건부)**
 
-Key issues:
-1. Diagonal Gaussian `pθ(z_{t+1}|z_t,a_t,h_t) = N(μ_t, diag(σ_t²))` is internally consistent with per-group standardization `ρ_t^k = (z_{t+1}^k - μ_t^k) / σ_t^k`. No circularity.
+핵심 문제:
+1. 대각 가우시안 `pθ(z_{t+1}|z_t,a_t,h_t) = N(μ_t, diag(σ_t²))`는 그룹별 표준화
+   `ρ_t^k = (z_{t+1}^k - μ_t^k) / σ_t^k`와 내부적으로 일관됩니다. 순환 논리 없음.
 
-2. **Attention-causality conflation risk**: main.md §4.3 labels the group interaction block as "dynamics interaction layer, NOT causal attention." The causal/correction attention is a separate module. The Cluster 1 claim description fuses these two, creating definitional ambiguity.
+2. **Attention-인과성 혼용 위험**: main.md §4.3는 그룹 상호작용 블록을 "dynamics interaction layer,
+   NOT causal attention"으로 명시합니다. 교정/correction attention은 별개의 모듈입니다.
+   클러스터 1 주장 설명이 이 두 가지를 혼융하여 리뷰어가 도전할 정의적 모호성을 만듭니다.
 
-3. The claim "only that subspace receives sparse residual correction" is architecturally correct but identifiability of the *causally responsible* subspace is NOT guaranteed by diagonal-Gaussian prior alone. Requires value-aware utility alignment or randomized intervention training losses.
+3. "선택된 하위공간에만 sparse residual correction이 적용된다"는 주장은 아키텍처적으로 올바르지만,
+   *인과적으로 책임 있는* 하위공간의 식별 가능성은 대각 가우시안 사전 분포 단독으로는 보장되지 않습니다.
+   Value-aware 유틸리티 정렬 또는 무작위화된 개입 학습 손실이 필요합니다.
 
-## Cluster 3 - Falsification Theory
+## 클러스터 3 - Falsification 이론
 
-**C1-Math verdict: CONDITIONAL**
+**C1-수학 판정: CONDITIONAL (조건부)**
 
-Key issues:
-1. **χ² claim is valid under stated assumptions.** Given `pθ = N(μ_t^k, diag((σ_t^k)^2))`, each element of `ρ_t^k` is i.i.d. `N(0,1)` under H0. Therefore `F_t^k ~ χ²_d` under H0. Mathematically valid, contingent on calibration.
+핵심 문제:
+1. **χ² 주장은 명시된 가정 하에 유효합니다.** `pθ = N(μ_t^k, diag((σ_t^k)^2))`이고
+   `Σ_t^{-1/2} = diag(1/σ_t^k)`이면 `ρ_t^k`의 각 원소는 H0 하에서 i.i.d. `N(0,1)`.
+   따라서 `F_t^k ~ χ²_d` (H0 하에서). 보정에 의존적이지만 수학적으로 유효합니다.
 
-2. **CRITICAL: σ collapse escape hatch.** The χ² calibration argument collapses entirely if σ is poorly calibrated (inflated). The paper must show that `L_sigma` prevents σ inflation. Without this, the χ² claim is an assumption, not a property.
+2. **핵심 조건: σ 붕괴 탈출 구멍.** main.md §5이 명시적으로 경고합니다:
+   "σ_t가 너무 커지면 모델이 모든 mismatch를 불확실했다고 도망갈 수 있음."
+   χ² 보정 논거는 σ가 잘못 보정되면(팽창) 완전히 붕괴됩니다.
+   논문은 `L_sigma` 분산 보정 손실이 충분함을 보여야 합니다. 없으면 χ² 주장은 속성이 아닌 가정입니다.
 
-3. **Gate distinguishability issue.** `β_t = sigmoid(MLP(...))` is mathematically distinguishable from a hard threshold ONLY if: (a) empirical quantile calibration is applied post-training on held-out ID data, OR (b) χ² CDF is used with calibrated σ. The paper must demonstrate conformal coverage at level α.
+3. **Gate 구별 가능성 문제.** `β_t = sigmoid(MLP(...)))`는 다음 경우에만 하드 임계값과
+   수학적으로 구별됩니다: (a) 학습 후 보정이 보류된 ID 데이터에 적용되거나,
+   (b) χ² CDF가 보정된 σ와 함께 사용됩니다.
+   MLP가 단순히 스칼라 임계값을 근사하는 편향 항을 학습하면 기능적으로 동등합니다.
 
-4. Equations 1-6 are internally consistent. `L_nll` is the correct heteroscedastic Gaussian NLL.
+4. 방정식 1-6은 내부적으로 일관됩니다. 방정식 6의 `L_nll`은 올바른 이분산 가우시안 NLL입니다.
 
-## Overall Assessment
+## 전체 평가
 
-**Main mathematical risks (HIGH to LOW)**:
-- R1 (HIGH): σ calibration is load-bearing for entire χ²/conformal argument
-- R2 (MEDIUM): Gate distinguishability from learnable threshold requires explicit coverage demonstration
-- R3 (LOW): Attention-causality conflation in Cluster 1 labeling
+**주요 수학적 위험 (높음에서 낮음 순)**:
+- R1 (높음): σ 보정이 전체 χ²/conformal 논거의 핵심 부하 조건입니다.
+  딥 네트워크에서 NLL 손실만으로 잘 보정된 σ를 보장하지 않습니다.
+  이것이 단일 최대 수학적 취약점입니다.
+- R2 (중간): Gate 구별 가능성. `β_t = sigmoid(MLP(...))`는 conformal 커버리지가
+  경험적으로 증명되지 않으면 학습 가능한 임계값과 구별 불가능합니다.
+- R3 (낮음): 클러스터 1 레이블링에서 Attention-인과성 혼용.
+  Dynamics 상호작용 블록과 correction attention은 별개; 주장 설명이 분리해야 함.
 
-**Required fixes**:
-1. Add σ calibration check (reliability diagram / ECE for predictive variance) as required ablation
-2. Replace "calibrated gate, not hard threshold" with: "threshold = empirical α-quantile of F_t on held-out ID trajectories, giving finite-sample coverage at level α"
-3. In Cluster 1, split "causalized attention selects subspace" into: (a) mismatch score locates group, (b) sparse correction gate applies residual
+**권장 수정사항**:
+1. σ 보정 검사(예측 분산에 대한 신뢰도 다이어그램 또는 ECE)를 필수 ablation으로 추가.
+   없으면 χ² 주장을 방어할 수 없음.
+2. "보정된 gate, 하드 임계값 아님"을 정확한 작동적 정의로 교체:
+   "임계값 = 보류된 ID 궤적의 F_t 점수의 경험적 α-분위수로 설정, 수준 α에서 유한 샘플 커버리지 제공."
+3. 클러스터 1에서 "인과화된 attention이 하위공간을 선택한다"를 두 단계로 분리:
+   (a) 불일치 점수가 그룹 위치를 결정 (F_t^k 순위),
+   (b) correction gate가 residual을 적용.
+   명시적 정의 없이 두 단계를 하나의 "인과화된 attention" 레이블 아래 병합하지 마십시오.

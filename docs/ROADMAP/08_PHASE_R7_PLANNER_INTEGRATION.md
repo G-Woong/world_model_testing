@@ -1,19 +1,19 @@
-# Phase R7 — Planner Integration
+# Phase R7 — Planner 통합
 
-## Goal
-Integrate MPPI/CEM with corrected dynamics rollout.
-Gate: closed-loop FGLC > TD-MPC2 return on ≥2 OOD conditions (p < 0.05).
+## 목표
+보정된 dynamics rollout으로 MPPI/CEM 통합.
+Gate: 폐쇄 루프 FGLC > ≥2 OOD 조건에서 TD-MPC2 return (p < 0.05).
 
-## Inputs
-- Prior phase sentinel: outputs/phase_gates/R6.passed
+## 입력
+- 이전 단계 sentinel: outputs/phase_gates/R6.passed
 
-## Steps
+## 단계
 
-1. Implement MPPI planner (src/fglc/planning/mppi.py)
-   - Base rollout: use uncorrected dynamics when β_t < threshold
-   - Corrected rollout: use corrected μ̃_t for first H_corr=3~5 steps
+1. MPPI planner 구현 (src/fglc/planning/mppi.py)
+   - 기본 rollout: β_t < 임계값일 때 비보정 dynamics 사용
+   - 보정 rollout: 트리거될 때 첫 H_corr=3~5 스텝 동안 보정된 μ̃_t 사용
 
-2. Implement closed-loop evaluation loop
+2. 폐쇄 루프 평가 루프 구현
    ```python
    for episode in eval_episodes:
        for t in range(max_steps):
@@ -27,26 +27,26 @@ Gate: closed-loop FGLC > TD-MPC2 return on ≥2 OOD conditions (p < 0.05).
            obs, reward, done = env.step(action)
    ```
 
-3. Compute-matched experiment
-   - Give TD-MPC2 same additional planning rollouts FGLC uses for correction
-   - This is BASE-COMP-04 baseline (critical for Attack 5 defense)
+3. 계산 매칭 실험
+   - TD-MPC2에 FGLC가 correction에 사용하는 것과 동일한 추가 planning rollout 제공
+   - 이것이 BASE-COMP-04 baseline (공격 5 방어에 핵심)
 
-## Gate Criteria
+## Gate 기준
 
-- [ ] FGLC return > TD-MPC2 return on ≥2 OOD conditions (p < 0.05)
-- [ ] FGLC return > no-correction baseline on ≥2 OOD conditions
-- [ ] Compute-matched baseline results available (BASE-COMP-04)
-- [ ] Recovery time measurement implemented (requires regime_id timestamp)
-- [ ] `pytest tests/test_fglc_planner.py` green
+- [ ] FGLC return > ≥2 OOD 조건에서 TD-MPC2 return (p < 0.05)
+- [ ] FGLC return > ≥2 OOD 조건에서 no-correction baseline
+- [ ] 계산 매칭된 baseline 결과 사용 가능 (BASE-COMP-04)
+- [ ] 회복 시간 측정 구현됨 (regime_id 타임스탬프 필요)
+- [ ] `pytest tests/test_fglc_planner.py` 통과
 
-## Risk Register References
-- R-5: MPPI determinism — seed control required for reproducibility
-- R-7: MPPI correction integration complexity
+## 위험 등록부 참조
+- R-5: MPPI 결정론 — 재현성을 위한 시드 제어 필요
+- R-7: MPPI correction 통합 복잡성
 
-## Commit Cadence
-- commit 1: `feat(plan): R7 MPPI/CEM latent planner (uncorrected)`
-- commit 2: `feat(plan): R7 corrected rollout with H_corr short-horizon hold`
-- commit 3: `results(R7): closed-loop FGLC > TD-MPC2 on OOD verified`
+## 커밋 주기
+- 커밋 1: `feat(plan): R7 MPPI/CEM 잠재 planner (비보정)`
+- 커밋 2: `feat(plan): R7 H_corr 단기 유지가 있는 보정 rollout`
+- 커밋 3: `results(R7): 폐쇄 루프 FGLC > OOD에서 TD-MPC2 검증`
 
-## Codex Delegation
-Yes → Codex TASK_R7_PLANNER.md
+## Codex 위임
+예 → Codex TASK_R7_PLANNER.md

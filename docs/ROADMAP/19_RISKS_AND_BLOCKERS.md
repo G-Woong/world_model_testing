@@ -1,72 +1,72 @@
-# Risks and Blockers Register
+# 위험 및 Blockers 등록부
 
-## R-1 — Latent Surgery Off-Manifold
-**Likelihood**: Medium | **Impact**: High
-**Description**: Correction vectors push z̃_t outside the valid latent manifold.
-**Detection**: ||z̃_t - nearest_train_latent|| >> σ_latent
-**Mitigation**: Low-rank correction; bounded δ_max; monitor round-trip distance
+## R-1 — 잠재 수술 Off-Manifold
+**가능성**: 중간 | **영향**: 높음
+**설명**: 보정 벡터가 유효한 잠재 다양체 밖으로 z̃_t를 밀어냄.
+**탐지**: ||z̃_t - nearest_train_latent|| >> σ_latent
+**완화**: 저랭크 correction; 경계가 있는 δ_max; 왕복 거리 모니터링
 
-## R-2 — ManiSkill API Drift
-**Likelihood**: Low | **Impact**: Medium
-**Description**: ManiSkill v3 API changes break data collection scripts.
-**Mitigation**: Pin mani-skill version in pyproject.toml; test against pinned version
+## R-2 — ManiSkill API 드리프트
+**가능성**: 낮음 | **영향**: 중간
+**설명**: ManiSkill v3 API 변경으로 데이터 수집 스크립트가 깨짐.
+**완화**: pyproject.toml에 mani-skill 버전 고정; 고정 버전에서 테스트
 
-## R-3 — HiP-RSSM/DreamerV3 Porting Complexity
-**Likelihood**: Medium | **Impact**: Medium
-**Description**: Adapting HiP-RSSM (JAX) or DreamerV3 (JAX) to ManiSkill may require significant effort.
-**Mitigation**: Find existing PyTorch forks; if unavailable, use simplified re-implementation for baseline
+## R-3 — HiP-RSSM/DreamerV3 포팅 복잡성
+**가능성**: 중간 | **영향**: 중간
+**설명**: HiP-RSSM (JAX) 또는 DreamerV3 (JAX)를 ManiSkill에 적응하는 데 상당한 노력 필요.
+**완화**: 기존 PyTorch 포크 찾기; 없으면 baseline을 위한 단순화된 재구현 사용
 
-## R-4 — DROID Dataset Access
-**Likelihood**: Medium | **Impact**: Low (Phase 2 only)
-**Description**: DROID ~100GB; requires institutional access.
-**Mitigation**: Phase 1 (state-only ManiSkill) is sufficient for paper main results; DROID is supplementary
+## R-4 — DROID 데이터셋 접근
+**가능성**: 중간 | **영향**: 낮음 (Phase 2만 해당)
+**설명**: DROID ~100GB; 기관 접근 필요.
+**완화**: Phase 1 (state-only ManiSkill)이 논문 주요 결과에 충분; DROID는 보충 자료
 
-## R-5 — σ Calibration Failure
-**Likelihood**: Medium | **Impact**: Critical
-**Description**: Base WM learns inflated σ; OOD detection AUROC → 0.5.
-**Mitigation**: L_cal penalty; σ clamp; ECE check is R4 gate criterion; STOP if ECE > 0.2
+## R-5 — σ 보정 실패
+**가능성**: 중간 | **영향**: 심각
+**설명**: 기본 WM이 팽창된 σ 학습; OOD 탐지 AUROC → 0.5.
+**완화**: L_cal 페널티; σ clamp; ECE 검사가 R4 gate 기준; ECE > 0.2이면 중단
 
-## R-6 — Conformal Coverage Under Non-Exchangeable OOD
-**Likelihood**: Medium | **Impact**: Medium
-**Description**: Conformal guarantees assume exchangeability; OOD data may violate this.
-**Mitigation**: Use empirical quantile calibration (not strict conformal) as primary; report both
+## R-6 — 비교환 가능한 OOD 하에서 Conformal 커버리지
+**가능성**: 중간 | **영향**: 중간
+**설명**: Conformal 보증은 교환 가능성 가정; OOD 데이터가 이를 위반 가능.
+**완화**: 주요로 경험적 분위수 보정 (엄격한 conformal 아닌) 사용; 둘 다 보고
 
-## R-7 — MPPI Determinism
-**Likelihood**: Low | **Impact**: Medium
-**Description**: MPPI sampling introduces variance; results may not be reproducible.
-**Mitigation**: Fixed seed for MPPI sampling; report mean ± std over 3 seeds
+## R-7 — MPPI 결정론
+**가능성**: 낮음 | **영향**: 중간
+**설명**: MPPI 샘플링이 분산을 도입; 결과가 재현 불가능할 수 있음.
+**완화**: MPPI 샘플링에 고정 seed; 3개 seed에 걸쳐 평균 ± 표준편차 보고
 
-## R-8 — Value-Q Convergence Slow
-**Likelihood**: Medium | **Impact**: Low
-**Description**: Value/Q head may take many episodes to converge; bootstrapping unstable.
-**Mitigation**: Use n=3 step TD target initially; reduce horizon if unstable
+## R-8 — 가치-Q 수렴 느림
+**가능성**: 중간 | **영향**: 낮음
+**설명**: 가치/Q 헤드가 수렴하는 데 많은 에피소드 필요; bootstrapping이 불안정할 수 있음.
+**완화**: 초기에 n=3 step TD 타겟 사용; 불안정하면 horizon 줄임
 
-## R-9 — Planner-WM Coupling
-**Likelihood**: Medium | **Impact**: Medium
-**Description**: Planner gradients may interfere with correction module training.
-**Mitigation**: Stage 3 (planner) only after Stage 2 (correction) converged; separate LR schedule
+## R-9 — Planner-WM 결합
+**가능성**: 중간 | **영향**: 중간
+**설명**: Planner 기울기가 correction 모듈 학습을 방해할 수 있음.
+**완화**: Stage 3 (planner)는 Stage 2 (correction) 수렴 후에만; 별도 LR 스케줄
 
-## R-10 — Entmax Stability
-**Likelihood**: Low | **Impact**: Low
-**Description**: entmax gradient may be numerically unstable for very small temperatures.
-**Mitigation**: Clip logits before entmax; use temperature schedule starting from softmax
+## R-10 — Entmax 안정성
+**가능성**: 낮음 | **영향**: 낮음
+**설명**: entmax 기울기가 매우 낮은 온도에서 수치적으로 불안정할 수 있음.
+**완화**: entmax 전에 로짓 clamp; softmax에서 시작하는 온도 스케줄
 
-## R-11 — RGB-D Encoder Compute
-**Likelihood**: High | **Impact**: Low (Phase 2 optional)
-**Description**: ViT encoder + RGB-D may not fit in single A100 batch.
-**Mitigation**: Reduce batch size; use smaller CNN; defer to R11 if budget exceeded
+## R-11 — RGB-D Encoder 계산
+**가능성**: 높음 | **영향**: 낮음 (Phase 2, 선택적)
+**설명**: ViT encoder + RGB-D가 단일 A100 배치에 안 맞을 수 있음.
+**완화**: 배치 크기 줄임; 더 작은 CNN 사용; 예산 초과 시 R11으로 연기
 
-## R-12 — K=6 Cross-Seed Inconsistency
-**Likelihood**: Medium | **Impact**: High
-**Description**: Spearman correlation < 0.7 across seeds for per-OOD attention vectors.
-**Mitigation**: Reduce K; add explicit group-separation loss; if unresolvable, reduce claim
+## R-12 — K=6 시드 간 불일치
+**가능성**: 중간 | **영향**: 높음
+**설명**: OOD attention 벡터에 대한 시드 간 Spearman 상관 < 0.7.
+**완화**: K 줄임; 명시적 그룹 분리 손실 추가; 해결 불가이면 주장 축소
 
-## R-13 — Compute Budget Overrun
-**Likelihood**: Medium | **Impact**: High
-**Description**: 60+ eval runs (4 algorithms × 3 tasks × 5 OOD conditions) may exceed 8-week budget.
-**Mitigation**: Run CIRCA+IVI first; add ASAP+I3G if budget allows; 3 tasks minimum
+## R-13 — 계산 예산 초과
+**가능성**: 중간 | **영향**: 높음
+**설명**: 60+ 평가 실행 (4 알고리즘 × 3 태스크 × 5 OOD 조건)이 8주 예산 초과 가능.
+**완화**: CIRCA+IVI 먼저 실행; 예산 허용 시 ASAP+I3G 추가; 최소 3개 태스크
 
-## R-14 — Real Robot Transfer (DROID/BridgeData) Fails
-**Likelihood**: Medium | **Impact**: Low
-**Description**: FGLC correction doesn't generalize to real robot sensor noise.
-**Mitigation**: Report limitation honestly; sim results remain valid for core claim
+## R-14 — 실제 로봇 전이 (DROID/BridgeData) 실패
+**가능성**: 중간 | **영향**: 낮음
+**설명**: FGLC correction이 실제 로봇 센서 노이즈에 일반화 안 됨.
+**완화**: 한계를 정직하게 보고; 시뮬레이션 결과는 핵심 주장에 유효
