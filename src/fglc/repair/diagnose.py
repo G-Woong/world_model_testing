@@ -27,6 +27,7 @@ CANONICAL_METRIC_KEYS: frozenset[str] = frozenset(
         "val_nll",
         "ood_mass_nll",
         "ood_friction_nll",
+        "eval_ci95_over_effect_size",
     }
 )
 

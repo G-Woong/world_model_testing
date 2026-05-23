@@ -1,7 +1,7 @@
 """Per-episode data quality validators for Step 11 ManiSkill collection.
 
 Source: docs/STEP11_PLAN.md §F.3 Per-episode inline validation
-9 reject reasons checked per episode before it enters the storage queue.
+10 reject reasons checked per episode before it enters the storage queue.
 
 Usage:
     from fglc.data.validators import validate_episode, EpisodeRejectReason
@@ -12,6 +12,7 @@ Usage:
 
 from __future__ import annotations
 
+import hashlib
 from enum import Enum
 
 import numpy as np
@@ -27,6 +28,7 @@ class EpisodeRejectReason(str, Enum):
     NO_DONE_SIGNAL = "no_done_signal"
     DONE_FLOOD = "done_flood"
     NUMERICAL_INVALID = "numerical_invalid"
+    EPISODE_DUPLICATE = "episode_duplicate"
 
 
 def validate_episode(
@@ -35,6 +37,7 @@ def validate_episode(
     rewards: np.ndarray,
     dones: np.ndarray,
     min_episode_len: int = 10,
+    seen_state_hashes: set[str] | None = None,
 ) -> EpisodeRejectReason | None:
     """Validate one episode. Returns None if OK, else the reject reason.
 
@@ -44,6 +47,7 @@ def validate_episode(
         rewards:  float32 array of shape (T,)
         dones:    bool array   of shape (T,)
         min_episode_len: minimum accepted episode length (exclusive)
+        seen_state_hashes: optional mutable set for duplicate state-trajectory hashes
     """
     T = len(states)
 
@@ -87,5 +91,12 @@ def validate_episode(
     # 9. done_flood: done fires at every step except possibly the last
     if np.all(dones[:-1]):
         return EpisodeRejectReason.DONE_FLOOD
+
+    # 10. episode_duplicate: exact duplicate state trajectory hash
+    if seen_state_hashes is not None:
+        state_hash = hashlib.sha1(states.tobytes()).hexdigest()
+        if state_hash in seen_state_hashes:
+            return EpisodeRejectReason.EPISODE_DUPLICATE
+        seen_state_hashes.add(state_hash)
 
     return None

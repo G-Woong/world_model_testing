@@ -7,6 +7,7 @@ Usage:
   python scripts/fglc/collect_maniskill.py --split ood_mass_low --ood-mass 1.5 --n-episodes 10
   python scripts/fglc/collect_maniskill.py --split ood_friction_low --ood-friction 5.0 --n-episodes 10
   python scripts/fglc/collect_maniskill.py --split train_id --n-episodes 5 --no-save  # probe
+  python scripts/fglc/collect_maniskill.py --split train_id --n-episodes 5 --mode probe
 """
 
 from __future__ import annotations
@@ -86,6 +87,21 @@ def main() -> None:
     parser.add_argument("--ood-friction", type=float, default=None, help="joint_friction override")
     parser.add_argument("--output", type=str, default=None, help="HDF5 output path")
     parser.add_argument("--no-save", action="store_true", help="probe mode: collect but don't save")
+    parser.add_argument(
+        "--mode",
+        choices=["probe", "pilot", "scaled"],
+        default="pilot",
+        help=(
+            "collection mode: probe collects without saving; pilot uses the existing "
+            "default output path; scaled also preserves the selected output path"
+        ),
+    )
+    parser.add_argument(
+        "--quarantine-dir",
+        type=str,
+        default=None,
+        help="optional directory for rejected-episode HDF5 quarantine dumps",
+    )
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--max-wall-minutes", type=float, default=20.0)
     args = parser.parse_args()
@@ -114,7 +130,12 @@ def main() -> None:
     )
 
     print(f"[collect_maniskill] split={args.split} n_episodes={n_episodes} ood_params={ood_params}")
-    episodes, eval_metas, stats = collect_episodes(config, verbose=args.verbose)
+    no_save = args.no_save or args.mode == "probe"
+    episodes, eval_metas, stats = collect_episodes(
+        config,
+        verbose=args.verbose,
+        quarantine_dir=args.quarantine_dir,
+    )
 
     summary = {
         "split": args.split,
@@ -123,11 +144,11 @@ def main() -> None:
         "rejection_counts": stats.rejection_counts,
         "total_transitions": stats.total_transitions,
         "wall_clock_seconds": round(stats.wall_clock_seconds, 2),
-        "output": output if not args.no_save else "NOT_SAVED",
+        "output": output if not no_save else "NOT_SAVED",
         "timestamp": datetime.utcnow().isoformat(),
     }
 
-    if args.no_save:
+    if no_save:
         print(json.dumps(summary, indent=2))
         return
 
