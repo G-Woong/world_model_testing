@@ -96,8 +96,10 @@ If leakage is detected → STOP immediately and report as BLOCKED.
 
 - Run **all** tests listed in the TASK file's `REQUIRED_TESTS` header.
 - If any test fails, do not commit. Fix the failure or report BLOCKED.
-- Always run at minimum: `pytest -q tests/test_fglc_forbidden_field_sync.py`
+- If `tests/test_fglc_forbidden_field_sync.py` exists, always run it at minimum:
+  `pytest -q tests/test_fglc_forbidden_field_sync.py`
   (must stay green — it guards the forbidden field contract).
+  If the file does not exist yet (pre-R1 infrastructure), log WARN but do not BLOCK.
 
 ---
 
