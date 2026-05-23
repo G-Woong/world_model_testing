@@ -1,0 +1,8 @@
+﻿{
+    "task_number":  2045,
+    "task_name":  "11D7A_COLLECTOR_PATCH",
+    "task_file":  ".agent_tasks/codex_queue/TASK_2045_11D7A_COLLECTOR_PATCH.md",
+    "base_sha":  "9a9016fff08f043641c93ec2537a2b718036351b",
+    "assigned_at":  "2026-05-23T23:21:19Z",
+    "assigned_by":  "claude"
+}
