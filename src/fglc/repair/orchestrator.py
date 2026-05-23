@@ -6,7 +6,9 @@ Source: docs/EXPERIMENT_REPAIR_LOOP_PLAN.md Step 8.
 from __future__ import annotations
 
 import subprocess
+import json
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Protocol
 
@@ -217,6 +219,39 @@ def _is_sentinel_only(cands: list) -> bool:
     )
 
 
+def _write_iter_artifacts(
+    *,
+    loop_dir: Path,
+    loop_id: str,
+    cfg: RepairLoopConfig,
+    iter_index: int,
+    compare_result: dict,
+    patch: Any,
+) -> None:
+    iter_dir = loop_dir / f"iter_{iter_index}"
+    iter_dir.mkdir(parents=True, exist_ok=True)
+    (iter_dir / "compare.json").write_text(
+        json.dumps(compare_result, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    (iter_dir / "run_manifest.json").write_text(
+        json.dumps(
+            {
+                "iter_index": iter_index,
+                "loop_id": loop_id,
+                "phase": cfg.phase,
+                "seed": cfg.seed,
+                "descriptor": cfg.descriptor,
+                "patch": patch,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+
 def run_repair_loop(
     cfg: RepairLoopConfig,
     *,
@@ -239,6 +274,14 @@ def run_repair_loop(
         descriptor=cfg.descriptor,
         patch=None,
         iter_index=0,
+    )
+    _write_iter_artifacts(
+        loop_dir=loop_dir,
+        loop_id=loop_id,
+        cfg=cfg,
+        iter_index=0,
+        compare_result={},
+        patch=None,
     )
 
     if baseline.hook_blocked:
@@ -398,6 +441,14 @@ def run_repair_loop(
             metrics_after,
             cfg.failed_metric,
             dict(cfg.metric_directions),
+        )
+        _write_iter_artifacts(
+            loop_dir=loop_dir,
+            loop_id=loop_id,
+            cfg=cfg,
+            iter_index=iter_index,
+            compare_result=cmp,
+            patch=str(chosen.patch),
         )
 
         if cmp["result"] == "inconclusive":
