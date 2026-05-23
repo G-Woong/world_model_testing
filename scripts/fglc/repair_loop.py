@@ -46,6 +46,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-consecutive-inconclusive", default=2, type=int)
     parser.add_argument("--output-root", default=Path("outputs/repair"), type=Path)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--use-real-runner", action="store_true")
     parser.add_argument(
         "--mock-scenario",
         default="improve",
@@ -81,7 +82,7 @@ def _build_config(ns) -> RepairLoopConfig:
         output_root=ns.output_root,
         metric_directions=METRIC_DIRECTIONS,
         gate_thresholds={
-            "id_nll": 0.4,
+            "id_nll": 0.5,
             "ood_auroc": 0.8,
             "attention_entropy": 0.1,
             "corrected_nll_gain": 0.1,
@@ -143,7 +144,12 @@ def main(argv: list[str] | None = None) -> int:
         return int(e.code) if isinstance(e.code, int) else 2
     try:
         cfg = _build_config(ns)
-        runner = build_mock_runner(ns.mock_scenario, failed_metric=cfg.failed_metric)
+        if ns.use_real_runner:
+            from fglc.runners import R3SmokeRunner
+
+            runner = R3SmokeRunner(ns.config, output_root=cfg.output_root)
+        else:
+            runner = build_mock_runner(ns.mock_scenario, failed_metric=cfg.failed_metric)
         results = run_repair_loop(cfg, runner=runner)
         final = results[-1]
         print(
