@@ -34,40 +34,40 @@ def _parse_seed_pool(s: str) -> list[int]:
 
 SPLIT_DEFAULTS = {
     "train_id": {
-        "n_episodes": 50,
-        "seed_pool": list(range(42, 92)),
+        "n_episodes": 250,                 # Scaled target; Pilot used 50
+        "seed_pool": list(range(42, 292)), # 250 seeds for Scaled 250ep
         "regime_id": 0,
         "ood_type": "id",
         "ood_params": {},
         "output": "data/fglc/PickCube-v1/raw/train_id.h5",
     },
     "val_id": {
-        "n_episodes": 10,
-        "seed_pool": list(range(200, 210)),
+        "n_episodes": 50,                  # Scaled target; Pilot used 10
+        "seed_pool": list(range(200, 250)),# 50 seeds for Scaled 50ep
         "regime_id": 1,
         "ood_type": "id",
         "ood_params": {},
         "output": "data/fglc/PickCube-v1/raw/val_id.h5",
     },
     "test_id": {
-        "n_episodes": 10,
-        "seed_pool": list(range(300, 310)),
+        "n_episodes": 50,                  # Scaled target; Pilot used 10
+        "seed_pool": list(range(300, 350)),# 50 seeds for Scaled 50ep
         "regime_id": 2,
         "ood_type": "id",
         "ood_params": {},
         "output": "data/fglc/PickCube-v1/raw/test_id.h5",
     },
     "ood_mass_low": {
-        "n_episodes": 10,
-        "seed_pool": list(range(500, 510)),
+        "n_episodes": 50,                  # Scaled target; Pilot used 10
+        "seed_pool": list(range(500, 550)),# 50 seeds for Scaled 50ep
         "regime_id": 10,
         "ood_type": "ood_mass",
         "ood_params": {"object_mass": 1.5},
         "output": "data/fglc/PickCube-v1/raw/ood_mass_low.h5",
     },
     "ood_friction_low": {
-        "n_episodes": 10,
-        "seed_pool": list(range(600, 610)),
+        "n_episodes": 50,                  # Scaled target; Pilot used 10
+        "seed_pool": list(range(600, 650)),# 50 seeds for Scaled 50ep
         "regime_id": 20,
         "ood_type": "ood_friction",
         "ood_params": {"joint_friction": 5.0},

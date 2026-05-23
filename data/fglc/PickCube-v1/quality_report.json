@@ -3,7 +3,7 @@
   "checkpoint_1_schema": "PASS",
   "checkpoint_2_dynamics": "PASS",
   "checkpoint_3_split": "PASS",
-  "checkpoint_4_ood_sev": "PASS",
+  "checkpoint_4_ood_sev": "FAIL",
   "checkpoint_5_learnability": "SKIP",
   "checkpoint_6_repair_metric": "SKIP",
   "checkpoint_7_storage": "PASS",
