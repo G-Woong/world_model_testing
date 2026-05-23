@@ -1,0 +1,68 @@
+# v0.4 dataset config: scaled Step 8 text-only dataset with explicit OOD effect strata.
+
+version: 4
+phase: P3
+dataset_version: "0.4"
+schema_version: "schema-06-v0.4"
+generator_version: "p3-text-v0.4"
+target_episodes: 5000
+max_steps: 12
+seed: 84322
+output_dir: "data/frcgw_text/v0_4"
+
+splits:
+  train: 3500
+  valid: 500
+  test_id: 500
+  test_ood: 500
+
+id_grammar_families:
+  - search_form
+  - required_dropdown
+  - modal_blocker
+  - pagination_vs_infinite
+  - loading_delayed
+  - permission_gate
+
+ood_grammar_families:
+  - filter_accordion
+  - nested_scroll
+
+policy_mixture:
+  oracle: 0.20
+  wrong_grammar: 0.25
+  retry: 0.25
+  recovery: 0.20
+  random_constrained: 0.10
+
+ood_coverage_gates:
+  blocker_removed_min: 30
+  delayed_effect_min: 30
+  true_wrong_both_classes: true
+
+ood_effect_type_strata:
+  blocker_removed: 0.10
+  delayed_effect: 0.10
+
+forbidden_fields:
+  - true_regime
+  - true_control_grammar
+  - true_change_point
+  - true_reveal_vs_shift
+  - true_wrong_hypothesis
+  - counterfactual_action_effects
+  - oracle_regime_action
+  - oracle_grammar_action
+  - oracle_best_action
+  - split_id
+  - ood_type
+  - template_id
+  - seed
+  - policy_id
+  - audit_metadata
+
+counterfactual_rollout:
+  enabled: true
+  top_k: 3
+
+generate_correct_hypothesis_id: true

@@ -1,0 +1,276 @@
+{
+  "run_config": {
+    "n_episodes": 250,
+    "n_switch_episodes": 200,
+    "n_stable_episodes": 50,
+    "n_seeds": 3,
+    "lfd_epochs": 15,
+    "cusum_h": 2.0,
+    "cusum_k": 0.3,
+    "sprt_A": 5.0,
+    "sprt_B": 0.1,
+    "max_steps": 12,
+    "execution_mode": "SYNTHETIC_ORACLE_PROBE",
+    "proxy_off": true
+  },
+  "cusum_summary": {
+    "detector_name": "cusum_h2.0",
+    "n_switch_episodes": 200,
+    "n_stable_episodes": 50,
+    "n_episodes_evaluated": 250,
+    "mean_detection_delay": 2.3557046979865772,
+    "median_detection_delay": 2.0,
+    "p90_detection_delay": 4.0,
+    "false_alarm_rate_per_step": 0.08562197092084006,
+    "regime_shift_f1": 0.6350974930362117,
+    "regime_shift_precision": 0.7169811320754716,
+    "regime_shift_recall": 0.57,
+    "auroc_wrong_hypothesis": 0.913009864073933,
+    "auprc_wrong_hypothesis": 0.8404545258206326,
+    "run_length_posterior_concentration": null,
+    "recovery_delay_pearson_r": 1.0,
+    "threshold_metadata": {},
+    "threshold_h": 2.0,
+    "threshold_k": 0.3
+  },
+  "sprt_summary": {
+    "detector_name": "sprt",
+    "n_switch_episodes": 200,
+    "n_stable_episodes": 50,
+    "n_episodes_evaluated": 250,
+    "mean_detection_delay": 5.872340425531915,
+    "median_detection_delay": 6.0,
+    "p90_detection_delay": 7.0,
+    "false_alarm_rate_per_step": 0.07539041464728057,
+    "regime_shift_f1": 0.0,
+    "regime_shift_precision": 0.0,
+    "regime_shift_recall": 0.0,
+    "auroc_wrong_hypothesis": 0.913009864073933,
+    "auprc_wrong_hypothesis": 0.8404545258206326,
+    "run_length_posterior_concentration": null,
+    "recovery_delay_pearson_r": 1.0,
+    "threshold_metadata": {},
+    "threshold_A": 5.0,
+    "threshold_B": 0.1
+  },
+  "lfd_seed_results": [
+    {
+      "seed": 0,
+      "lfd_summary": {
+        "detector_name": "lfd_learned",
+        "n_switch_episodes": 200,
+        "n_stable_episodes": 50,
+        "n_episodes_evaluated": 250,
+        "mean_detection_delay": 0.07035175879396985,
+        "median_detection_delay": 0.0,
+        "p90_detection_delay": 0.0,
+        "false_alarm_rate_per_step": 0.6257404415724287,
+        "regime_shift_f1": 0.5799086757990867,
+        "regime_shift_precision": 0.5336134453781513,
+        "regime_shift_recall": 0.635,
+        "auroc_wrong_hypothesis": 0.9428089124831402,
+        "auprc_wrong_hypothesis": 0.9207462723411083,
+        "run_length_posterior_concentration": 0.8932821106886668,
+        "recovery_delay_pearson_r": 0.9999999999999999,
+        "threshold_metadata": {},
+        "alarm_threshold": 0.5,
+        "proxy_off": true
+      },
+      "train_info": {
+        "train_losses": [
+          1.510789507247032,
+          1.3426661269461855,
+          1.3420158665865025,
+          1.340903880114251,
+          1.3429195031206658,
+          1.3415030630979132,
+          1.3392634455193864,
+          1.3380961402299556,
+          1.3367150200808302,
+          1.339103619468973,
+          1.3369962921802034,
+          1.3395328153955175,
+          1.3326372523257073,
+          1.3352712449875284,
+          1.3361369732846604
+        ],
+        "seed": 0,
+        "epochs": 15
+      },
+      "fair_ppc": {
+        "cusum_wall_clock_per_ep_s": 3.200817108154297e-05,
+        "lfd_wall_clock_per_ep_s": 0.18295022010803222,
+        "cusum_ppc": 17807.95280517236,
+        "lfd_ppc": 3.4708895109556694,
+        "ppc_ratio_lfd_over_cusum": 0.00019490671100316155,
+        "note": "progress_proxy=regime_shift_recall; LFD includes training amortized"
+      },
+      "train_time_s": 38.6717324256897,
+      "eval_time_s": 7.065822601318359
+    },
+    {
+      "seed": 1,
+      "lfd_summary": {
+        "detector_name": "lfd_learned",
+        "n_switch_episodes": 200,
+        "n_stable_episodes": 50,
+        "n_episodes_evaluated": 250,
+        "mean_detection_delay": 0.07,
+        "median_detection_delay": 0.0,
+        "p90_detection_delay": 0.0,
+        "false_alarm_rate_per_step": 0.6219709208400647,
+        "regime_shift_f1": 0.6077097505668934,
+        "regime_shift_precision": 0.5560165975103735,
+        "regime_shift_recall": 0.67,
+        "auroc_wrong_hypothesis": 0.9458429974120717,
+        "auprc_wrong_hypothesis": 0.9224013160254602,
+        "run_length_posterior_concentration": 0.892540293378007,
+        "recovery_delay_pearson_r": 1.0,
+        "threshold_metadata": {},
+        "alarm_threshold": 0.5,
+        "proxy_off": true
+      },
+      "train_info": {
+        "train_losses": [
+          1.5072249351663793,
+          1.3408741320067263,
+          1.3446668678141656,
+          1.3404262779240912,
+          1.34316060961561,
+          1.3405113600670022,
+          1.3421177242664581,
+          1.3474013532729858,
+          1.33849879592023,
+          1.3395241606742778,
+          1.3429000117677323,
+          1.3436476768965417,
+          1.3398335347784327,
+          1.3408361048774515,
+          1.3419379370009645
+        ],
+        "seed": 1,
+        "epochs": 15
+      },
+      "fair_ppc": {
+        "cusum_wall_clock_per_ep_s": 3.200817108154297e-05,
+        "lfd_wall_clock_per_ep_s": 0.17713652324676513,
+        "cusum_ppc": 17807.95280517236,
+        "lfd_ppc": 3.782393307260735,
+        "ppc_ratio_lfd_over_cusum": 0.00021239910890611356,
+        "note": "progress_proxy=regime_shift_recall; LFD includes training amortized"
+      },
+      "train_time_s": 37.3069281578064,
+      "eval_time_s": 6.977202653884888
+    },
+    {
+      "seed": 2,
+      "lfd_summary": {
+        "detector_name": "lfd_learned",
+        "n_switch_episodes": 200,
+        "n_stable_episodes": 50,
+        "n_episodes_evaluated": 250,
+        "mean_detection_delay": 0.7244897959183674,
+        "median_detection_delay": 1.0,
+        "p90_detection_delay": 2.0,
+        "false_alarm_rate_per_step": 0.49596122778675283,
+        "regime_shift_f1": 0.7081339712918661,
+        "regime_shift_precision": 0.6788990825688074,
+        "regime_shift_recall": 0.74,
+        "auroc_wrong_hypothesis": 0.9512383919161492,
+        "auprc_wrong_hypothesis": 0.9324536678933374,
+        "run_length_posterior_concentration": 0.8942664676936398,
+        "recovery_delay_pearson_r": 1.0,
+        "threshold_metadata": {},
+        "alarm_threshold": 0.5,
+        "proxy_off": true
+      },
+      "train_info": {
+        "train_losses": [
+          1.457969826586703,
+          1.3102689337857225,
+          1.3082307640542374,
+          1.3117453712732234,
+          1.3098560330715585,
+          1.3089267208855202,
+          1.3114821340175384,
+          1.3090346113164375,
+          1.3098240228409463,
+          1.307178796922907,
+          1.3084984130047737,
+          1.3091813519280007,
+          1.305806465605472,
+          1.3051154423267284,
+          1.3068355274327257
+        ],
+        "seed": 2,
+        "epochs": 15
+      },
+      "fair_ppc": {
+        "cusum_wall_clock_per_ep_s": 3.200817108154297e-05,
+        "lfd_wall_clock_per_ep_s": 0.17895598220825196,
+        "cusum_ppc": 17807.95280517236,
+        "lfd_ppc": 4.135095071249746,
+        "ppc_ratio_lfd_over_cusum": 0.00023220496575264386,
+        "note": "progress_proxy=regime_shift_recall; LFD includes training amortized"
+      },
+      "train_time_s": 37.66771650314331,
+      "eval_time_s": 7.071279048919678
+    }
+  ],
+  "seed_stability": {
+    "detection_delay": {
+      "mean": 0.2883,
+      "std": 0.3084,
+      "values": [
+        0.0704,
+        0.07,
+        0.7245
+      ]
+    },
+    "regime_shift_f1": {
+      "mean": 0.6319,
+      "std": 0.0551,
+      "values": [
+        0.5799,
+        0.6077,
+        0.7081
+      ]
+    },
+    "auroc_wrong_hypothesis": {
+      "mean": 0.9466,
+      "std": 0.0035,
+      "values": [
+        0.9428,
+        0.9458,
+        0.9512
+      ]
+    },
+    "false_alarm_rate_per_step": {
+      "mean": 0.5812,
+      "std": 0.0603,
+      "values": [
+        0.6257,
+        0.622,
+        0.496
+      ]
+    },
+    "n_seeds": 3
+  },
+  "fair_ppc": {
+    "cusum_wall_clock_per_ep_s": 3.200817108154297e-05,
+    "lfd_wall_clock_per_ep_s": 0.18295022010803222,
+    "cusum_ppc": 17807.95280517236,
+    "lfd_ppc": 3.4708895109556694,
+    "ppc_ratio_lfd_over_cusum": 0.00019490671100316155,
+    "note": "progress_proxy=regime_shift_recall; LFD includes training amortized"
+  },
+  "leakage_check": {
+    "violations": [],
+    "clean": true
+  },
+  "v0_5_generator_limitation": {
+    "note": "collect_episode() does not implement v0_5 grammar-switch handling.",
+    "impact": "Effect streams are oracle-simulated. LFD trained on synthetic data.",
+    "codex_followup": "TASK_COLLECTOR_V05_SWITCH: implement switch-aware GrammarEngine."
+  }
+}

@@ -1,0 +1,58 @@
+# CC-P3 STEP 8 Stage A: diagnostic v0.4 long-horizon training config.
+
+version: 1
+phase: CC-P3-STEP8-STAGE-A
+seed: 42
+batch_size: 8
+max_steps: 1000
+max_epochs: 3
+lr: 0.001
+weight_decay: 0.0001
+model_config: "configs/model_text.yaml"
+data_config: "configs/data_collection_text.yaml"
+dataset_version: "v0_4"
+dataset_root: "data/frcgw_text/v0_4"
+manifest_path: "data/frcgw_text/v0_4/manifest.json"
+split: "train"
+objective_weights:
+  l_action_effect: 1.0
+  l_progress: 0.5
+  l_regime: 1.0
+  l_control_grammar: 1.0
+  l_falsification: 1.0
+  l_intent_action_mapping: 0.0
+  l_change_point: 0.3
+  l_reveal_shift: 0.3
+  l_failed_action: 0.3
+  l_temporal_consistency: 0.0
+optimizer: "adam"
+manifest_dir: "outputs/runs/p3_train_v0_4_long_stageA"
+checkpoint_dir: "outputs/checkpoints/pretrain_v0_4_long_stageA"
+monitoring:
+  nan_check: true
+  f_t_variance_check: true
+  grad_norm_threshold: 100.0
+gate_thresholds:
+  tau_f: 0.0
+  tau_v: 0.0
+  tau_a: 0.5
+  tau_u: 2.0
+  C_plan_beta: 0.1
+  tau_r: 0.5
+compute_budget: "step8_stageA: max_epochs=3, max_steps=1000, batch_size=8"
+forbidden_fields:
+  - true_regime
+  - true_control_grammar
+  - true_change_point
+  - true_reveal_vs_shift
+  - true_wrong_hypothesis
+  - counterfactual_action_effects
+  - oracle_regime_action
+  - oracle_grammar_action
+  - split_id
+  - ood_type
+  - template_id
+  - seed
+  - policy_id
+ablation: null
+notes: "STEP 8 Stage A: diagnostic training (500 steps). NaN->lr x 0.5 retry logic."

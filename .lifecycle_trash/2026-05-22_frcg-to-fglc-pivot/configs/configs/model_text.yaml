@@ -1,0 +1,51 @@
+# CC-P3 tiny text model config.
+# Source docs: paper_context_ref/07_LATENT_ARCHITECTURE_DESIGN.md
+#              paper_context_ref/08_LOSS_REWARD_TRAINING_OBJECTIVE.md
+#              paper_context_ref/09_PLANNING_THEORY_ALGORITHM.md
+#              paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md section 17
+
+version: 1
+phase: CC-P3
+source_docs:
+  - paper_context_ref/07_LATENT_ARCHITECTURE_DESIGN.md
+  - paper_context_ref/08_LOSS_REWARD_TRAINING_OBJECTIVE.md
+  - paper_context_ref/09_PLANNING_THEORY_ALGORITHM.md
+  - paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md
+
+seed: 42
+vocab_size: 4096
+embed_dim: 64
+d_model: 128
+nhead: 4
+num_layers: 2
+dim_feedforward: 256
+dropout: 0.1
+max_seq_len: 128
+hidden_dim: 128
+z_state_dim: 32
+n_regimes: 8
+n_grammars: 8
+n_change_types: 12
+n_reveal_shift: 3
+n_effect_types: 7
+n_hypotheses: 64
+action_embed_dim: 64
+hypothesis_embed_dim: 32
+forbidden_fields:
+  - true_regime
+  - true_control_grammar
+  - true_change_point
+  - true_reveal_vs_shift
+  - true_wrong_hypothesis
+  - counterfactual_action_effects
+  - oracle_regime_action
+  - oracle_grammar_action
+  - split_id
+  - ood_type
+  - template_id
+  - seed
+  - policy_id
+model_version: "p3-tiny-v0.1"
+compute_budget: "smoke"
+ablation: null
+notes: "P3 tiny text model. ~460k params."

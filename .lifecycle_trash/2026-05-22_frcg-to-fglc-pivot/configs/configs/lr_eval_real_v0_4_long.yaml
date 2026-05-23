@@ -1,0 +1,37 @@
+# STEP 8 full long-horizon validation config.
+
+version: step8_full
+dataset_root: data/frcgw_text/v0_4
+dataset_path: data/frcgw_text/v0_4
+checkpoint_path: outputs/checkpoints/pretrain_v0_4_long/checkpoint_best.pt
+model_config: configs/model_text.yaml
+max_episodes: null
+compute_budget:
+  planning_calls_cap: 5
+  rollout_steps_cap: 10
+agents:
+  - id: FRCG-LR
+    class: TextFRCGModelAgent
+    ckpt_path: outputs/checkpoints/pretrain_v0_4_long/checkpoint_best.pt
+  - id: ABL-024
+    class: TextFRCGModelAgent
+    ablation: no_alternative_hypothesis
+    ckpt_path: outputs/checkpoints/pretrain_v0_4_long/checkpoint_best.pt
+  - id: ABL-036
+    class: TextFRCGModelAgent
+    ablation: no_compute_gate
+    ckpt_path: outputs/checkpoints/pretrain_v0_4_long/checkpoint_best.pt
+metrics:
+  - task_success_rate
+  - falsification_precision_recall
+  - ood_shift_f1
+  - regime_shift_f1
+  - threshold_free_c3_auroc
+  - progress_per_compute
+  - fair_ppc
+  - false_planning_call_rate
+splits:
+  - test_id
+  - test_ood
+seeds: [0, 1, 2, 3, 4]
+output_root: outputs/runs/p3_lr_real_eval_step8_full

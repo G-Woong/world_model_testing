@@ -1,0 +1,100 @@
+version: 1
+phase: CC-P3
+source_docs:
+  - paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md
+  - paper_context_ref/09_PLANNING_THEORY_ALGORITHM.md
+  - docs/orchestration/lr_alignment/07_eval_gate_design.md
+
+seeds: [0, 1, 2, 3, 4]
+split: text_ood_grammar
+splits:
+  - text_id
+  - text_ood_grammar
+  - text_noisy
+report_path: outputs/runs/p3_lr_eval/
+
+agents:
+  primary:
+    - id: FRCG-FULL
+      description: "FRCG-LR main path (LR falsification + decision gate + rewrite)"
+    - id: ABL-022
+      ablation_id: no_falsification_score_gate
+      description: "Remove F_t > tau_f inference gate"
+    - id: ABL-023
+      ablation_id: uncertainty_instead_of_falsification
+      description: "Replace falsification with uncertainty threshold"
+    - id: BASE-006
+      ablation_id: null
+      baseline_id: verifier_recovery
+      description: "VerifierRecoveryAgent"
+    - id: BASE-012-CATTS
+      ablation_id: null
+      baseline_id: catts_uncertainty_gate
+      description: "CATTSStyleUncertaintyGateAgent"
+    - id: BASE-026
+      ablation_id: null
+      baseline_id: wac_consequence_correction
+      description: "WACStyleConsequenceCorrectionAgent"
+    - id: BASE-027
+      ablation_id: null
+      baseline_id: cuwm_candidate_simulation
+      description: "CUWMStyleCandidateSimulationAgent"
+    - id: BASE-028
+      ablation_id: null
+      baseline_id: webworld_style_search
+      description: "WebWorldStyleSearchAgent"
+    - id: BASE-015
+      ablation_id: null
+      baseline_id: compute_matched_random
+      description: "ComputeMatchedRandomAgent"
+  secondary:
+    - id: ABL-001
+      ablation_id: no_regime
+      description: "Remove regime latent dimension"
+    - id: ABL-017
+      ablation_id: no_intent_action_mapping
+      description: "Remove L_intent_action_mapping loss"
+    - id: ABL-036
+      ablation_id: no_counterfactual_target
+      description: "Remove counterfactual supervision target"
+    - id: BASE-003+008-VLAA
+      ablation_id: null
+      baseline_id: vlaa_loop_heuristic
+      description: "VLAALoopHeuristicAgent"
+
+lr_scorer:
+  tau_f: 0.5
+  rewrite_confidence_threshold: 0.7
+
+compute_budget:
+  planning_calls_cap: 5
+  rollout_steps_cap: 10
+
+pass_criteria:
+  planning_calls_gt_0: true
+  h_exec_null_rate_lt: 1.0
+  f_t_variance_gt_0: true
+  hidden_leakage_count_eq_0: true
+  degenerate_rate_lt: 0.5
+  abl_022_result_exists: true
+  base_012_catts_result_exists: true
+  fake_metric_count_eq_0: true
+
+forbidden_fields:
+  - true_regime
+  - true_control_grammar
+  - true_change_point
+  - true_reveal_vs_shift
+  - true_wrong_hypothesis
+  - counterfactual_action_effects
+  - oracle_regime_action
+  - oracle_grammar_action
+  - oracle_best_action
+  - split_id
+  - ood_type
+  - template_id
+  - seed
+  - policy_id
+  - audit_metadata
+
+notes: "Run 6A LR evaluation gate. Pilot/core eval scope. NOT paper-accept-level evidence."

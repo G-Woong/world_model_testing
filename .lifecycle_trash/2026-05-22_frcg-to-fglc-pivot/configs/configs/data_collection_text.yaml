@@ -1,0 +1,55 @@
+# P2 data collection config for text-only symbolic environment
+# Source docs: paper_context_ref/04_TEXT_ONLY_SMOKE_TESTBED.md
+#              paper_context_ref/12_DATA_COLLECTION_METHODOLOGY_v1.md
+#              paper_context_ref/06_DATA_SCHEMA_AND_LABELING.md
+#              paper_context_ref/13_CLAUDE_CODE_EXECUTION_ROADMAP_v1.md §8
+#              paper_context_ref/14_TRD_TECHNICAL_REQUIREMENTS_DOCUMENT_v1.md §6.3
+#              paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md §17
+
+version: 1
+phase: P2
+
+dataset_version: "0.1"
+schema_version: "schema-06-v0.1"
+generator_version: "p2-text-v0.1"
+num_episodes: 200
+max_steps: 12
+seed: 73211
+output_dir: "data/frcgw_text/v0_1"
+
+policy_mixture:
+  oracle: 0.20
+  wrong_grammar: 0.25
+  retry: 0.25
+  recovery: 0.20
+  random_constrained: 0.10
+
+coverage_thresholds:
+  failed_action_ratio: 0.20
+  recovery_ratio: 0.08
+  repeated_wrong_mapping_ratio: 0.08
+  shift_ratio: 0.08
+  reveal_ratio: 0.05
+  delayed_or_noisy_or_no_op_valid_ratio: 0.03
+
+splits:
+  train: 0.70
+  valid: 0.15
+  test_id: 0.15
+
+forbidden_fields:
+  - true_regime
+  - true_control_grammar
+  - true_change_point
+  - true_reveal_vs_shift
+  - true_wrong_hypothesis
+  - counterfactual_action_effects
+  - oracle_regime_action
+  - oracle_grammar_action
+  - split_id
+  - ood_type
+  - template_id
+  - seed
+  - policy_id
+
+notes: "P2 dry-run: 200 episodes, 8 task families, 5 policy mixture."

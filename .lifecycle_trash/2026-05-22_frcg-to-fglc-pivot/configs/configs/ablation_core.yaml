@@ -1,0 +1,190 @@
+version: 1
+phase: CC-P3
+source_docs:
+  - paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md
+  - paper_context_ref/13_CLAUDE_CODE_EXECUTION_ROADMAP_v1.md
+  - paper_context_ref/14_TRD_TECHNICAL_REQUIREMENTS_DOCUMENT_v1.md
+  - paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md
+
+seeds: [0, 1, 2, 3, 4]
+split: text_ood_grammar
+splits:
+  - text_id
+  - text_ood_grammar
+  - text_noisy
+report_path: outputs/runs/p3_ablations/
+compute_budget:
+  planning_calls_cap: 5
+  rollout_steps_cap: 10
+ablations:
+  - id: no_control_grammar
+    tdd_ref: ABL-002
+    severity: CRITICAL
+    description: "Remove control-grammar head; agent uses uniform random action selection"
+    expected_collapse:
+      wrong_control_grammar_persistence: increase
+      task_success_rate_text_ood_grammar: decrease
+  - id: merged_regime_control_grammar
+    tdd_ref: ABL-003
+    severity: CRITICAL
+    description: "Merge regime and grammar representations"
+    expected_collapse:
+      task_success_rate_text_ood_grammar: decrease
+  - id: collapsed_latent
+    tdd_ref: ABL-006
+    severity: CRITICAL
+    description: "Use zero/uniform latent representation"
+    expected_collapse:
+      falsification_precision_recall_f1: decrease
+  - id: no_falsification
+    tdd_ref: ABL-016
+    severity: CRITICAL
+    description: "Remove falsification scoring; agent never detects wrong hypothesis"
+    expected_collapse:
+      falsification_precision_recall_f1: decrease
+      false_planning_call_rate: increase
+    # STEP 6 ABL-016 control evidence (registered 2026-05-18)
+    paper_ssot_id: ABL-016
+    control_checkpoint_ref: "outputs/checkpoints/pretrain_v0_3/checkpoint_best.pt"
+    training_l_falsification: 0.0
+    control_eval_run_ref: "outputs/runs/p3_lr_real_eval_step5_trained_smoke"
+    step6_experimental_group_ckpt: "outputs/checkpoints/pretrain_v0_3_falsification/checkpoint_best.pt"
+    note: "STEP 5 checkpoint is training-time ABL-016 control (l_falsification=0.0). STEP 6 experimental group uses l_falsification=1.0."
+  - id: uncertainty_instead_of_falsification
+    tdd_ref: ABL-023
+    severity: CRITICAL
+    description: "Replace falsification with uncertainty threshold"
+    expected_collapse:
+      false_planning_call_rate: increase
+  - id: no_alternative_hypothesis
+    tdd_ref: ABL-024
+    severity: CRITICAL
+    description: "No alternative hypothesis proposal; always uses current grammar"
+    expected_collapse:
+      recovery_delay: increase
+      task_success_rate: decrease
+  - id: random_alternative
+    tdd_ref: ABL-025
+    severity: standard
+    description: "Pick random alternative hypothesis instead of proposed"
+    expected_collapse:
+      recovery_delay: increase
+  - id: no_rollout
+    tdd_ref: ABL-026
+    severity: standard
+    description: "Skip rollout; use 0 rollout steps in planning"
+    expected_collapse:
+      task_success_rate: decrease
+  - id: no_rewrite
+    tdd_ref: ABL-035
+    severity: CRITICAL
+    description: "Skip action-interface rewrite"
+    expected_collapse:
+      failed_action_repetition_rate: increase
+      action_switch_delay: increase
+  - id: always_plan_no_gate
+    tdd_ref: ABL-034
+    severity: CRITICAL
+    description: "Always plan; no decision gate"
+    expected_collapse:
+      progress_per_compute: decrease
+      false_planning_call_rate: increase
+  - id: no_progress_reward
+    tdd_ref: ABL-019
+    severity: standard
+    description: "Remove progress signal from scoring"
+    expected_collapse:
+      progress_per_compute: decrease
+  - id: no_compute_gate
+    tdd_ref: ABL-033
+    severity: CRITICAL
+    description: "No compute gate; always allocate full budget"
+    expected_collapse:
+      false_planning_call_rate: increase
+      progress_per_compute: decrease
+  # Run 5 additions: C1/C2/C3/C4/C5 reviewer-attack defense
+  - id: no_regime
+    tdd_ref: ABL-001
+    severity: CRITICAL
+    description: "Remove regime latent dimension to test C2 regime/control-grammar separation. Locatello impossibility risk."
+    expected_collapse:
+      regime_shift_f1: decrease
+      recovery_delay: increase
+  - id: no_intent_action_mapping
+    tdd_ref: ABL-017
+    severity: CRITICAL
+    description: "Remove training-time L_intent_action_mapping loss (C5). Distinct from ABL-035 inference rewrite removal."
+    expected_collapse:
+      rewrite_success_rate: decrease
+      failed_repetition_rate: increase
+  - id: no_falsification_score_gate
+    tdd_ref: ABL-022
+    severity: CRITICAL
+    description: "Remove F_t > tau_f inference gate (C1+C3). Distinct from ABL-016 falsification loss removal."
+    expected_collapse:
+      falsification_precision_recall_f1: decrease
+      wrong_control_grammar_persistence: increase
+  - id: no_counterfactual_target
+    tdd_ref: ABL-036
+    severity: HIGH
+    description: "Remove counterfactual supervision target; alternative rollout fidelity degraded (C4)."
+    expected_collapse:
+      rollout_fidelity: decrease
+      alternative_adoption_rate: decrease
+  # T2 remediation 2026-05-17: 3 CRITICAL ablations added (ABL-011/015/040)
+  - id: no_action_effect_log
+    tdd_ref: ABL-011
+    severity: CRITICAL
+    description: "Remove action-effect log from agent observation; falsification loses its grounding evidence (C3). Execution deferred to STEP 5."
+    expected_collapse:
+      falsification_precision_recall_f1: decrease
+      wrong_control_grammar_persistence: increase
+  - id: no_control_grammar_loss
+    tdd_ref: ABL-015
+    severity: CRITICAL
+    description: "Remove L_control_grammar training loss; control-grammar representation untrained (C2). Distinct from ABL-017 rewrite loss. Execution deferred to STEP 5."
+    expected_collapse:
+      regime_shift_f1: decrease
+      rewrite_success_rate: decrease
+  - id: leakage_sanity_probe
+    tdd_ref: ABL-040
+    severity: CRITICAL
+    description: "Oracle label leakage sanity check: inject true_control_grammar into inference input and verify metric jumps. Confirms metric discriminability without label leakage. Execution deferred to STEP 5."
+    expected_collapse:
+      task_success_rate: increase  # metric should jump — confirms discriminability
+# STEP 7 execution metadata (2026-05-18)
+step7_execution:
+  planned_date: "2026-05-18"
+  inference_time_ablations:
+    - ABL-006
+    - ABL-011
+    - ABL-017
+    - ABL-022
+    - ABL-023
+    - ABL-024
+    - ABL-033
+    - ABL-034
+    - ABL-035
+    - ABL-036
+  positive_control_isolated:
+    - ABL-040
+  deferred_to_step8_faithful_retrain:
+    - ABL-001
+    - ABL-003
+    - ABL-015
+  note: "ABL-001/003/015 are training-time ablations. STEP 7 only runs inference-time ablations."
+forbidden_fields:
+  - true_regime
+  - true_control_grammar
+  - true_change_point
+  - true_reveal_vs_shift
+  - true_wrong_hypothesis
+  - counterfactual_action_effects
+  - oracle_regime_action
+  - oracle_grammar_action
+  - split_id
+  - ood_type
+  - template_id
+  - seed
+  - policy_id
+notes: "CC-P3 ablation config. CRITICAL ablations must show expected_collapse; else claim blocked."

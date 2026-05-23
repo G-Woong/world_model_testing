@@ -1,0 +1,43 @@
+# .self_evolving_memory/index.yaml
+# machine-readable master pointer
+# generated: 2026-05-17 (Phase 1 skeleton)
+
+schema_version: "1.0.0"
+phase: "Phase 2 — stop hook dry-run connected"
+
+pointers:
+  errors: errors/error_memory.yaml
+  decisions: decisions/decision_memory.yaml
+  active_direction: directions/active_direction.md
+  parking_lot: directions/parking_lot.md
+  successful_patterns: patterns/successful_patterns.md
+  anti_patterns: patterns/anti_patterns.md
+  hook_log: hooks/hook_execution_log.md
+  run_summaries_dir: run_summaries/
+  latest_lifecycle_audit: ../outputs/lifecycle/latest_stop_hook_audit.md
+  lifecycle_engine_audit: ../outputs/lifecycle/latest_audit.md
+  latest_trash_preview: ../outputs/lifecycle/latest_trash_preview.md
+  latest_cache_cleanup_preview: ../outputs/lifecycle/latest_cache_cleanup_preview.md
+  error_memory: errors/error_memory.yaml
+  recurring_errors: errors/recurring_errors.md
+
+current_state:
+  branch: memory-redesign-2026-05-16
+  phase_gate: P3_EVAL
+  gate_status: "BLOCKED: planning_calls_zero"
+  open_blocker: "C3 LR claim — planning_rate=0.0 in P3 eval run"
+  lifecycle_phase: "Phase 5 (archive sweep enabled)"
+  phase2_status: "stop_lifecycle_automation hook wired; auto-trash NOT enabled"
+  phase3_status: "lifecycle_trash_v2.py + restore + memory_promote deployed (dry-run in hook)"
+  phase4_status: "safe_apply_enabled"
+  phase5_status: "archive_sweep_enabled"
+  stop_hook_mode: "changed_scope_safe_apply_and_archive"
+  auto_apply_allowed_classes:
+    - "AUTO_SAFE_CACHE"
+    - "AUTO_SAFE_TEMP"
+    - "ARCHIVE_READY"
+  auto_apply_forbidden_classes:
+    - "PROTECTED"
+    - "MANUAL_ONLY"
+    - "UNKNOWN"
+  next_milestone: "C3 LR falsification blocker 해소 (P3 gate 재평가)"

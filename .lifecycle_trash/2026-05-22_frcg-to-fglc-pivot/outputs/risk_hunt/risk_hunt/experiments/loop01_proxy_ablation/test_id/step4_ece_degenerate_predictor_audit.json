@@ -1,0 +1,8 @@
+{
+  "n_steps": 568,
+  "variance_wrong_prob": 0.046784402996237165,
+  "unique_wrong_prob_count": 202,
+  "mean_wrong_prob": 0.4725067676689584,
+  "mean_f_t": -0.1826380927797774,
+  "C5_calibration_status": "DEGENERATE_PREDICTOR"
+}

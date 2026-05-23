@@ -1,0 +1,186 @@
+{
+  "splits": [
+    {
+      "split": "test_id",
+      "metrics_path": "outputs/risk_hunt/experiments/loop01_proxy_ablation/test_id/metrics.json",
+      "manifest_path": "outputs/risk_hunt/experiments/loop01_proxy_ablation/test_id/manifest.json",
+      "manifest": {
+        "run_mode": "real_episode_eval",
+        "created_at_utc": "2026-05-19T01:05:06.021511+00:00",
+        "git_sha": "bab31db474538de97b28dd9424fc13fa19ef31a2",
+        "split": "test_id",
+        "seeds": [
+          0
+        ],
+        "source_artifacts_used": [
+          "data/frcgw_text/v0_4/test_id.jsonl"
+        ],
+        "forbidden_source_artifacts": [],
+        "forbidden_source_assertion": "none_read",
+        "random_init_ok": true,
+        "ckpt_paths_all_provided": true,
+        "valid_trained_eval": true,
+        "hard_checks_all_pass": true,
+        "C5_calibration_status": "DEGENERATE_PREDICTOR",
+        "dataset_audit": {
+          "hypothesis_update_timestamp_coverage": 0.7477148080438757,
+          "recovery_timestamp_coverage": 0.6654478976234004,
+          "selected_hypothesis_confidence_coverage": 1.0,
+          "counterfactual_coverage": 1.0,
+          "ood_split_exists": true,
+          "total_episodes_sampled": 100
+        },
+        "fake_metric_count": 0,
+        "blocked_metric_count": 8
+      },
+      "metrics": {
+        "run_mode": "real_episode_eval",
+        "agents": {
+          "FRCG-LR-proxy-on": {
+            "task_success_rate": {
+              "value": null,
+              "status": "OK"
+            },
+            "normalized_return": {
+              "value": null,
+              "status": "OK"
+            },
+            "C3_falsification_precision": {
+              "value": 0.4931506849315068,
+              "status": "OK"
+            },
+            "C3_falsification_recall": {
+              "value": 0.7058823529411765,
+              "status": "OK"
+            },
+            "C3_falsification_f1": {
+              "value": 0.5806451612903226,
+              "status": "OK"
+            },
+            "C6_progress_per_compute": {
+              "value": 0.1926056338028169,
+              "status": "OK"
+            },
+            "false_planning_call_rate": {
+              "value": null,
+              "status": "OK"
+            },
+            "failed_action_repetition_rate": {
+              "value": null,
+              "status": "OK"
+            },
+            "action_switch_delay": {
+              "value": null,
+              "status": "OK"
+            },
+            "C1_persistence": {
+              "value": null,
+              "status": "OK"
+            },
+            "C3_recovery_delay": {
+              "value": null,
+              "status": "OK"
+            },
+            "C5_calibration_ece": {
+              "value": null,
+              "status": "BLOCKED_DEGENERATE_PREDICTOR"
+            },
+            "C4_rollout_fidelity": {
+              "value": null,
+              "status": "BLOCKED_no_model_rollout_prediction"
+            },
+            "C4_alternative_adoption_rate": {
+              "value": null,
+              "status": "BLOCKED_counterfactual_metric_not_implemented"
+            },
+            "C2_regime_split": {
+              "value": null,
+              "status": "BLOCKED_regime_shift_f1_not_in_metrics_config"
+            }
+          },
+          "FRCG-LR-proxy-off": {
+            "task_success_rate": {
+              "value": null,
+              "status": "OK"
+            },
+            "normalized_return": {
+              "value": null,
+              "status": "OK"
+            },
+            "C3_falsification_precision": {
+              "value": 0.0,
+              "status": "OK"
+            },
+            "C3_falsification_recall": {
+              "value": 0.0,
+              "status": "OK"
+            },
+            "C3_falsification_f1": {
+              "value": 0.0,
+              "status": "OK"
+            },
+            "C6_progress_per_compute": {
+              "value": 0.1926056338028169,
+              "status": "OK"
+            },
+            "false_planning_call_rate": {
+              "value": null,
+              "status": "OK"
+            },
+            "failed_action_repetition_rate": {
+              "value": null,
+              "status": "OK"
+            },
+            "action_switch_delay": {
+              "value": null,
+              "status": "OK"
+            },
+            "C1_persistence": {
+              "value": null,
+              "status": "OK"
+            },
+            "C3_recovery_delay": {
+              "value": null,
+              "status": "OK"
+            },
+            "C5_calibration_ece": {
+              "value": null,
+              "status": "BLOCKED_DEGENERATE_PREDICTOR"
+            },
+            "C4_rollout_fidelity": {
+              "value": null,
+              "status": "BLOCKED_no_model_rollout_prediction"
+            },
+            "C4_alternative_adoption_rate": {
+              "value": null,
+              "status": "BLOCKED_counterfactual_metric_not_implemented"
+            },
+            "C2_regime_split": {
+              "value": null,
+              "status": "BLOCKED_regime_shift_f1_not_in_metrics_config"
+            }
+          }
+        },
+        "dataset_audit": {
+          "hypothesis_update_timestamp_coverage": 0.7477148080438757,
+          "recovery_timestamp_coverage": 0.6654478976234004,
+          "selected_hypothesis_confidence_coverage": 1.0,
+          "counterfactual_coverage": 1.0,
+          "ood_split_exists": true,
+          "total_episodes_sampled": 100
+        },
+        "fake_metric_count": 0,
+        "blocked_metric_count": 8,
+        "C5_calibration_status": "DEGENERATE_PREDICTOR",
+        "C5_calibration_audit": {
+          "n_steps": 568,
+          "variance_wrong_prob": 0.046784402996237165,
+          "unique_wrong_prob_count": 202,
+          "mean_wrong_prob": 0.4725067676689584,
+          "mean_f_t": -0.1826380927797774,
+          "C5_calibration_status": "DEGENERATE_PREDICTOR"
+        }
+      }
+    }
+  ]
+}

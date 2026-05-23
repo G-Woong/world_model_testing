@@ -1,0 +1,56 @@
+version: 1
+phase: CC-P3
+source_docs:
+  - paper_context_ref/10_EVALUATION_BASELINE_ABLATION.md
+  - paper_context_ref/11_MODEL_DATASET_SCALE_AND_TRAINING_BUDGET_v1.md
+  - paper_context_ref/13_CLAUDE_CODE_EXECUTION_ROADMAP_v1.md
+  - paper_context_ref/14_TRD_TECHNICAL_REQUIREMENTS_DOCUMENT_v1.md
+  - paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md
+
+seeds: [0, 1, 2, 3, 4]
+model_ckpt: null
+split: text_id
+splits:
+  - text_id
+  - text_ood_grammar
+  - text_noisy
+metrics:
+  - task_success_rate
+  - normalized_return
+  - wrong_control_grammar_persistence
+  - failed_action_repetition_rate
+  - recovery_delay
+  - falsification_precision_recall
+  - falsification_calibration
+  - progress_per_compute
+  - false_planning_call_rate
+  - action_switch_delay
+baselines:
+  - FrozenBaseAgent
+  - ReactiveAgent
+  - RetryAfterFailureAgent
+  - VerifierOnlyAgent
+  - NextStateWMOnlyAgent
+  - AlwaysPlanAgent
+  - UncertaintyGatedAgent
+  - RandomAlternativePlannerAgent
+compute_budget:
+  planning_calls_cap: 5
+  rollout_steps_cap: 10
+  max_candidates_per_call: 4
+report_path: outputs/runs/p3_eval/
+forbidden_fields:
+  - true_regime
+  - true_control_grammar
+  - true_change_point
+  - true_reveal_vs_shift
+  - true_wrong_hypothesis
+  - counterfactual_action_effects
+  - oracle_regime_action
+  - oracle_grammar_action
+  - split_id
+  - ood_type
+  - template_id
+  - seed
+  - policy_id
+notes: "CC-P3 eval config. Thresholds from 04.md:500~510 are reference only, not hard gates."

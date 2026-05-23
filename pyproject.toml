@@ -3,15 +3,29 @@ requires = ["setuptools>=42"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "frcgw"
-version = "0.0.0"
-description = "FRCG-WM: falsification-guided control-grammar world model for Web/GUI agents (research scaffold P0)"
+name = "fglc"
+version = "0.1.0"
+description = "FGLC: Falsification-Guided Latent Correction for Robotics World Models"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "torch>=2.1",
+    "torchvision",
+    "torchaudio",
+    "gymnasium>=0.29",
+    "numpy>=1.24",
+    "h5py>=3.9",
+    "hydra-core>=1.3",
+    "omegaconf>=2.3",
+]
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+dev = ["pytest>=7", "pyflakes"]
+maniskill = ["mani-skill>=3.0.0b18", "sapien>=3.0.0"]
+rl = ["mujoco>=3.0"]
+logging = ["wandb>=0.16"]
+causal = ["entmax"]
+rlds = ["tensorflow-datasets>=4.9"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

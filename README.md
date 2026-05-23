@@ -1,69 +1,55 @@
-# FRCG-WM
+# FGLC
 
-**FRCG-WM: falsification-guided control-grammar world model for Web/GUI agents (research scaffold P0).**
+**FGLC: Falsification-Guided Latent Correction for Robotics World Models**
+(허위 검증 유도 잠재 공간 보정 기반 로봇공학 세계 모델)
 
-This is not a generic Web/GUI world model.
-The target is falsification-guided planning:
-action-effect evidence → current hypothesis falsification → alternative control-grammar hypothesis → short rollout → decision-relevant compute gate → action-interface rewrite.
-
----
-
-## First Rule
-
-> **Read `paper_context_ref/00_CONTEXT_INDEX.md` before any task.**
-
-Then read only the specific MD files routed by that index.
+일반적인 로봇공학 world model이 아닙니다.
+대상은 falsification-guided latent correction입니다:
+표준화된 예측 불일치 → dynamics 가설 위반 감지(falsification)
+→ 그룹화된 잠재 하위공간에 대한 causal attention → sparse residual correction
+→ necessity/sufficiency 검증 → robust MPC planning.
 
 ---
 
-## Required Execution Order
+## 핵심 수식
 
 ```
-1. docs/scaffold
-2. schema and visibility tests
-3. text-only data
-4. text-only model and ablations
-5. synthetic GUI MVE data
-6. frozen VLM MVE
-7. compute-matched baselines and ablations
-8. paper-main planning only after gates pass
+pθ(z_{t+1}|z_t,a_t,h_t) = N(μ_t, Σ_t)
+ρ_t = Σ_t^{-1/2}(z_{t+1} − μ_t)          [표준화된 예측 불일치]
+β_t = FalsificationGate(ρ_t, h_t)          [보정된 β gate]
+α_t = CausalAttention(ρ_t, z_t, a_t, ∇Q)  [sparse, value-aware]
+μ̃_t^k = μ_t^k + β_t α_t^k δ_t^k         [그룹화된 latent correction]
 ```
 
-Do not jump to the impressive part.
+## 현재 상태
 
----
+- R0: ✅ 계약 초기화 완료 (FRCG-WM → FGLC 피벗)
+- R1..R16: 진행 예정 (`docs/ROADMAP/00_ROADMAP_OVERVIEW.md` 참조)
 
-## Forbidden Assumptions
+## 패키지
 
-- **hidden label leakage**: `true_regime`, `true_control_grammar`, `true_change_point`, etc. are never inference inputs.
-- **success-rate-only evaluation**: mechanism metrics (persistence, recovery delay, falsification PR) are required.
-- **generic Web/GUI world model novelty**: this paper targets wrong-control-grammar persistence, not generic WM.
-- **7B-first training**: text-only and MVE gates must pass before paper-main VLM training.
-- **fake empirical results**: all reported numbers must come from real run artifacts.
-
----
-
-## Install
-
-```bash
-pip install -e ".[dev]"
-pytest -q
+```python
+import fglc  # src/fglc/ (스텁 — 전체 구현은 R1+ 이후)
 ```
 
----
+## 문서
 
-## Context Router
+- 아키텍처: `docs/main/main.md`
+- 방법론 조사: `docs/main/deep-research-report.md`
+- 아이디어 단위 (44개 원자): `docs/idea/00_OVERVIEW.md`
+- 로드맵 (R0..R16): `docs/ROADMAP/00_ROADMAP_OVERVIEW.md`
 
-| File | Role |
-|---|---|
-| `paper_context_ref/00_CONTEXT_INDEX.md` | **Start here** — routes to correct docs |
-| `paper_context_ref/13_CLAUDE_CODE_EXECUTION_ROADMAP_v1.md` | Phase order, gates, commands |
-| `paper_context_ref/14_TRD_TECHNICAL_REQUIREMENTS_DOCUMENT_v1.md` | MUST/SHOULD requirements |
-| `paper_context_ref/15_TDD_TECHNICAL_DESIGN_DOCUMENT_v1.md` | Module design and interfaces |
-| `docs/README.md` | Operational docs router |
+## 알고리즘
 
----
+| 알고리즘 | 우선순위 | 핵심 메커니즘 |
+|---|---|---|
+| CIRCA | 1 | 무작위 Bernoulli gate + conformal + α-distill + robust MPC |
+| I3G | 2 | iVAE + ICP/anchor + SPCI gate + sparse group gates |
+| ASAP | 3 | Top-k 제안 + MC 개입적 ASV + α-distill |
+| IVI | 4 | Influence 순위 + 무작위 knockout + sparse α-distill |
 
-## License / Citation
+## 벤치마크
 
-TBD
+**환경**: ManiSkill PickCube/PushCube/LiftCube (state-only → RGB-D)
+**OOD 축**: mass × {0.5,1,2} / friction × {0.5,1,2} / latency / noise / action-gain
+**전이 검증**: robosuite, DROID, BridgeData V2

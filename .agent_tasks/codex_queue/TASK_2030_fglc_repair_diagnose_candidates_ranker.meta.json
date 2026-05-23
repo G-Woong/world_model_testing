@@ -1,0 +1,8 @@
+﻿{
+    "task_number":  2030,
+    "task_name":  "fglc_repair_diagnose_candidates_ranker",
+    "task_file":  ".agent_tasks/codex_queue/TASK_2030_fglc_repair_diagnose_candidates_ranker.md",
+    "base_sha":  "4165d85b9ea949252a0daad512d195fa6e52dff3",
+    "assigned_at":  "2026-05-23T16:38:41Z",
+    "assigned_by":  "claude"
+}

@@ -1,0 +1,8 @@
+﻿{
+    "task_number":  2029,
+    "task_name":  "fglc_repair_compare_ledger",
+    "task_file":  ".agent_tasks/codex_queue/TASK_2029_fglc_repair_compare_ledger.md",
+    "base_sha":  "f0fd209e10a5db9cb1fedb2b69c75e529c56a188",
+    "assigned_at":  "2026-05-23T16:03:21Z",
+    "assigned_by":  "claude"
+}
