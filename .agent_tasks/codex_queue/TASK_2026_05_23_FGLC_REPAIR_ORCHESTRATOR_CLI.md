@@ -59,7 +59,7 @@ FILES_ALLOWED:
   - tests/test_fglc_repair_loop_cli.py
   - src/fglc/repair/__init__.py
   - .gitignore
-  - .agent_tasks/codex_done/TASK_2031_fglc_repair_orchestrator_cli_RESULT.md
+  - .agent_tasks/codex_done/TASK_2026_05_23_fglc_repair_orchestrator_cli_RESULT.md
 
 FILES_FORBIDDEN:
   - src/fglc/repair/taxonomy.py
