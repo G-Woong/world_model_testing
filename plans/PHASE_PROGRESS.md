@@ -29,3 +29,9 @@
 ## Override History
 
 없음.
+- 2026-05-23T19:54:58Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-23_precompact_handoff.md
+- 2026-05-23T20:08:54Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-23_precompact_handoff.md
+- 2026-05-23T22:03:42Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-23_precompact_handoff.md
+- 2026-05-23T22:45:36Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-23_precompact_handoff.md
+- 2026-05-23T22:57:30Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-23_precompact_handoff.md
+- 2026-05-23T23:48:28Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-23_precompact_handoff.md

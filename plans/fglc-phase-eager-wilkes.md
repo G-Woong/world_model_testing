@@ -1,686 +1,622 @@
-# Step 7 — FGLC Repair diagnose.py + candidates.py + ranker.py (Codex 위임 PLAN, 2026-05-23)
+# Step 9.5 — CD-1 + CD-9 Patch + Doc Revision PLAN (2026-05-23)
 
-> **Status**: PLAN ONLY. ExitPlanMode 승인 후 execute 단계에서 Codex TASK enqueue + 실행 + 검증을 수행.
-> **Branch**: memory-redesign-2026-05-16 (main Claude) / codex-work (Codex worktree)
-> **Prior commit**: `1649d73` (Step 6 merge — compare/ledger), main HEAD `4165d85` (auto-commit). codex-work HEAD `6ef1795` — ff-merge로 main과 동기화 필요.
-> **현재 task**: Step 7 — `src/fglc/repair/diagnose.py` + `src/fglc/repair/candidates.py` + `src/fglc/repair/ranker.py` + 양쪽 테스트 구현을 Codex(gpt-5.5)에 위임
-
----
-
-## Context — 왜 이 변경인가
-
-`docs/EXPERIMENT_REPAIR_LOOP_PLAN.md` §G Step 7은 closed-loop repair harness의 **결정 직전 단계**를 정의한다:
-
-```
-metrics → diagnose() → [cause-id, ...]
-       → candidates_for(causes, phase) → [RepairCandidate, ...]
-       → rank(candidates) → [RankedCandidate, ...]
-       → orchestrator picks rank=1 → Step 8 patch + rerun
-```
-
-- §D.2 (observation → cause list 매핑 7행) 와 §D.3 (cause → cheapest-first candidate 매핑 7행) 가 verbatim 표로 존재.
-- Step 6의 `compare_metrics()`가 산출한 deltas/result는 ledger line의 일부 키와 1:1 정합되었듯이, Step 7의 세 모듈 출력은 ledger line의 `diagnosed_cause` (list), `candidate_chosen` (dict), `candidate_rank_score` (float) 와 1:1 정합되어야 한다.
-- 세 모듈을 분리 TASK로 발주하면 cause-id ↔ patch dict ↔ score 키 스펙이 어긋날 위험 + 세 번의 6-gatekeeper 라운드 = 3× 오버헤드. round-trip 통합 테스트(diagnose→candidates→ranker)는 한 TASK 안에서만 가능. → **단일 TASK** (사용자 결정).
-
-Codex 위임 트리거(`.claude/rules/codex_orchestration_rules.md` §Codex 호출 트리거):
-- (a) 3개 이상 파일 동시 수정 (실제 6 src/test 파일)
-- (b) 테스트 작성 + 구현 동반
-- (d) repair-loop 데이터/평가 파이프라인 구현
-
-Step 5/6과 동일하게 새 모듈 추가 → **T3 트리거 의무** (`implementation-risk-critic`, compact mode).
+> **Status**: PLAN ONLY. ExitPlanMode 승인 후 execute 단계에서 Codex TASK enqueue → run → verify → accept/abort → Main Claude doc 수정 → 임시 파일 삭제 → 7 시나리오 재검증.
+> **Branch**: memory-redesign-2026-05-16
+> **Prior commit**: `5170885` (Step 8 merge — 65 passed)
+> **Prior phase**: Step 9 STEP9_PATCH_REQUIRED 판정 (`docs/STEP9_DRY_RUN_REPAIR_LOOP_REPORT.md` §8)
+> **현재 task**: Step 9 검증에서 발견한 CD-1(ledger path) + CD-9(loop_id collision)를 Codex로 패치하고, CD-6/CD-7 doc 수정과 step9_validate.py 정리를 Main Claude가 동반 처리.
 
 ---
 
-## A. 모듈 scope 결정 (좁히기)
+## Context — 왜 이 패치가 필요한가
 
-### A.1 `diagnose.py`가 *제공*하는 것
+Step 9 검증에서 9개 계약 불일치(CD-1~CD-9)가 식별되었고, 단독 사유 **CD-1(ledger_path가 `{loop_id}/ledger.jsonl` 디렉터리가 아닌 `{loop_id}.jsonl` flat 파일)** 때문에 STEP9_PATCH_REQUIRED 판정이 났다. Step 10(R3 base WM smoke real run) 진입을 차단하는 사유이므로 본 Step 9.5에서 해소해야 한다.
 
-| 항목 | 형태 |
-|---|---|
-| `diagnose(metrics: Mapping[str, float], phase: str) -> list[FailureCauseId]` | pure function. SSoT §D.2의 7개 점화 함수를 묶어 cause-id list 반환. |
-| `CANONICAL_METRIC_KEYS: frozenset[str]` | 정규 metric 키 목록 (모듈 상수). 11~14개 키 (id_nll, ood_auroc, corrected_nll_gain, attention_entropy, correction_norm_mean, planner_return_gain, val_train_nll_gap, ood_id_nll_diff, beta_mean, ece, stagnant_epochs, log_k, kstep_nll_slope, train_nll). |
-| `_fire_*` 점화 함수 7개 | §D.2 7행 1:1 — `_fire_id_nll`, `_fire_ood_auroc`, `_fire_corrected_gain`, `_fire_attention`, `_fire_correction_weak`, `_fire_correction_large`, `_fire_planner`. 각 함수는 `metrics.get(...)` 으로 누락 key silent skip. |
-| 결과 순서·dedup | SSoT §D.2 행 순서 유지 + 동일 cause-id 중복 제거. `applicable_phases_for(phase)`로 phase 부적합 cause 필터. |
-| Fallback | 모든 점화 함수가 빈 list 반환 + `FailureCauseId.IMPLEMENTATION_BUG_SUSPECTED in applicable_phases_for(phase)` → `[IMPLEMENTATION_BUG_SUSPECTED]` 반환 (사용자 결정 #2). |
+또한 Step 9 dry-run에서 신규 발견된 **CD-9(loop_id 초 단위 정밀도로 동시 실행 시 collision)** 도 함께 처리하면 Step 10 real run에서 동시 run 안정성을 미리 확보할 수 있다. STEP9_PATCH_PLAN.md §1에서 CD-1과 CD-9 패치를 동반하도록 이미 권장되어 있다.
 
-### A.2 `diagnose.py`가 **제공하지 않는** 것
+CD-6(LEDGER_SCHEMA.md Optional Fields 섹션) + CD-7(`--max-wall-clock` typo)은 doc 수정만 필요하므로 Codex 위임 없이 Main Claude가 직접 처리한다. step9_validate.py 임시 파일은 untracked 상태로 남아 있어 git 영향은 없으나 정리한다.
 
-| 항목 | 위임 Step |
-|---|---|
-| metric 수집/측정 | Step 9~10 (train/eval runner) |
-| cause → candidate 매핑 | A.3 `candidates.py` |
-| ranking | A.5 `ranker.py` |
-| ledger write | Step 8 orchestrator |
-| `IMPLEMENTATION_BUG_SUSPECTED` blocker report 생성 | Step 8 orchestrator |
-
-### A.3 `candidates.py`가 *제공*하는 것
-
-| 항목 | 형태 |
-|---|---|
-| `@dataclass(frozen=True) class RepairCandidate` | `id: str`, `cause_id: FailureCauseId`, `patch: Mapping[str, Any]` (inline dict), `cost_minutes: int` (>0), `risk: float` ([0,1]), `expected_signal: float` ([0,1]), `description: str`, `applicable_phases: tuple[str, ...]`. |
-| `CANDIDATE_TABLE: dict[FailureCauseId, tuple[RepairCandidate, ...]]` | SSoT §D.3 cheapest-first 7행 × ~4 candidate ≈ 25~30개 hard-code 후보. cost/risk/signal 추정치는 heuristic (docstring에 "calibration in Step 8 orchestrator" 명시). |
-| `candidates_for(causes: Sequence[FailureCauseId], phase: str) -> list[RepairCandidate]` | input cause-id list × CANDIDATE_TABLE → candidate list. `applicable_phases` filter 적용 + cause-id 중복 제거. |
-| Candidate id 규약 | `<CAUSE_ID>_<short_slug>` (예: `MODEL_UNDERCAPACITY_h_dim_256`). slug regex `[a-z0-9_]{2,40}`. |
-| patch 표현 | **Inline dict** (예: `{"hidden_dim": 256}`). `configs/` 디렉터리에 새 파일 생성 금지(FILES_FORBIDDEN). Step 8 orchestrator가 base config에 deep-merge. |
-| `IMPLEMENTATION_BUG_SUSPECTED` 처리 | patch=`{"action": "manual_blocker_report"}` sentinel, cost=1, risk=0, signal=0 (cost>0 강제로 ranker 검증 통과). |
-
-### A.4 `candidates.py`가 **제공하지 않는** 것
-
-| 항목 | 위임 Step |
-|---|---|
-| patch dict의 key를 실제 config schema와 검증 | Step 8 orchestrator (Step 7 테스트는 dict shape만 검사) |
-| YAML 파일 로딩 | configs/ FORBIDDEN — Step 8 orchestrator |
-| 동적 candidate 생성 (LLM 등) | 명시적 미구현 |
-
-### A.5 `ranker.py`가 *제공*하는 것
-
-| 항목 | 형태 |
-|---|---|
-| `@dataclass(frozen=True) class RankedCandidate` | `candidate: RepairCandidate`, `rank: int` (1-based), `score: float` ([0,1]). |
-| `rank(candidates: Sequence[RepairCandidate]) -> list[RankedCandidate]` | sort key = `(cost_minutes asc, risk asc, -expected_signal, id asc)`. rank=1이 best. score=`(n-rank)/max(1,n-1)` 정규화, n=1일 때 score=1.0. (사용자 결정 #1.) |
-| 입력 검증 | `cost_minutes <= 0` → `ValueError`. `risk ∉ [0,1]` → `ValueError`. `expected_signal ∉ [0,1]` → `ValueError`. |
-| edge case | empty → empty. n=1 → score=1.0. |
-
-### A.6 결정 사항 확정 (사용자 + Plan agent)
-
-1. **Ranker 공식 = Lexicographic + 정규화** (사용자 결정 1). sort key `(cost asc, risk asc, -signal, id asc)`; score `(n-rank)/max(1,n-1)`.
-2. **diagnose 누락 metric = Silent skip + IMPLEMENTATION_BUG_SUSPECTED fallback** (사용자 결정 2). `metrics.get()` 사용. 모든 점화 함수 빈 결과 + IMPLEMENTATION_BUG_SUSPECTED phase 허용 시 fallback.
-3. **단일 TASK 묶음** (사용자 결정 3). 6 src/test 파일 + RESULT.md = 7 파일 단일 commit.
-4. **Candidate id 규약** = `<CAUSE_ID>_<slug>` (Plan agent 권장).
-5. **Patch 표현** = inline dict (Plan agent 권장, configs/ FORBIDDEN 제약).
-6. **CANDIDATE_TABLE 25~30개 candidate hard-code** (Plan agent 권장). cost/risk/signal heuristic, docstring 명시.
-
-### A.7 파일 간 의존 그래프
-
-```
-diagnose.py    --- imports taxonomy.py (FailureCauseId, applicable_phases_for) → stdlib only otherwise
-candidates.py  --- imports taxonomy.py (FailureCauseId) → stdlib only otherwise
-ranker.py      --- imports candidates.py (RepairCandidate) → stdlib only otherwise
-tests/test_fglc_repair_diagnose.py    --- imports diagnose only
-tests/test_fglc_repair_candidates.py  --- imports candidates only
-tests/test_fglc_repair_ranker.py      --- imports candidates + ranker (round-trip dataclass usage)
-```
-
-**compare.py / ledger.py 직접 import 안 함** — diagnose/candidates/ranker는 ledger line의 일부 키를 채울 뿐, 직접 ledger write는 Step 8 orchestrator 담당. `__init__.py` 갱신 없음 (Step 6과 동일 정책).
-
-### A.8 SSoT 매핑 표 (Codex TASK 명세에 verbatim 포함)
-
-#### §D.2 diagnose 점화 규칙
-| observation | cause-id list (SSoT 순서) |
-|---|---|
-| ID NLL 높음 | MODEL_UNDERCAPACITY, DATA_TOO_SMALL, HORIZON_TOO_SHORT, LOSS_IMBALANCE |
-| OOD AUROC 낮음 | SIGMA_CALIBRATION_FAILURE, BETA_GATE_COLLAPSE, OOD_TOO_EASY, DATA_BAD_SPLIT |
-| corrected NLL > uncorrected NLL | CORRECTION_TOO_LARGE, ATTENTION_COLLAPSE, LOSS_IMBALANCE |
-| attention entropy 과다 (uniform 또는 collapse) | ATTENTION_COLLAPSE |
-| correction norm ≈ 0 | CORRECTION_TOO_WEAK, BETA_GATE_COLLAPSE |
-| correction norm 과다 (bound hit ratio 높음) | CORRECTION_TOO_LARGE |
-| planner return 개선 없음 | PLANNER_BUDGET_TOO_LOW, HORIZON_TOO_LONG, IMPLEMENTATION_BUG_SUSPECTED |
-
-#### §D.3 cause → candidate cheapest-first
-| cause group | candidate (cheapest first) |
-|---|---|
-| ID NLL | `h_dim 128→256` / `episode ×2` / `horizon 8→16` / `weights 재정렬` |
-| OOD AUROC | `L_cal 추가` / `β reparam` / `OOD shift 강화` / `split 재생성` |
-| corrected NLL | `δ_max 0.25→0.1` / `entmax/sparsemax` / `corrected_loss_weight ↓` / `base WM freeze` |
-| attention entropy | `entmax-alpha 1.5` / `top-k mask k=2` / `sparsity penalty` |
-| δ ≈ 0 | `δ head init scale ↑` / `corrected loss weight ↑` / `β prior scale 재설정` |
-| δ 과다 | `δ_max ↓` / `L_corr_size ↑` / `base WM freeze` |
-| planner return | `n_candidate ↑` / `horizon 5→3` / `reward/value head 재학습` / `rollout error 재측정` |
+CD-2(per-iter artifact 4종), CD-3(gate_threshold field), CD-4(id_nll gate 0.4→0.5), CD-5(--dry-run help text), CD-8(smoke_4060.yaml hyperparam)는 본 Step 9.5에서 제외한다(이전 결정 — CD-2/CD-8은 Step 10 real run에서 자연스럽게 동반 패치, CD-3/CD-4/CD-5는 LOW 우선순위).
 
 ---
 
-## B. TASK 파일 명세 (Codex 입력)
+## A. Step 9.5 목적
 
-### B.1 TASK 파일 경로
+1. **CD-1 패치**: `src/fglc/repair/orchestrator.py:229-230`와 `scripts/fglc/repair_loop.py:155-157`의 ledger_path를 `outputs/repair/{loop_id}/ledger.jsonl` 디렉터리 구조로 변경. 연관 테스트 수정.
+2. **CD-9 패치**: `src/fglc/repair/ledger.py::build_loop_id()`에 `uuid.uuid4().hex[:4]` suffix 추가 (`loop_YYYY-MM-DDTHH-MM-SS-{4hex}`). collision 위험 제거.
+3. **CD-6 doc 수정 (Main Claude)**: `docs/EXPERIMENT_LEDGER_SCHEMA.md`에 "Optional Fields" 섹션 추가. REQUIRED_KEYS 외 예시 필드(`oom_fallbacks_applied`, `candidate_*`, `epsilon_*`, `early_stop_*`, `result_reason`, `notes`, `gate_threshold`)를 분리.
+4. **CD-7 doc 수정 (Main Claude)**: `docs/ROADMAP/4060_SMOKE_REPAIR_PATH.md` L151 `--max-wall-clock 240` → `--max-wall-clock-minutes 240` typo 수정.
+5. **임시 파일 정리**: `step9_validate.py` 삭제 (필요 시 user-mode 권한으로 재시도).
+6. **재검증**: 회귀 테스트 65+ passed 유지, Step 9 D.1 dry-run 7 시나리오 전체 재실행, 디렉터리 구조 검증, ledger 19 REQUIRED_KEYS 통과.
+7. **판정**: STEP9.5_PASS / STEP9.5_PATCH_FAILED. PASS 시 Step 10 진입 허가.
+
+**비목적 (이 Step에서 안 함)**:
+- CD-2 per-iter artifact 4종 생성 → Step 10 R3 runner 작성 시 동반 구현
+- CD-3 gate_threshold ledger field → LEDGER_SCHEMA.md REQUIRED_KEYS 자체 정합 필요, defer
+- CD-4 id_nll gate 0.4→0.5 → Step 10 R3 실측 후 재조정
+- CD-5 --dry-run help text → Step 10에서 real-run mode 분리 시 동시 처리
+- CD-8 smoke_4060.yaml K/h_dim/batch 권장값 → Step 10 진입 직전
+- R3 encoder/dynamics/heads 구현 → Step 10 별도 plan
+- 실제 ManiSkill 학습 실행
+- phase gate sentinel 생성
+
+---
+
+## B. CD-1 패치 명세 (Codex TASK_2032 위임)
+
+### B.1 변경 위치 1: `src/fglc/repair/orchestrator.py:229-230`
+
+**현재**:
+```python
+ledger_path = cfg.output_root / f"{loop_id}.jsonl"
+cfg.output_root.mkdir(parents=True, exist_ok=True)
+```
+
+**변경 후**:
+```python
+loop_dir = cfg.output_root / loop_id
+loop_dir.mkdir(parents=True, exist_ok=True)
+ledger_path = loop_dir / "ledger.jsonl"
+```
+
+### B.2 변경 위치 2: `scripts/fglc/repair_loop.py:155-157`
+
+**현재**:
+```python
+"ledger_path": str(
+    cfg.output_root / f"{final.ledger_line['loop_id']}.jsonl"
+),
+```
+
+**변경 후**:
+```python
+"ledger_path": str(
+    cfg.output_root / final.ledger_line["loop_id"] / "ledger.jsonl"
+),
+```
+
+### B.3 변경 위치 3: `tests/test_fglc_repair_orchestrator.py:72-74`
+
+**현재** (`_records()` helper):
+```python
+def _records(output_root):
+    ledger_path = next(output_root.glob("*.jsonl"))
+    return [json.loads(line) for line in ledger_path.read_text(encoding="utf-8").splitlines()]
+```
+
+**변경 후** (recursive glob으로 디렉터리 구조 대응):
+```python
+def _records(output_root):
+    ledger_path = next(output_root.glob("*/ledger.jsonl"))
+    return [json.loads(line) for line in ledger_path.read_text(encoding="utf-8").splitlines()]
+```
+
+### B.4 `tests/test_fglc_repair_loop_cli.py` 영향
+
+`test_cli_smoke_improve()` L43은 `Path(payload["ledger_path"]).exists()`로 stdout payload만 확인하므로 CLI 측 패치(B.2)가 적용되면 자동 통과. 추가 수정 불필요.
+
+---
+
+## C. CD-9 패치 명세 (Codex TASK_2032 위임, 동일 task)
+
+### C.1 변경 위치: `src/fglc/repair/ledger.py::build_loop_id()`
+
+**현재** (추정 — `STEP9_PATCH_PLAN.md` §2에서 명시):
+```python
+def build_loop_id(now=None):
+    if now is None:
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+    return f"loop_{now.strftime('%Y-%m-%dT%H-%M-%S')}"
+```
+
+**변경 후**:
+```python
+import uuid
+
+def build_loop_id(now=None):
+    if now is None:
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+    suffix = uuid.uuid4().hex[:4]
+    return f"loop_{now.strftime('%Y-%m-%dT%H-%M-%S')}-{suffix}"
+```
+
+### C.2 연관 테스트: `tests/test_fglc_repair_ledger.py`
+
+`build_loop_id()` 형식 검증 테스트가 존재하면 새로운 `loop_YYYY-MM-DDTHH-MM-SS-{4hex}` regex 패턴으로 업데이트. Codex가 파일 내용을 확인 후 수정.
+
+---
+
+## D. Codex TASK_2032 명세
+
+### D.1 TASK 파일 경로
+
+`.agent_tasks/codex_queue/TASK_2032_fglc_step9_5_ledger_path_and_loop_id_patch.md`
+
+### D.2 10개 필수 헤더 + 1개 선택 헤더
 
 ```
-.agent_tasks/codex_queue/TASK_2026_05_23_FGLC_REPAIR_DIAGNOSE_CANDIDATES_RANKER.md
-```
+TASK_NAME: TASK_2032_fglc_step9_5_ledger_path_and_loop_id_patch
 
-### B.2 TASK YAML
+BACKGROUND:
+  Step 9 정적 감사 및 dry-run에서 발견된 2개 계약 불일치 패치.
+  CD-1: orchestrator.py:229와 repair_loop.py:155-157이 docs/EXPERIMENT_LEDGER_SCHEMA.md
+        L5,22의 계약(outputs/repair/{loop_id}/ledger.jsonl)과 다르게 flat 경로
+        (outputs/repair/{loop_id}.jsonl)를 사용함.
+  CD-9: build_loop_id()가 초 단위 정밀도로 loop_id를 생성하여 동일 초에 2 run 실행 시
+        같은 파일에 ledger line 혼입. STEP9_DRY_RUN_REPAIR_LOOP_REPORT.md §5에서 실측 확인.
+  관련 report: docs/STEP9_PATCH_PLAN.md §1, §2.
 
-```yaml
-TASK_NAME: fglc_repair_diagnose_candidates_ranker
-
-BACKGROUND: |
-  docs/EXPERIMENT_REPAIR_LOOP_PLAN.md §D.2 (observation → cause-id 매핑)
-  + §D.3 (cause → candidate cheapest-first) + Step 5 taxonomy.py + Step 6 ledger schema가
-  closed-loop repair harness의 결정 직전 단계를 정의한다.
-  이 TASK는 그 명세를 세 개의 Python 모듈로 구현한다:
-    diagnose(metrics, phase) → cause-id list
-    candidates_for(causes, phase) → RepairCandidate list
-    rank(candidates) → RankedCandidate list (rank=1이 best)
-
-GOAL: |
-  Create:
-    src/fglc/repair/diagnose.py
-      - diagnose() pure function
-      - CANONICAL_METRIC_KEYS frozenset
-      - _fire_* 점화 함수 7개 (§D.2 verbatim)
-      - 누락 key silent skip + IMPLEMENTATION_BUG_SUSPECTED fallback
-    src/fglc/repair/candidates.py
-      - @dataclass(frozen=True) class RepairCandidate
-      - CANDIDATE_TABLE (cause-id → tuple[RepairCandidate, ...])
-      - candidates_for() function
-    src/fglc/repair/ranker.py
-      - @dataclass(frozen=True) class RankedCandidate
-      - rank() function (lexicographic + normalized score)
-    tests/test_fglc_repair_diagnose.py    (>=8 test groups)
-    tests/test_fglc_repair_candidates.py  (>=6 test groups)
-    tests/test_fglc_repair_ranker.py      (>=6 test groups)
-
-  Touch nothing else. Do not modify src/fglc/repair/__init__.py / taxonomy.py /
-  compare.py / ledger.py. Do not write any files under outputs/, data/, configs/, docs/.
+GOAL:
+  CD-1: ledger_path를 outputs/repair/{loop_id}/ledger.jsonl 계층 구조로 수정.
+  CD-9: loop_id에 uuid4 4-hex suffix 추가 (loop_YYYY-MM-DDTHH-MM-SS-{4hex}).
 
 FILES_ALLOWED:
-  - src/fglc/repair/diagnose.py
-  - src/fglc/repair/candidates.py
-  - src/fglc/repair/ranker.py
-  - tests/test_fglc_repair_diagnose.py
-  - tests/test_fglc_repair_candidates.py
-  - tests/test_fglc_repair_ranker.py
-  - .agent_tasks/codex_done/TASK_2026_05_23_FGLC_REPAIR_DIAGNOSE_CANDIDATES_RANKER_RESULT.md
-  - .agent_tasks/codex_done/TASK_2030_fglc_repair_diagnose_candidates_ranker_RESULT.md
+  src/fglc/repair/orchestrator.py
+  src/fglc/repair/ledger.py
+  scripts/fglc/repair_loop.py
+  tests/test_fglc_repair_orchestrator.py
+  tests/test_fglc_repair_loop_cli.py
+  tests/test_fglc_repair_ledger.py
 
 FILES_FORBIDDEN:
-  - src/fglc/repair/__init__.py
-  - src/fglc/repair/taxonomy.py
-  - src/fglc/repair/compare.py
-  - src/fglc/repair/ledger.py
-  - src/fglc/schemas/
-  - .claude/
-  - CLAUDE.md
-  - docs/
-  - scripts/
-  - configs/
-  - outputs/
-  - data/
-  - "** (all other files not listed in FILES_ALLOWED)"
+  .claude/
+  CLAUDE.md
+  CLAUDE.local.md
+  .mcp.json
+  .venv/
+  data/
+  outputs/
+  secrets/
+  .env*
+  scripts/run_codex_task.ps1
+  docs/idea/
+  docs/ROADMAP/
+  src/fglc/schemas/
+  src/fglc/repair/taxonomy.py
+  src/fglc/repair/compare.py
+  src/fglc/repair/diagnose.py
+  src/fglc/repair/candidates.py
+  src/fglc/repair/ranker.py
+  configs/fglc/smoke_4060.yaml
 
-REQUIRED_IMPLEMENTATION: |
-  1. Read docs/EXPERIMENT_REPAIR_LOOP_PLAN.md §D.2/§D.3 (observation → cause + cause → candidate SSoT).
-  2. Read src/fglc/repair/taxonomy.py (FailureCauseId, applicable_phases_for, DETECTION_THRESHOLDS).
-  3. Implement src/fglc/repair/diagnose.py:
-     - module docstring: "Source: docs/EXPERIMENT_REPAIR_LOOP_PLAN.md §D.2 + src/fglc/repair/taxonomy.py"
-     - CANONICAL_METRIC_KEYS: frozenset[str] containing at minimum:
-         "id_nll", "ood_auroc", "corrected_nll_gain", "attention_entropy",
-         "correction_norm_mean", "planner_return_gain",
-         "val_train_nll_gap", "ood_id_nll_diff",
-         "beta_mean", "ece", "stagnant_epochs", "log_k",
-         "kstep_nll_slope", "train_nll"
-     - 7 점화 함수 (private, return list[FailureCauseId]):
-         _fire_id_nll(metrics)            # id_nll > 0.5 → §D.2 row 1
-         _fire_ood_auroc(metrics)         # ood_auroc 임계값 → §D.2 row 2
-         _fire_corrected_gain(metrics)    # corrected_nll_gain > 0 → §D.2 row 3
-         _fire_attention(metrics)         # attention_entropy < 0.1 or > 0.95*log_k → §D.2 row 4
-         _fire_correction_weak(metrics)   # correction_norm_mean < 0.01 → §D.2 row 5
-         _fire_correction_large(metrics)  # correction_norm_mean > threshold → §D.2 row 6
-         _fire_planner(metrics)           # planner_return_gain ≤ 0 → §D.2 row 7
-       각 함수는 metrics.get()으로 누락 key silent skip.
-     - def diagnose(metrics: Mapping[str, float], phase: str) -> list[FailureCauseId]:
-         applicable = applicable_phases_for(phase)
-         if not applicable:
-             raise ValueError(f"invalid phase: {phase!r}")
-         causes: list[FailureCauseId] = []
-         for fire_fn in [_fire_id_nll, _fire_ood_auroc, _fire_corrected_gain,
-                         _fire_attention, _fire_correction_weak,
-                         _fire_correction_large, _fire_planner]:
-             for cause_id in fire_fn(metrics):
-                 if cause_id in applicable and cause_id not in causes:
-                     causes.append(cause_id)
-         if not causes and FailureCauseId.IMPLEMENTATION_BUG_SUSPECTED in applicable:
-             return [FailureCauseId.IMPLEMENTATION_BUG_SUSPECTED]
-         return causes
-  4. Implement src/fglc/repair/candidates.py:
-     - module docstring: "Source: docs/EXPERIMENT_REPAIR_LOOP_PLAN.md §D.3"
-     - @dataclass(frozen=True) class RepairCandidate:
-         id: str
-         cause_id: FailureCauseId
-         patch: Mapping[str, Any]
-         cost_minutes: int
-         risk: float
-         expected_signal: float
-         description: str
-         applicable_phases: tuple[str, ...]
-     - CANDIDATE_TABLE: dict[FailureCauseId, tuple[RepairCandidate, ...]]
-       §D.3 7행 × ~4 candidate ≈ 25~30개 hard-code.
-       Candidate id 규약: f"{cause_id.value}_{slug}" where slug ∈ [a-z0-9_]{2,40}.
-       예: RepairCandidate(id="MODEL_UNDERCAPACITY_h_dim_256",
-                          cause_id=FailureCauseId.MODEL_UNDERCAPACITY,
-                          patch={"hidden_dim": 256},
-                          cost_minutes=15, risk=0.1, expected_signal=0.6,
-                          description="Increase hidden_dim 128→256.",
-                          applicable_phases=("R3",))
-       IMPLEMENTATION_BUG_SUSPECTED candidate:
-         RepairCandidate(id="IMPLEMENTATION_BUG_SUSPECTED_manual_blocker",
-                         cause_id=FailureCauseId.IMPLEMENTATION_BUG_SUSPECTED,
-                         patch={"action": "manual_blocker_report"},
-                         cost_minutes=1, risk=0.0, expected_signal=0.0,
-                         description="Escalate to user; no automated patch.",
-                         applicable_phases=("R3","R4","R5","R6","R7"))
-     - def candidates_for(causes: Sequence[FailureCauseId], phase: str) -> list[RepairCandidate]:
-         result, seen = [], set()
-         for cause_id in causes:
-             if cause_id in seen:
-                 continue
-             seen.add(cause_id)
-             for c in CANDIDATE_TABLE.get(cause_id, ()):
-                 if phase in c.applicable_phases:
-                     result.append(c)
-         return result
-     - 모든 patch dict은 비어있으면 안 됨 (단 IMPLEMENTATION_BUG_SUSPECTED는 sentinel 허용).
-  5. Implement src/fglc/repair/ranker.py:
-     - module docstring: "Source: docs/EXPERIMENT_REPAIR_LOOP_PLAN.md §D.1 step6 + §H + plan A.6 (lexicographic + normalized)"
-     - @dataclass(frozen=True) class RankedCandidate:
-         candidate: RepairCandidate
-         rank: int
-         score: float
-     - def rank(candidates: Sequence[RepairCandidate]) -> list[RankedCandidate]:
-         for c in candidates:
-             if c.cost_minutes <= 0:
-                 raise ValueError(f"cost_minutes must be > 0: {c.id}")
-             if not (0.0 <= c.risk <= 1.0):
-                 raise ValueError(f"risk must be in [0,1]: {c.id}")
-             if not (0.0 <= c.expected_signal <= 1.0):
-                 raise ValueError(f"expected_signal must be in [0,1]: {c.id}")
-         sorted_ = sorted(candidates, key=lambda c: (c.cost_minutes, c.risk,
-                                                     -c.expected_signal, c.id))
-         n = len(sorted_)
-         denom = max(1, n - 1)
-         return [
-             RankedCandidate(candidate=c, rank=i+1,
-                             score=((n-(i+1))/denom if n > 1 else 1.0))
-             for i, c in enumerate(sorted_)
-         ]
-  6. Implement tests/test_fglc_repair_diagnose.py (>=8 test groups):
-     - sys.path bootstrap (Step 6 pattern: REPO_ROOT/src 삽입)
-     (1) test_empty_metrics_with_R3_falls_back_to_bug_suspected:
-           diagnose({}, "R3") → [IMPLEMENTATION_BUG_SUSPECTED]
-     (2) test_id_nll_high_fires_undercapacity:
-           diagnose({"id_nll":0.7,"stagnant_epochs":12,"train_nll":0.7}, "R3")
-           → includes MODEL_UNDERCAPACITY
-     (3) test_id_nll_below_threshold_does_not_fire:
-           diagnose({"id_nll":0.4,"stagnant_epochs":12}, "R3")
-           → does NOT include MODEL_UNDERCAPACITY
-     (4) test_phase_filter_drops_R6_causes_in_R3:
-           correction metric 동시 입력, phase=R3 → CORRECTION_TOO_WEAK/LARGE 제외
-     (5) test_dedup_unique_causes:
-           동일 cause-id가 두 점화 함수에서 점화되어도 list에 1회만 포함
-     (6) test_attention_collapse_fires_low_entropy:
-           {"attention_entropy":0.05,"log_k":2.0} → includes ATTENTION_COLLAPSE
-     (7) test_corrected_gain_positive_fires_correction_too_large:
-           {"corrected_nll_gain":0.05} → includes CORRECTION_TOO_LARGE
-     (8) test_invalid_phase_raises:
-           diagnose({"id_nll":0.7}, "R99") → ValueError
-     (9) test_canonical_metric_keys_nonempty:
-           len(CANONICAL_METRIC_KEYS) >= 10
-  7. Implement tests/test_fglc_repair_candidates.py (>=6 test groups):
-     - sys.path bootstrap
-     (1) test_candidates_for_undercapacity_R3_nonempty:
-           causes=[MODEL_UNDERCAPACITY] phase="R3" → len(result) >= 1
-     (2) test_candidate_field_types:
-           모든 result element가 cost_minutes int>0, risk∈[0,1], signal∈[0,1],
-           patch dict (json serializable), id str matches regex
-     (3) test_candidate_cause_id_subset_of_input:
-           모든 result.cause_id ∈ input causes
-     (4) test_duplicate_cause_dedup:
-           causes=[MODEL_UNDERCAPACITY, MODEL_UNDERCAPACITY] → 단일 입력과 동일 결과
-     (5) test_phase_filter_drops_inapplicable:
-           causes=[CORRECTION_TOO_LARGE] phase="R3" → 빈 list (R6 only)
-     (6) test_implementation_bug_suspected_has_sentinel_patch:
-           candidates_for([IMPLEMENTATION_BUG_SUSPECTED], "R3")
-           → patch == {"action":"manual_blocker_report"}
-     (7) test_candidate_id_regex:
-           모든 candidate.id == f"{cause_id.value}_{slug}" with slug regex
-  8. Implement tests/test_fglc_repair_ranker.py (>=6 test groups):
-     - sys.path bootstrap
-     (1) test_sorted_by_cost_then_risk_then_signal_desc_then_id:
-           3 candidate with diverse (cost, risk, signal, id) → 정확한 lex 순서
-     (2) test_score_in_unit_interval:
-           모든 ranked.score ∈ [0, 1]
-     (3) test_empty_returns_empty:
-           rank([]) → []
-     (4) test_single_candidate_score_is_one:
-           rank([single]) → [(rank=1, score=1.0)]
-     (5) test_invalid_cost_raises:
-           cost_minutes=0 candidate → ValueError
-     (6) test_invalid_risk_raises:
-           risk=1.5 candidate → ValueError
-     (7) test_tie_breaker_by_id:
-           동일 cost/risk/signal, 다른 id 두 개 → id 사전순
-     (8) test_round_trip_diagnose_candidates_rank:
-           metrics → diagnose → candidates_for → rank → rank=1 candidate id is well-formed
-  9. import 정책 (전체 3 모듈):
-     - stdlib (typing, dataclasses, collections.abc) 만 + taxonomy.py.
-     - compare.py / ledger.py / __init__.py / configs/ 일절 import 금지.
-     - 외부 dep 추가 없음 (filelock도 안 씀).
+REQUIRED_IMPLEMENTATION:
+  1. src/fglc/repair/orchestrator.py run_repair_loop() 내 (L229-230):
+     - 현재: ledger_path = cfg.output_root / f"{loop_id}.jsonl"; cfg.output_root.mkdir(...)
+     - 변경: loop_dir = cfg.output_root / loop_id; loop_dir.mkdir(parents=True, exist_ok=True);
+             ledger_path = loop_dir / "ledger.jsonl"
+  2. scripts/fglc/repair_loop.py main() stdout JSON (L155-157):
+     - 현재: cfg.output_root / f"{final.ledger_line['loop_id']}.jsonl"
+     - 변경: cfg.output_root / final.ledger_line["loop_id"] / "ledger.jsonl"
+  3. src/fglc/repair/ledger.py build_loop_id():
+     - 변경: uuid.uuid4().hex[:4] suffix 추가 → "loop_YYYY-MM-DDTHH-MM-SS-{4hex}"
+     - import uuid 추가 필요
+  4. tests/test_fglc_repair_orchestrator.py _records() (L72-74):
+     - 변경: output_root.glob("*.jsonl") → output_root.glob("*/ledger.jsonl")
+  5. tests/test_fglc_repair_ledger.py:
+     - build_loop_id 형식 검증 테스트가 있으면 새 regex 패턴 (suffix 4-hex)으로 업데이트
+     - 없으면 추가 (build_loop_id가 hex suffix 포함 형식 반환 확인)
 
-REQUIRED_TESTS: |
-  .venv\Scripts\python.exe -m pytest -q tests\test_fglc_repair_diagnose.py tests\test_fglc_repair_candidates.py tests\test_fglc_repair_ranker.py
-  NOTE: .venv\Scripts\pytest.exe is broken (silent exit 1). Use python -m pytest only.
+REQUIRED_TESTS:
+  - tests/test_fglc_repair_orchestrator.py 전체 (8 tests) PASS
+  - tests/test_fglc_repair_loop_cli.py 전체 (4 tests) PASS
+  - tests/test_fglc_repair_ledger.py 전체 PASS
+  - tests/test_fglc_repair_*.py 전체 회귀 65+ passed 유지
 
-ACCEPTANCE_CRITERIA: |
-  - Exactly 6 source/test files added (3 src + 3 test).
-  - RESULT.md added (7th file).
-  - 0 files modified outside FILES_ALLOWED.
-  - .venv\Scripts\python.exe -m pytest -q (위 3 file) → all green, total tests >= 20.
-  - No test writes files under outputs/, data/, configs/ (Step 7은 file IO 없음).
-  - No import from src/fglc/schemas/, src/fglc/repair/compare.py, src/fglc/repair/ledger.py,
-    or src/fglc/repair/__init__.py.
-  - No external deps beyond stdlib.
-  - Working tree clean after commit (git status --short returns empty).
+ACCEPTANCE_CRITERIA:
+  1. 회귀 테스트 65+ passed 유지 (CD-9 신규 테스트 추가 시 66+)
+  2. orchestrator.py 변경이 정확히 B.1 명세대로 적용
+  3. repair_loop.py 변경이 정확히 B.2 명세대로 적용
+  4. ledger.py build_loop_id가 C.1 명세대로 uuid 4-hex suffix 포함
+  5. 금지 경로(FILES_FORBIDDEN) 미수정
+  6. RESULT.md 파일 생성 (.agent_tasks/codex_done/TASK_2032_fglc_step9_5_ledger_path_and_loop_id_patch_RESULT.md)
+  7. 변경된 파일 5~6개만 staged (orchestrator.py + ledger.py + repair_loop.py + test_orchestrator + test_ledger + 선택적으로 test_loop_cli)
 
-COMMIT_MESSAGE: feat(repair): add diagnose/candidates/ranker modules (cause → patch → rank)
+COMMIT_MESSAGE:
+  fix(repair): correct ledger path to {loop_id}/ledger.jsonl + add uuid suffix to loop_id (CD-1, CD-9)
 
-STOP_CONDITION: |
-  Stop immediately after the single commit. Do not implement orchestrator.py /
-  repair_loop.py — those are Step 8.
-  Do not modify docs/EXPERIMENT_REPAIR_LOOP_PLAN.md (read-only SSoT).
-  Do not modify src/fglc/repair/__init__.py / taxonomy.py / compare.py / ledger.py.
-  Do not add new entries to src/fglc/repair/__init__.py — Step 8 orchestrator merge 시 일괄.
-
-SANDBOX_MODE: bypass
+STOP_CONDITION:
+  - 65 passed 미달
+  - 금지 경로 수정 발견
+  - build_loop_id 변경이 외부 호출자(orchestrator)와 incompatible
+  - timeout 30분 초과
 
 RELATED_AGENT_REPORT_IDS:
-  - docs/orchestration/agent_reports/2026-05/impl_risk_fglc_repair_diagnose_candidates_ranker_R1.md
+  (T3 implementation-risk-critic report는 verify 후 docs/orchestration/agent_reports/2026-05/impl_risk_TASK_2032_R1.md 경로로 생성 예정)
 ```
 
-### B.3 REQUIRED_TESTS (Step 7 verify 기준)
+### D.3 실행 명령
 
-```
-.venv\Scripts\python.exe -m pytest -q tests\test_fglc_repair_diagnose.py tests\test_fglc_repair_candidates.py tests\test_fglc_repair_ranker.py
+```powershell
+.\scripts\run_codex_task.ps1 `
+  -Mode run `
+  -TaskName TASK_2032_fglc_step9_5_ledger_path_and_loop_id_patch `
+  -TaskFile .agent_tasks\codex_queue\TASK_2032_fglc_step9_5_ledger_path_and_loop_id_patch.md `
+  -BypassSandbox
 ```
 
-기대: ≥20 test 그룹, 모두 PASS. import-time error 없음.
+### D.4 6-Gatekeeper 체크포인트
+
+Codex 결과 accept 전 반드시 6개 조건 모두 충족:
+
+1. ✅ verify mode exit 0
+2. ✅ `git diff --cached` 수동 review — 의도된 변경만
+3. ✅ FILES_FORBIDDEN 미수정 확인 (`git diff --cached --name-only` 점검)
+4. ✅ `.agent_tasks/codex_done/TASK_2032_..._RESULT.md` 존재
+5. ✅ REQUIRED_TESTS 통과 재확인 (`pytest -q tests/test_fglc_repair_*.py`)
+6. ✅ T3 implementation-risk-critic agent report PASS
+
+하나라도 실패 시 → `git merge --abort` → STEP9.5_PATCH_FAILED.
 
 ---
 
-## C. Pre-Codex 체크리스트 (main Claude 실행)
+## E. Main Claude 직접 처리 (Codex 위임 없음)
+
+### E.1 CD-6 doc 수정: `docs/EXPERIMENT_LEDGER_SCHEMA.md`
+
+REQUIRED_KEYS(19개) 외에 schema 예시에 등장하는 필드들을 "## Optional Fields" 섹션으로 분리한다.
+
+**예상 위치**: REQUIRED_KEYS 정의 직후 또는 schema 예시 직후에 신규 섹션 삽입.
+
+**섹션 내용 골격**:
+```markdown
+## Optional Fields
+
+REQUIRED_KEYS에 포함되지 않지만 schema 예시에 등장하는 필드들. 구현체가 기록할 수 있으나
+필수는 아니며, validate_ledger_line()은 누락을 허용한다.
+
+| 필드 | 설명 | 출처 |
+|---|---|---|
+| `gate_threshold` | 현재 phase의 gate threshold 값 (e.g., id_nll ≤ 0.5) | diagnose 추적성 |
+| `candidate_cost_minutes` | candidate_chosen.cost_minutes의 flat alias | 예시 호환 |
+| `candidate_risk` | candidate_chosen.risk의 flat alias | 동 |
+| `candidate_expected_signal` | candidate_chosen.expected_signal의 flat alias | 동 |
+| `candidate_rank_score` | ranker.rank() 결과의 점수 | 분석 보조 |
+| `oom_fallbacks_applied` | OOM 복구 fallback 적용 횟수 | Step 10+ runner 메타 |
+| `epsilon_accept`, `epsilon_reject`, `epsilon_secondary` | compare.py 임계값 echo | 재현성 |
+| `early_stop_*` | 조기 종료 메타 | Step 10+ trainer |
+| `result_reason` | result 결정의 사유 텍스트 | 분석 보조 |
+| `notes` | 자유 텍스트 메모 | 분석 보조 |
+```
+
+정확한 필드 목록은 LEDGER_SCHEMA.md 현재 schema 예시 read 후 확정.
+
+### E.2 CD-7 doc 수정: `docs/ROADMAP/4060_SMOKE_REPAIR_PATH.md:L151`
+
+**현재** (추정):
+```
+... --max-wall-clock 240 ...
+```
+
+**변경 후**:
+```
+... --max-wall-clock-minutes 240 ...
+```
+
+Edit 도구로 한 줄 정확히 수정.
+
+### E.3 임시 파일 정리: `step9_validate.py`
+
+```powershell
+Remove-Item step9_validate.py -ErrorAction SilentlyContinue
+```
+
+권한 거부 시 PASS 보고서에 "untracked, no git impact"로 명기. 강제 삭제 시도하지 않음.
+
+---
+
+## F. 재검증 절차
+
+### F.1 회귀 테스트 (Codex accept 직후)
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q `
+  tests\test_fglc_repair_taxonomy.py `
+  tests\test_fglc_repair_compare.py `
+  tests\test_fglc_repair_ledger.py `
+  tests\test_fglc_repair_diagnose.py `
+  tests\test_fglc_repair_candidates.py `
+  tests\test_fglc_repair_ranker.py `
+  tests\test_fglc_repair_orchestrator.py `
+  tests\test_fglc_repair_loop_cli.py
+```
+
+**기대**: 65+ passed (CD-9 신규 테스트 추가 시 66+).
+
+### F.2 dry-run 7 시나리오 재실행 (Step 9 D.1 동일 명령)
+
+```powershell
+# (1) improve
+.\.venv\Scripts\python.exe scripts\fglc\repair_loop.py --phase R3 --config configs\fglc\smoke_4060.yaml --descriptor smoke --mock-scenario improve --max-iter 2 --output-root outputs\repair
+
+# (2) reject
+.\.venv\Scripts\python.exe scripts\fglc\repair_loop.py --phase R3 --config configs\fglc\smoke_4060.yaml --descriptor smoke --mock-scenario reject --max-iter 1 --output-root outputs\repair
+
+# (3) inconclusive
+.\.venv\Scripts\python.exe scripts\fglc\repair_loop.py --phase R3 --config configs\fglc\smoke_4060.yaml --descriptor smoke --mock-scenario inconclusive --max-consecutive-inconclusive 1 --max-iter 3 --output-root outputs\repair
+
+# (4) target_reached
+.\.venv\Scripts\python.exe scripts\fglc\repair_loop.py --phase R3 --config configs\fglc\smoke_4060.yaml --descriptor smoke --mock-scenario target_reached --max-iter 2 --output-root outputs\repair
+
+# (5) max_iter
+.\.venv\Scripts\python.exe scripts\fglc\repair_loop.py --phase R3 --config configs\fglc\smoke_4060.yaml --descriptor smoke --mock-scenario max_iter --max-iter 1 --output-root outputs\repair
+
+# (6) hook_blocked
+.\.venv\Scripts\python.exe scripts\fglc\repair_loop.py --phase R3 --config configs\fglc\smoke_4060.yaml --descriptor smoke --mock-scenario hook_blocked --output-root outputs\repair
+
+# (7) no_candidate
+.\.venv\Scripts\python.exe scripts\fglc\repair_loop.py --phase R3 --config configs\fglc\smoke_4060.yaml --descriptor smoke --mock-scenario no_candidate --output-root outputs\repair
+```
+
+**각 명령 직후 검증**:
+- exit code == 0
+- stdout JSON parse 가능 + 5 key 존재
+- payload["ledger_path"] 파일 존재
+- payload["ledger_path"]가 `outputs/repair/loop_YYYY-MM-DDTHH-MM-SS-{4hex}/ledger.jsonl` 형식 (CD-1 + CD-9 확인)
+
+### F.3 디렉터리 구조 확인
+
+```powershell
+Get-ChildItem outputs\repair -Recurse | Select-Object FullName, Length
+```
+
+**기대 구조**:
+```
+outputs/repair/
+  .gitkeep
+  loop_2026-05-23T<HHMMSS>-{abcd}/
+    ledger.jsonl
+  loop_2026-05-23T<HHMMSS>-{efgh}/
+    ledger.jsonl
+  ...
+```
+
+7개 시나리오 → 7개 loop 디렉터리 (CD-9로 인해 동일 초 collision 없음).
+
+### F.4 Ledger REQUIRED_KEYS 검증
+
+기존 step9_validate.py를 디렉터리 구조 대응으로 재작성하거나 inline Python으로:
+
+```powershell
+.\.venv\Scripts\python.exe -c "
+import json
+from pathlib import Path
+from fglc.repair.ledger import REQUIRED_KEYS, validate_ledger_line, VALID_RESULTS, VALID_STOP_CONDITIONS
+
+errors = 0
+for ledger in Path('outputs/repair').glob('*/ledger.jsonl'):
+    for i, line in enumerate(ledger.read_text(encoding='utf-8').splitlines()):
+        if not line.strip(): continue
+        d = json.loads(line)
+        try:
+            validate_ledger_line(d)
+            assert d['result'] in VALID_RESULTS
+            assert d['stop_condition_hit'] in VALID_STOP_CONDITIONS or d['stop_condition_hit'] is None
+            print(f'PASS {ledger.parent.name} line {i}')
+        except Exception as e:
+            print(f'FAIL {ledger.parent.name} line {i}: {e}')
+            errors += 1
+print(f'Total errors: {errors}')
+"
+```
+
+**기대**: errors == 0.
+
+### F.5 git hygiene
+
+```powershell
+git status --short
+```
+
+**기대**: tracked 변경 없음 (Codex commit이 ff-merge 후) + plan/문서 파일만 변경 (Main Claude doc 수정분).
+
+---
+
+## G. PASS / FAIL 판정 기준
+
+### G.1 STEP9.5_PASS 조건 (모두 충족)
+
+- [ ] Codex TASK_2032 verify exit 0
+- [ ] 6-Gatekeeper 6개 모두 ✅
+- [ ] 회귀 테스트 65+ passed
+- [ ] dry-run 7 시나리오 모두 exit 0, stdout JSON 유효
+- [ ] payload["ledger_path"]가 `{loop_id}/ledger.jsonl` 형식 (CD-1)
+- [ ] loop_id에 4-hex suffix 포함 (CD-9)
+- [ ] 7개 시나리오 → 7개 독립 loop 디렉터리 (collision 없음)
+- [ ] LEDGER_SCHEMA.md Optional Fields 섹션 추가됨 (CD-6)
+- [ ] 4060_SMOKE_REPAIR_PATH.md L151 typo 수정됨 (CD-7)
+- [ ] git hygiene 통과
+
+### G.2 STEP9.5_PATCH_FAILED 조건
+
+다음 중 하나 이상:
+- Codex verify exit ≠ 0
+- 6-Gatekeeper 중 1개라도 ❌
+- 회귀 테스트 fail
+- 7 시나리오 중 1개라도 실패
+- ledger_path가 여전히 flat 구조
+- loop_id collision 재발
+
+FAILED 시 → `git merge --abort` → Step 10 진입 BLOCKED → 추가 patch round 또는 사용자 보고.
+
+---
+
+## H. Step 10 진입 허용 조건 (Step 9.5 완료 후)
+
+- [x] Step 9 STEP9_DRY_RUN_REPAIR_LOOP_REPORT.md 존재 (Step 9에서 작성됨)
+- [ ] Step 9.5 CD-1 패치 완료 + 회귀 65+ passed
+- [ ] Step 9.5 CD-9 패치 완료 + collision 해소 확인
+- [ ] CD-6/CD-7 doc 수정 완료
+- [ ] 7 시나리오 재실행에서 `{loop_id}/ledger.jsonl` 구조 + uuid suffix 확인
+- [ ] T3 agent report PASS
+- [ ] Step 9.5 RESULT.md 작성
+
+위 7개 모두 충족 시 Step 10 R3 base WM smoke 진입 허가.
+
+---
+
+## I. 절대 하지 말 것 (이 Step의 비-범위)
+
+- 실제 ManiSkill 학습 실행 금지
+- R3 encoder/dynamics/world model heads 구현 금지
+- `src/fglc/model/` 또는 `src/fglc/dynamics/` 신규 모듈 생성 금지
+- phase gate sentinel 생성 금지 (`outputs/phase_gates/R*.passed`)
+- `outputs/phase_gates/` 수정 금지
+- dry-run artifact (`outputs/repair/loop_*/ledger.jsonl`) git commit 금지
+- CD-2 per-iter artifact 4종 추가 금지 (Step 10에서)
+- CD-3 gate_threshold ledger field 추가 금지 (LEDGER_SCHEMA REQUIRED_KEYS 정합 후)
+- CD-4 id_nll gate 변경 금지 (Step 10 실측 후)
+- CD-5 --dry-run help text 변경 금지 (Step 10에서)
+- CD-8 smoke_4060.yaml 수정 금지 (Step 10 진입 직전)
+- `src/fglc/schemas/` 수정 금지 (불변)
+- `src/fglc/repair/{taxonomy,compare,diagnose,candidates,ranker}.py` 수정 금지
+- `configs/fglc/smoke_4060.yaml` 수정 금지
+- `.gitignore` 수정 금지
+- Codex TASK_2032 외의 추가 Codex TASK 생성 금지
+
+---
+
+## J. 사전 점검 체크리스트 (execute 단계 진입 직전)
 
 ```
-[ ] 1. Codex worktree 존재 확인:
-        Test-Path C:\Users\computer\Desktop\ICLR_WM_codex   → True
-
-[ ] 2. Codex worktree clean state 확인:
-        git -C C:\Users\computer\Desktop\ICLR_WM_codex status --short   → empty
-        git -C C:\Users\computer\Desktop\ICLR_WM_codex branch --show-current   → codex-work
-
-[ ] 3. Codex worktree를 main과 동기화:
-        현재 codex-work HEAD = 6ef1795
-        main HEAD = 4165d85 (auto-commit) 또는 이후
-        → ff-merge 필요 (codex-work에서: git merge --ff-only memory-redesign-2026-05-16)
-
-[ ] 4. T3 agent 호출 (Codex 실행 *전* — TASK 명세 review):
-        implementation-risk-critic agent를 다음 입력으로 호출:
-          - TASK 파일 경로: .agent_tasks/codex_queue/TASK_2026_05_23_FGLC_REPAIR_DIAGNOSE_CANDIDATES_RANKER.md
-          - SSoT 1: docs/EXPERIMENT_REPAIR_LOOP_PLAN.md §D.2/§D.3
-          - SSoT 2: src/fglc/repair/taxonomy.py (Step 5 산출물)
-          - 이전 산출물: src/fglc/repair/compare.py, ledger.py (Step 6, read-only 참조)
-        보고서 저장 경로:
-          docs/orchestration/agent_reports/2026-05/impl_risk_fglc_repair_diagnose_candidates_ranker_R1.md
-        verify: PASS 또는 fixable RISK
-
-        체크해야 할 RISK 항목 (Plan agent 식별 8개):
-        - RISK-1: §D.3 자연어 → 정규 metric key 매핑이 SSoT 부재 → diagnose 모듈 안 매핑이 SSoT 일탈 위험
-        - RISK-2: §D.3 row "corrected NLL > uncorrected"가 LOSS_IMBALANCE도 점화하나 §D.2 verbatim 표 누락 금지
-        - RISK-3: EVAL_NOISE_HIGH 같은 multi-phase cause를 R3/R4/R5/R7/R9/R10에서 모두 점화시킬 위험 → DETECTION_THRESHOLDS 명시적 trigger 없으면 점화 안 함
-        - RISK-4: Ranker n=1 케이스 division-by-zero → score=1.0
-        - RISK-5: CANDIDATE_TABLE 25~30개 hard-code, cost/risk/signal heuristic — docstring "calibration in Step 8 orchestrator" 명시
-        - RISK-6: patch dict key가 실제 config schema와 불일치 가능 — Step 7 테스트는 dict shape만 검사
-        - RISK-7: IMPLEMENTATION_BUG_SUSPECTED patch=`{}` 위배 → `{"action": "manual_blocker_report"}` sentinel
-        - RISK-8: diagnose가 빈 list 반환 시 Step 8이 잘못 accept 위험 → IMPLEMENTATION_BUG_SUSPECTED fallback (사용자 결정 #2)
-
-[ ] 5. TASK 파일 작성:
-        Path: .agent_tasks/codex_queue/TASK_2026_05_23_FGLC_REPAIR_DIAGNOSE_CANDIDATES_RANKER.md
-        Content: 위 B.2 YAML (RELATED_AGENT_REPORT_IDS는 4번 결과로 채움)
+[ ] 1. plan 파일 ExitPlanMode 승인
+[ ] 2. git status --short → 현재 plan 파일 + STEP9_*.md만 modified/untracked, 나머지 clean
+[ ] 3. .venv\Scripts\python.exe 동작 확인
+[ ] 4. .agent_tasks/codex_queue/ 비어 있음 확인 (이전 TASK 정리됨)
+[ ] 5. .agent_tasks/codex_done/ 에 TASK_2032 기존 RESULT 없음 확인
+[ ] 6. outputs/repair/ stale ledger 정리 (선택, .gitkeep만 남김)
+       단, .gitkeep 절대 삭제 금지
 ```
 
 ---
 
-## D. Codex 실행 절차
+## K. 실행 단계 절차 (execute 단계 시)
 
 ```
-[ ] 6. Codex worktree를 main과 ff-merge:
-        Push-Location C:\Users\computer\Desktop\ICLR_WM_codex
-        git fetch
-        git merge --ff-only memory-redesign-2026-05-16
-        Pop-Location
-        verify: 새 HEAD가 main HEAD와 일치
+[ ] K.1  Codex TASK 파일 작성
+         .agent_tasks/codex_queue/TASK_2032_fglc_step9_5_ledger_path_and_loop_id_patch.md
 
-[ ] 7. Codex 호출:
-        scripts\run_codex_task.ps1 `
-          -Mode run `
-          -TaskName fglc_repair_diagnose_candidates_ranker `
-          -TaskFile .agent_tasks\codex_queue\TASK_2026_05_23_FGLC_REPAIR_DIAGNOSE_CANDIDATES_RANKER.md `
-          -BypassSandbox
+[ ] K.2  Codex 호출
+         .\scripts\run_codex_task.ps1 -Mode run `
+           -TaskName TASK_2032_fglc_step9_5_ledger_path_and_loop_id_patch `
+           -TaskFile <path> -BypassSandbox
 
-[ ] 8. exit code 확인:
-        0 = 정상 → Step E
-        10 = precondition 실패
-        20 = TASK schema 위반
-        30 = Codex 실행 실패
-        40 = commit 누락 / 금지 경로 위반 / RESULT.md 누락 → Step G.B4 fallback
-        50 = merge conflict
+[ ] K.3  verify exit 0 확인
 
-[ ] 9. (Codex worktree에서) git diff HEAD~1 --stat 및 --name-only:
-        기대 파일 7개만:
-          src/fglc/repair/diagnose.py
-          src/fglc/repair/candidates.py
-          src/fglc/repair/ranker.py
-          tests/test_fglc_repair_diagnose.py
-          tests/test_fglc_repair_candidates.py
-          tests/test_fglc_repair_ranker.py
-          .agent_tasks/codex_done/TASK_2030_fglc_repair_diagnose_candidates_ranker_RESULT.md
-          (또는 TASK_2026_05_23_FGLC_REPAIR_DIAGNOSE_CANDIDATES_RANKER_RESULT.md)
-```
+[ ] K.4  6-Gatekeeper 점검:
+         - git diff --cached --name-only (변경 파일 ≤ 6개)
+         - git diff --cached --stat (라인 변경량 합리적)
+         - 금지 경로 미포함 확인
+         - RESULT.md 존재 확인
+         - pytest -q tests\test_fglc_repair_*.py → 65+ passed
+         - T3 implementation-risk-critic agent 호출 → report PASS 확인
 
----
+[ ] K.5  6개 중 1개라도 FAIL → git merge --abort → STEP9.5_PATCH_FAILED 보고
+         모두 PASS → accept commit 자동 완료 (ff-merge)
 
-## E. Post-Codex 6-Gatekeeper 검증
+[ ] K.6  Main Claude doc 수정:
+         (a) docs/EXPERIMENT_LEDGER_SCHEMA.md → ## Optional Fields 섹션 추가 (CD-6)
+         (b) docs/ROADMAP/4060_SMOKE_REPAIR_PATH.md L151 → --max-wall-clock-minutes typo 수정 (CD-7)
 
-(`.claude/rules/codex_orchestration_rules.md` §Gatekeeper 정책)
+[ ] K.7  step9_validate.py 정리
+         Remove-Item step9_validate.py -ErrorAction SilentlyContinue
+         (권한 거부 시 skip + 보고서에 명기)
 
-```
-[ ] G1. verify mode exit code 0
-[ ] G2. git diff HEAD~1 수동 review (Codex worktree):
-         - diagnose.py:
-           * CANONICAL_METRIC_KEYS frozenset 정의 + 11~14개 키
-           * 7개 점화 함수 (§D.2 verbatim) 정확히 매핑
-           * metrics.get() 으로 누락 key silent skip
-           * applicable_phases_for(phase) filter
-           * IMPLEMENTATION_BUG_SUSPECTED fallback (사용자 결정 #2)
-           * 잘못된 phase → ValueError
-         - candidates.py:
-           * RepairCandidate frozen dataclass + 8 필드
-           * CANDIDATE_TABLE 25~30개 entry (§D.3 7행 × ~4 candidate)
-           * Candidate id 규약 `<CAUSE_ID>_<slug>`
-           * patch는 inline dict (configs/ 참조 없음)
-           * IMPLEMENTATION_BUG_SUSPECTED candidate sentinel patch
-           * candidates_for() 중복 제거 + phase filter
-         - ranker.py:
-           * RankedCandidate frozen dataclass
-           * sort key (cost asc, risk asc, -signal, id asc) (사용자 결정 #1)
-           * score (n-rank)/max(1,n-1) 정규화 + n=1 edge=1.0
-           * cost<=0 / risk∉[0,1] / signal∉[0,1] → ValueError
-         - import 정책:
-           * diagnose: taxonomy + stdlib only
-           * candidates: taxonomy + stdlib only
-           * ranker: candidates + stdlib only
-           * compare/ledger/__init__/schemas import 절대 없음
-[ ] G3. 금지 경로 미수정:
-         git diff HEAD~1 --name-only에 다음 미포함:
-           src/fglc/repair/__init__.py
-           src/fglc/repair/taxonomy.py
-           src/fglc/repair/compare.py
-           src/fglc/repair/ledger.py
-           src/fglc/schemas/
-           .claude/, docs/, configs/, outputs/, scripts/, data/
-[ ] G4. RESULT.md 존재 — 8 섹션 (Summary / Files Changed / Commands Run / Tests Run /
-                                    Evidence / Risks / Patch Review Notes / Accept/Reject)
-[ ] G5. REQUIRED_TESTS 재실행 (Codex worktree, merge 전):
-         Push-Location C:\Users\computer\Desktop\ICLR_WM_codex
-         .venv\Scripts\python.exe -m pytest -q tests\test_fglc_repair_diagnose.py `
-                                                tests\test_fglc_repair_candidates.py `
-                                                tests\test_fglc_repair_ranker.py
-         Pop-Location
-         → ≥20 passed, 0 failed
-[ ] G6. T3 implementation-risk-critic report PASS 확인:
-         docs/orchestration/agent_reports/2026-05/impl_risk_fglc_repair_diagnose_candidates_ranker_R1.md
-         verdict: PASS 또는 LOW RISK (fixable post-merge)
-```
+[ ] K.8  7 시나리오 dry-run 재실행 (F.2)
+         각 명령 직후:
+         - exit code 0 확인
+         - stdout JSON parse
+         - payload["ledger_path"] 형식 검증 ({loop_id}/ledger.jsonl)
+         - loop_id에 4-hex suffix 존재 확인
 
-**하나라도 실패 → `git merge --abort` (또는 Codex commit 미반영 시 ignore).**
+[ ] K.9  Get-ChildItem outputs\repair -Recurse | Format-Table Name, FullName
+         디렉터리 구조 시각 확인 (CD-1 해소 증거)
 
----
+[ ] K.10 Ledger REQUIRED_KEYS inline 검증 (F.4)
+         errors == 0 확인
 
-## F. Accept 절차 (모든 G1~G6 PASS 시)
+[ ] K.11 git hygiene:
+         git status --short
+         tracked 변경 = doc 2개 파일만 (CD-6, CD-7), Codex commit은 이미 merged
 
-```
-[ ] 10. Codex commit을 main Claude 브랜치에 fast-forward merge:
-         git -C C:\Users\computer\Desktop\ICLR_WM_claude-code merge --ff-only codex-work
-         (Step 6 교훈: harness가 staged merge 상태로 만들어두면 git commit 직접 실행)
+[ ] K.12 판정 결정:
+         - 모두 PASS → STEP9.5_PASS → Step 10 진입 허가
+         - 1개라도 FAIL → STEP9.5_PATCH_FAILED → 사용자 보고 + 다음 라운드
 
-[ ] 11. merge 결과 확인:
-         git log --oneline -3
-         → "feat(repair): add diagnose/candidates/ranker modules ..." + Co-Author 라인
+[ ] K.13 산출 문서 작성:
+         docs/STEP9_5_PATCH_RESULT_REPORT.md
+         - Codex TASK_2032 verify 결과
+         - 6-Gatekeeper 6개 결과
+         - 회귀 65+ passed 증거
+         - 7 시나리오 재실행 결과 표
+         - 디렉터리 구조 출력
+         - ledger REQUIRED_KEYS 검증 결과
+         - doc 수정 diff (CD-6, CD-7)
+         - 판정: STEP9.5_PASS 또는 FAILED
+         - Step 10 진입 권고
 
-[ ] 12. main worktree 최종 smoke + 회귀 테스트:
-         .venv\Scripts\python.exe -m pytest -q `
-            tests\test_fglc_repair_diagnose.py `
-            tests\test_fglc_repair_candidates.py `
-            tests\test_fglc_repair_ranker.py `
-            tests\test_fglc_repair_compare.py `
-            tests\test_fglc_repair_ledger.py `
-            tests\test_fglc_repair_taxonomy.py
-         → 모두 green (≥ 20 + 21 + 8 = ≥49 passed)
-
-[ ] 13. plan 파일 자체는 수정 안 함 (이 plan은 Step 7 record로 보존).
-         다음 Step 8용 plan은 이 파일을 overwrite하여 별도 plan으로 작성.
+[ ] K.14 사용자에게 결과 보고 + Step 10 plan 요청 대기
 ```
 
 ---
 
-## G. BLOCKER 시나리오
+## L. BLOCKER 시나리오 + 대응
 
 | # | 시나리오 | 대응 |
 |---|---|---|
-| B1 | Codex worktree dirty | git stash 또는 사용자 확인. destructive reset 금지. |
-| B2 | T3 BLOCKED 반환 | TASK REQUIRED_IMPLEMENTATION 보강 (예: §D.2 row별 임계값 명시) 후 재호출. |
-| B3 | exit code 30 (timeout) | RUN_*.err.log 확인. SANDBOX_MODE bypass 미적용 가능성. |
-| B4 | exit code 40 (commit 누락) | Step 6 교훈: pytest.exe 실패가 원인일 가능성. Codex worktree에서 manual `python -m pytest` 실행 후 통과 시 (a) git diff 7 파일 확인 → (b) 수동 git add + commit → (c) verify 재실행 → (d) merge. |
-| B5 | exit code 40 (금지 경로 위반) | git merge --abort. 특히 src/fglc/repair/__init__.py / taxonomy.py / compare.py / ledger.py 수정 시도 차단. |
-| B6 | G5 pytest 실패 (테스트 < 20 또는 일부 fail) | git merge 보류. TASK YAML §6/§7/§8 test group 리스트 강화 후 재시도. |
-| B7 | G6 T3 report FAIL | TASK 명세 변경 또는 scope 축소. plan 수정 → 재시도. |
-| B8 | round-trip 테스트 실패 (diagnose→candidates→ranker chain) | 세 모듈 dataclass 키 정합 불일치. RepairCandidate 필드명 확인 + ranker 입력 type 확인. |
-| B9 | Codex가 IMPLEMENTATION_BUG_SUSPECTED fallback 누락 | TASK §3 fallback 정책을 verbatim 인용 강화 + diagnose test (1) 강제. |
-| B10 | Codex가 ranker에 lex 대신 multiplicative score 사용 | TASK §5 sort key tuple `(cost, risk, -signal, id)` verbatim 인용 강화 + ranker test (1) 강제. |
-| B11 | CANDIDATE_TABLE에 §D.3 일부 행 누락 | TASK §4 candidate test (1) "≥1 per cause row"가 강제. T3에서 D.3 7행 1:1 정합 검증. |
-| B12 | patch dict이 빈 dict로 채워짐 (sentinel 외) | candidates test (2)가 강제. IMPLEMENTATION_BUG_SUSPECTED만 sentinel `{"action": "manual_blocker_report"}` 허용. |
+| BL1 | Codex sandbox lock issue 재발 | -BypassSandbox 확인 + run_codex_task.ps1 exit code 10 디버깅 |
+| BL2 | Codex가 FILES_FORBIDDEN 수정 시도 | exit code 40 → 자동 abort → 사용자 보고 |
+| BL3 | Codex가 build_loop_id 변경했으나 외부 호출자 break | pytest fail → exit 40 → abort |
+| BL4 | uuid import 누락으로 ImportError | Codex RESULT.md에서 빠진 import 식별 → 추가 round |
+| BL5 | test_records glob 패턴 변경 후에도 test fail | _records() helper 외 다른 ledger 경로 참조 존재 가능 → 사용자 보고 |
+| BL6 | T3 agent report FAIL | report 내용 검토 후 추가 round 또는 Step 9.6 plan |
+| BL7 | dry-run 7 시나리오 중 일부 collision 재발 | uuid.uuid4().hex[:4] 충돌 가능성 (1/65536) → suffix 길이 6~8로 확장 검토 |
+| BL8 | CD-6 doc 수정 시 LEDGER_SCHEMA.md 현재 구조와 충돌 | Read 후 적절한 삽입 위치 재결정 |
 
 ---
 
-## H. 수정 대상 파일 (이 Step 7 한정)
+## M. 큰 그림 (Step 9 → Step 9.5 → Step 10)
 
-### H.1 신규 생성 (Codex 위임)
+```
+Step 9 (완료):
+  control plane 정적 + 동적 검증
+  9개 계약 불일치 식별 (CD-1~CD-9)
+  판정: STEP9_PATCH_REQUIRED (CD-1 단독 사유)
+  산출: STEP9_DRY_RUN_REPAIR_LOOP_REPORT.md + STEP9_PATCH_PLAN.md
 
-| 경로 | 작성자 |
-|---|---|
-| `src/fglc/repair/diagnose.py` | Codex |
-| `src/fglc/repair/candidates.py` | Codex |
-| `src/fglc/repair/ranker.py` | Codex |
-| `tests/test_fglc_repair_diagnose.py` | Codex |
-| `tests/test_fglc_repair_candidates.py` | Codex |
-| `tests/test_fglc_repair_ranker.py` | Codex |
-| `.agent_tasks/codex_done/TASK_<2030 또는 2026_05_23>_fglc_repair_diagnose_candidates_ranker_RESULT.md` | Codex |
+Step 9.5 (이 plan):
+  Codex TASK_2032: CD-1 (ledger path) + CD-9 (uuid suffix) 패치
+  Main Claude: CD-6 (Optional Fields), CD-7 (typo) doc 수정
+  cleanup: step9_validate.py 삭제
+  재검증: 회귀 65+ passed + 7 시나리오 dry-run + 디렉터리 구조 + ledger 검증
+  산출: STEP9_5_PATCH_RESULT_REPORT.md
+  판정: STEP9.5_PASS → Step 10 진입 허가
 
-### H.2 신규 생성 (main Claude)
+Step 10 (별도 plan):
+  R3 base WM 구현 (encoder + dynamics + heads)
+  ManiSkill state-only PickCube 데이터 로더
+  real RunnerOutput 생성기 (mock 대체)
+  CD-2 (iter_{N}/ artifact 4종) 동반 구현
+  CD-3 (gate_threshold field) 동반 결정
+  CD-4 (id_nll gate 0.4↔0.5) 실측 후 결정
+  CD-5 (--dry-run help text) real-run mode 분리 시
+  CD-8 (smoke_4060.yaml K=6, h_dim=128, batch=16) 업데이트
+  4060 8GB VRAM 한계 확인
+  dry-run 1 epoch smoke + real smoke
+  R3 phase gate sentinel (R3.passed) 생성
+```
 
-| 경로 | 작성자 |
-|---|---|
-| `.agent_tasks/codex_queue/TASK_2026_05_23_FGLC_REPAIR_DIAGNOSE_CANDIDATES_RANKER.md` | main Claude (Pre-Codex C.5) |
-| `docs/orchestration/agent_reports/2026-05/impl_risk_fglc_repair_diagnose_candidates_ranker_R1.md` | main Claude (T3 결과) |
-
-### H.3 수정 금지 (불변 보존)
-
-CLAUDE.md §불변 보존:
-- `src/fglc/schemas/visibility.py`
-- `docs/idea/18_DATA_BENCHMARKS.md`
-- `docs/idea/19_BASELINES.md`
-- `docs/idea/20_ABLATIONS.md`
-- `.claude/settings.json`
-- `scripts/run_codex_task.ps1`
-
-Step 7 추가 보존:
-- `docs/idea/FGLC_FAILURE_TAXONOMY.md` (read-only SSoT)
-- `docs/EXPERIMENT_REPAIR_LOOP_PLAN.md` (read-only spec)
-- `docs/EXPERIMENT_LEDGER_SCHEMA.md` (read-only spec)
-- `docs/ROADMAP/4060_SMOKE_REPAIR_PATH.md` (read-only spec)
-- `.agent_tasks/codex_prompt_template.md` (Codex 측 contract)
-- **`src/fglc/repair/__init__.py` (Step 5 산출물 — Step 8 일괄 처리)**
-- **`src/fglc/repair/taxonomy.py` (Step 5)**
-- **`src/fglc/repair/compare.py` (Step 6)**
-- **`src/fglc/repair/ledger.py` (Step 6)**
+이 Step 9.5는 Step 9(검증 완료)과 Step 10(R3 real run) 사이의 **계약 정합 패치 단계**이며, **Codex 단일 TASK + Main Claude doc 동반 수정**이 본질이다.
 
 ---
 
-## I. 명시적 비-범위 (이 Step에서 안 함)
+## N. 검증 (plan ↔ 사용자 의도 정합)
 
-- `src/fglc/repair/orchestrator.py` (Step 8)
-- `scripts/fglc/repair_loop.py` (Step 8)
-- `configs/fglc/smoke_4060.yaml` (Step 8)
-- `src/fglc/repair/__init__.py` 갱신 (compare/ledger/diagnose/candidates/ranker re-export) — Step 8과 함께
-- `outputs/repair/{loop_id}/` 디렉터리 생성 (Step 8 orchestrator)
-- ledger.append_ledger_line 직접 호출 (Step 8 orchestrator)
-- 실제 metric 수집/측정 (Step 9~10 runner)
-- patch dict의 config schema 검증 (Step 8 orchestrator)
-- phase gate sentinel 생성
-- AGENTS.md / hooks / settings.json 수정
-
----
-
-## J. 검증 (이 plan이 사용자 의도와 정합한지)
-
-1. **§D.2 7행 verbatim** — A.8 표 + B.2 §3 `_fire_*` 7 함수 1:1.
-2. **§D.3 7행 verbatim** — A.8 표 + B.2 §4 CANDIDATE_TABLE 25~30 candidate.
-3. **사용자 결정 3건 모두 반영**:
-   - 결정 #1 Ranker = lex + 정규화 → A.5 + B.2 §5 sort key + score 공식 명시
-   - 결정 #2 누락 metric = silent skip + fallback → A.1 + B.2 §3 metrics.get() + fallback 명시
-   - 결정 #3 단일 TASK → B 전체 + H.1 7 파일 단일 commit
-4. **Plan agent 결정 3건 반영**:
-   - id 규약 `<CAUSE_ID>_<slug>` → A.3 + B.2 §4 예시
-   - patch = inline dict → A.3 + B.2 §4 + FILES_FORBIDDEN configs/
-   - CANDIDATE_TABLE 25~30 hard-code + heuristic docstring → A.3 + B.2 §4 RISK-5
-5. **Codex 금지 경로 정합성** — codex_prompt_template.md Step 2 forbidden + TASK FILES_FORBIDDEN 1:1.
-6. **T3 트리거** — 3 모듈 동시 도입 = 주요 Codex merge → impl-risk-critic 의무.
-7. **6-gatekeeper** — G1~G6 매핑 완전.
-8. **Step 6 교훈 반영** — REQUIRED_TESTS에 `pytest.exe` 사용 금지 + B4 manual recovery 절차 + harness staged-merge → manual commit (F.10).
-9. **불변 파일 H.3 등록** — CLAUDE.md 6개 + plan 산출물 4개 + Step 5/6 산출물 4개.
-10. **BLOCKER 12개 모두 대응 절차 있음**.
-11. **outputs/ 경로 보호** — Step 7은 file IO 없음 (tmp_path 불필요).
-12. **추가 dep 없음** — stdlib only.
-
-검증 실패 항목 발견 시 plan을 이 파일에서만 수정.
-
----
-
-## K. 다음 execute 단계에서 수행할 최소 작업
-
-이 plan이 ExitPlanMode로 승인되면 **즉시 수행할 최소 작업**:
-
-1. C.1~C.2 Codex worktree 상태 확인 (read-only).
-2. C.3 / D.6 Codex worktree를 main과 ff-merge.
-3. C.4 T3 implementation-risk-critic agent 호출. 보고서 저장.
-4. C.5 TASK 파일 작성: `.agent_tasks/codex_queue/TASK_2026_05_23_FGLC_REPAIR_DIAGNOSE_CANDIDATES_RANKER.md`.
-5. D.7 Codex 실행: `scripts/run_codex_task.ps1 -Mode run -TaskName fglc_repair_diagnose_candidates_ranker ...`.
-6. D.8~E.G6 검증.
-7. F.10 git merge --ff-only codex-work (모든 G PASS 시; Step 6 교훈상 harness 상태에 따라 수동 commit).
-8. F.12 main worktree에서 회귀 테스트 (diagnose/candidates/ranker + compare/ledger/taxonomy 모두).
-
-이 단계에서 **절대 안 함**:
-- 코드 직접 작성 (3 모듈 + 테스트 모두 Codex 작성).
-- 다른 repair 모듈 (orchestrator, scripts/fglc/repair_loop.py) 작성.
-- docs/ 수정.
-- 새 sentinel 생성.
-- 실제 학습 실행.
-- src/fglc/repair/__init__.py 갱신.
-- outputs/ / data/ / configs/ 아래 파일 생성.
+1. **CD-1 + CD-9 통합 패치** — 사용자 결정에 따라 단일 TASK_2032에 통합. B/C/D 절에 명시.
+2. **CD-6 + CD-7 doc 수정 Main Claude 직접 처리** — E 절. Codex TASK와 분리.
+3. **step9_validate.py 정리 포함** — E.3.
+4. **회귀 + 7 시나리오 dry-run 재실행** — F.1 + F.2. 사용자 결정에 따라 전체 7 시나리오.
+5. **6-Gatekeeper 명시** — D.4.
+6. **Step 10 진입 조건 명시** — H 절.
+7. **비-범위 명시** — I 절. CD-2/3/4/5/8 제외 사유 명확.
+8. **BLOCKER 시나리오 대비** — L 절.
+9. **plan ONLY** — execute 시 K 절 순서대로 진행, 본 plan 파일 외 어떤 파일도 본 plan에서 수정하지 않음.
