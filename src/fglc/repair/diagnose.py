@@ -23,8 +23,16 @@ CANONICAL_METRIC_KEYS: frozenset[str] = frozenset(
         "log_k",
         "kstep_nll_slope",
         "train_nll",
+        # R3 smoke keys (added for Step 10D / CD-3 standardisation)
+        "val_nll",
+        "ood_mass_nll",
+        "ood_friction_nll",
     }
 )
+
+# Operational artifact keys — allowed in metrics.json alongside CANONICAL_METRIC_KEYS
+# but not used by diagnose/ranker logic.
+ARTIFACT_KEYS: frozenset[str] = frozenset({"epoch", "wall_clock_minutes", "vram_peak_mib"})
 
 
 def _fire_id_nll(metrics: Mapping[str, float]) -> list[FailureCauseId]:

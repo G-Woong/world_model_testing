@@ -10,7 +10,27 @@ from pathlib import Path
 from fglc.repair.diagnose import CANONICAL_METRIC_KEYS
 from fglc.repair.orchestrator import RepairLoopConfig, run_repair_loop
 from fglc.runners import R3SmokeRunner
-from scripts.fglc.repair_loop import METRIC_DIRECTIONS, _default_failed_metric
+
+METRIC_DIRECTIONS = {
+    "id_nll": "lower_better",
+    "ood_auroc": "higher_better",
+    "attention_entropy": "lower_better",
+    "corrected_nll_gain": "higher_better",
+    "planner_return_gain": "higher_better",
+    "stagnant_epochs": "lower_better",
+    "train_nll": "lower_better",
+}
+
+
+def _default_failed_metric(phase: str) -> str:
+    return {
+        "R2": "ood_auroc",
+        "R3": "id_nll",
+        "R4": "ood_auroc",
+        "R5": "attention_entropy",
+        "R6": "corrected_nll_gain",
+        "R7": "planner_return_gain",
+    }[phase]
 
 
 def _parser() -> argparse.ArgumentParser:
