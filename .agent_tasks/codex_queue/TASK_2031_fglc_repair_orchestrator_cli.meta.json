@@ -1,0 +1,8 @@
+﻿{
+    "task_number":  2031,
+    "task_name":  "fglc_repair_orchestrator_cli",
+    "task_file":  ".agent_tasks/codex_queue/TASK_2031_fglc_repair_orchestrator_cli.md",
+    "base_sha":  "9ae2c92fc211d9f82fb41b568133b3e52ad03439",
+    "assigned_at":  "2026-05-23T17:22:20Z",
+    "assigned_by":  "claude"
+}
