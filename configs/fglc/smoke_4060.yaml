@@ -1,6 +1,39 @@
 phase: R3
-seed: 0
-K: 4
-d: 32
-h: 64
-batch_size: 32
+seed: 42
+device: cuda  # fallback to cpu if cuda unavailable
+
+dataset:
+  type: synthetic_toy
+  D_x: 8
+  D_a: 4
+  episode_len: 64
+  n_episode_train: 32
+  n_episode_val: 8
+  n_episode_ood_mass: 16
+  n_episode_ood_friction: 16
+  ood_mass_scale: 2.0
+  ood_friction_scale: 0.5
+  sigma: 0.1
+
+model:
+  K: 6
+  d: 32
+  h_dim: 128
+  encoder_hidden: 256
+  dynamics_hidden: 64
+
+trainer:
+  batch_size: 16
+  train_horizon: 8
+  epochs: 5
+  learning_rate: 3.0e-4
+  optimizer: adam
+  loss_weights:
+    lambda_reward: 1.0
+    lambda_value: 1.0
+    lambda_calibration: 0.0  # smoke gate disabled
+
+metric:
+  primary: id_nll
+  gate_threshold_id_nll: 0.5
+  gate_threshold_ood_id_gap: 0.05
