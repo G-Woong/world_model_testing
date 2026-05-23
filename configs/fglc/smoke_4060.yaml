@@ -1,0 +1,6 @@
+phase: R3
+seed: 0
+K: 4
+d: 32
+h: 64
+batch_size: 32

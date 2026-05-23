@@ -137,3 +137,4 @@ outputs/lifecycle/*
 .self_evolving_memory/run_summaries/*
 !.self_evolving_memory/run_summaries/.gitkeep
 # hook_execution_log.md remains tracked (audit trail in chore(turn) commits)
+!outputs/repair/.gitkeep
