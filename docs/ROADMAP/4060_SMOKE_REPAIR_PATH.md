@@ -148,7 +148,7 @@ OOM fallback 이력은 `ledger.jsonl`의 `oom_fallbacks_applied` 필드에 기�
   --config configs\fglc\smoke_4060.yaml `
   --seed 42 `
   --max-iter 5 `
-  --max-wall-clock 240
+  --max-wall-clock-minutes 240
 ```
 
 > **BLOCKER**: `src/fglc/` R3 모듈(encoder/dynamics/world model heads)이 아직 부재.

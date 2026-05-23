@@ -28,7 +28,7 @@ outputs/repair/{loop_id}/
     run_manifest.json   # outputs/runs/{run_id}/run_manifest.json 복사본
 ```
 
-`loop_id` 형식: `loop_YYYY-MM-DDTHH-MM-SS` (ISO 8601, 콜론 대신 하이픈)
+`loop_id` 형식: `loop_YYYY-MM-DDTHH-MM-SS-{4hex}` (ISO 8601, 콜론 대신 하이픈, uuid4 4자리 hex suffix)
 
 ---
 
@@ -128,6 +128,29 @@ REQUIRED_KEYS = [
     "wall_clock_minutes", "vram_peak_mib",
 ]
 ```
+
+---
+
+## Optional Fields
+
+REQUIRED_KEYS(19개)에 포함되지 않지만 schema 예시에 등장하는 필드들. 구현체가 기록할 수
+있으나 필수는 아니며, `validate_ledger_line()`은 누락을 허용한다.
+
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| `gate_threshold` | number | 현재 phase의 metric gate threshold 값 (예: id_nll ≤ 0.35) |
+| `candidate_cost_minutes` | number | candidate_chosen 예상 실행 wall-clock (분) |
+| `candidate_risk` | number | candidate_chosen 회귀 위험 (0.0~1.0) |
+| `candidate_expected_signal` | number | candidate_chosen primary metric 개선 기댓값 (0.0~1.0) |
+| `candidate_rank_score` | number | ranker.py composite score |
+| `result_reason` | string | result 결정의 사유 텍스트 |
+| `epsilon_accept` | number | primary metric 개선 최소 threshold (기본 0.05) |
+| `epsilon_reject` | number | primary metric 비개선 threshold (기본 0.0) |
+| `epsilon_secondary` | number | secondary metric 허용 최대 악화 (기본 0.10) |
+| `oom_fallbacks_applied` | array | OOM 복구 fallback 목록 (예: `["batch_size: 16→8"]`) |
+| `early_stop_triggered` | bool | 조기 종료 발생 여부 |
+| `early_stop_reason` | string\|null | 조기 종료 사유 |
+| `notes` | string | 자유 텍스트 메모 |
 
 ---
 
