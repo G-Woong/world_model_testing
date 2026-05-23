@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Claude→Codex orchestration harness for FRCG-WM.
+    Claude→Codex orchestration harness for FGLC.
 
 .DESCRIPTION
     Modes:
@@ -20,7 +20,7 @@
       40  Codex commit missing, forbidden path violated, or RESULT.md missing
       50  merge conflict
 
-    Source MD: paper_context_ref/13_CLAUDE_CODE_EXECUTION_ROADMAP.md
+    Source MD: docs/ROADMAP/00_ROADMAP_OVERVIEW.md
 #>
 [CmdletBinding()]
 param(
