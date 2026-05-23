@@ -153,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
                     "final_result": final.ledger_line["result"],
                     "stop_condition_hit": final.ledger_line["stop_condition_hit"],
                     "ledger_path": str(
-                        cfg.output_root / f"{final.ledger_line['loop_id']}.jsonl"
+                        cfg.output_root / final.ledger_line["loop_id"] / "ledger.jsonl"
                     ),
                     "next_action": final.ledger_line["next_action"],
                 }
