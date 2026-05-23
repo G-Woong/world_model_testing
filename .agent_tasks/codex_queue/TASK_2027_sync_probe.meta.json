@@ -1,0 +1,8 @@
+﻿{
+    "task_number":  2027,
+    "task_name":  "sync_probe",
+    "task_file":  ".agent_tasks/codex_queue/TASK_2027_sync_probe.md",
+    "base_sha":  "631ddd41675770dd9e965dc5dc87e57a232a1ed1",
+    "assigned_at":  "2026-05-23T13:49:07Z",
+    "assigned_by":  "claude"
+}
