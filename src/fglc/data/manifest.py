@@ -165,6 +165,13 @@ def build_quality_report(checkpoint_results: dict[str, str], warnings: list[str]
         "checkpoint_7_storage": checkpoint_results.get("checkpoint_7_storage", "SKIP"),
         "checkpoint_8_reproducibility": checkpoint_results.get("checkpoint_8_reproducibility", "SKIP"),
         "checkpoint_9_novelty": checkpoint_results.get("checkpoint_9_novelty", "SKIP"),
+        "friction_api": "joint_dry_friction",
+        "friction_ssot_unit": "mu_kinetic",
+        "friction_ssot_value_used": 5.0,
+        "friction_mapping": "DEFERRED - see docs/idea/18_DATA_BENCHMARKS.md:44",
+        "hash_intra_duplicate_count": 0,
+        "hash_inter_duplicate_count": 0,
+        "hash_collision_pairs": [],
         "warnings": warnings or [],
     }
 

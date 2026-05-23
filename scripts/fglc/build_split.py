@@ -9,6 +9,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -39,6 +40,42 @@ def _load_h5_split(h5_path: str):
                 "done":   g["done"][:],
             })
     return episodes
+
+
+def audit_trajectory_hashes(split_episodes: dict[str, list[dict]]) -> dict:
+    """Audit exact duplicate state trajectories within and across splits."""
+    seen_by_hash: dict[str, list[tuple[str, int]]] = {}
+    intra_count = 0
+    inter_count = 0
+    collision_pairs: list[str] = []
+    truncated = False
+
+    def record_pair(pair: str) -> None:
+        nonlocal truncated
+        if len(collision_pairs) < 100:
+            collision_pairs.append(pair)
+        elif not truncated:
+            collision_pairs.append("TRUNCATED_AT_100")
+            truncated = True
+
+    for split, episodes in split_episodes.items():
+        for ep_i, ep in enumerate(episodes):
+            state_hash = hashlib.sha1(ep["state"].tobytes()).hexdigest()
+            prior_entries = seen_by_hash.setdefault(state_hash, [])
+            for prior_split, prior_ep_i in prior_entries:
+                pair = f"{prior_split}:ep_{prior_ep_i} vs {split}:ep_{ep_i}"
+                if prior_split == split:
+                    intra_count += 1
+                else:
+                    inter_count += 1
+                record_pair(pair)
+            prior_entries.append((split, ep_i))
+
+    return {
+        "hash_intra_duplicate_count": intra_count,
+        "hash_inter_duplicate_count": inter_count,
+        "hash_collision_pairs": collision_pairs,
+    }
 
 
 def main() -> None:
@@ -94,6 +131,8 @@ def main() -> None:
     if not split_episodes:
         print("ERROR: no splits loaded. Run collect_maniskill.py first.")
         sys.exit(1)
+
+    hash_audit = audit_trajectory_hashes(split_episodes)
 
     # Checkpoint 3: split integrity (seed pool disjoint)
     available_defaults = {s: SPLIT_DEFAULTS[s] for s in split_episodes}
@@ -170,6 +209,7 @@ def main() -> None:
         checkpoint_results,
         warnings=[f"Missing splits: {missing_splits}"] if missing_splits else [],
     )
+    quality_report.update(hash_audit)
 
     # Write outputs
     manifest_path = os.path.join(args.output_dir, "manifest.json")

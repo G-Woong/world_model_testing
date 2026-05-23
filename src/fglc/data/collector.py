@@ -12,6 +12,7 @@ OOD APIs confirmed via probe 2026-05-23:
 from __future__ import annotations
 
 import time
+import warnings
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -78,6 +79,7 @@ def _apply_ood(env, ood_params: dict[str, Any]) -> None:
 def collect_episodes(
     config: CollectionConfig,
     verbose: bool = False,
+    quarantine_dir: str | None = None,
 ) -> tuple[list[dict[str, np.ndarray]], list[dict[str, Any]], CollectionStats]:
     """Collect n_episodes from ManiSkill with per-episode validation.
 
@@ -86,7 +88,6 @@ def collect_episodes(
         eval_metas: list of eval-only metadata dicts, parallel to episodes
         stats: collection statistics
     """
-    import warnings
     warnings.filterwarnings("ignore")
 
     import gymnasium as gym
@@ -97,6 +98,7 @@ def collect_episodes(
     stats = CollectionStats()
     episodes: list[dict[str, np.ndarray]] = []
     eval_metas: list[dict[str, Any]] = []
+    seen_state_hashes: set[str] = set()
 
     seed_iter = iter(config.seed_pool)
     accepted = 0
@@ -156,7 +158,12 @@ def collect_episodes(
             d_arr = np.array(dones, dtype=bool)
 
             reject_reason = validate_episode(
-                s_arr, a_arr, r_arr, d_arr, min_episode_len=config.min_episode_len
+                s_arr,
+                a_arr,
+                r_arr,
+                d_arr,
+                min_episode_len=config.min_episode_len,
+                seen_state_hashes=seen_state_hashes,
             )
 
             if reject_reason is None:
@@ -193,10 +200,52 @@ def collect_episodes(
                 )
                 if verbose:
                     print(f"  [{config.split}] REJECT seed={seed} reason={reason_key}")
+                if quarantine_dir is not None:
+                    _quarantine_rejected_episode(
+                        quarantine_dir=quarantine_dir,
+                        split=config.split,
+                        seed=seed,
+                        reason=reason_key,
+                        states=s_arr,
+                        actions=a_arr,
+                        rewards=r_arr,
+                        dones=d_arr,
+                    )
                 retry += 1
 
     stats.wall_clock_seconds = time.time() - t_start
     return episodes, eval_metas, stats
+
+
+def _quarantine_rejected_episode(
+    quarantine_dir: str,
+    split: str,
+    seed: int,
+    reason: str,
+    states: np.ndarray,
+    actions: np.ndarray,
+    rewards: np.ndarray,
+    dones: np.ndarray,
+) -> None:
+    """Best-effort rejected-episode dump; failures must not stop collection."""
+    import os
+
+    import h5py
+
+    try:
+        split_dir = os.path.join(quarantine_dir, split)
+        os.makedirs(split_dir, exist_ok=True)
+        h5_path = os.path.join(split_dir, f"{seed}_{reason}.h5")
+        with h5py.File(h5_path, "w") as f:
+            f.create_dataset("state", data=states, compression="gzip", compression_opts=4)
+            f.create_dataset("action", data=actions, compression="gzip", compression_opts=4)
+            f.create_dataset("reward", data=rewards, compression="gzip", compression_opts=4)
+            f.create_dataset("done", data=dones, compression="gzip", compression_opts=4)
+    except Exception as exc:
+        print(
+            f"WARNING: failed to quarantine rejected episode split={split} "
+            f"seed={seed} reason={reason}: {exc}"
+        )
 
 
 def save_episodes_h5(

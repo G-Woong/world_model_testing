@@ -147,3 +147,46 @@ class TestBuildDatasetStats:
         assert stats["D_a"] == 8
         assert len(stats["state_mean"]) == 42
         assert len(stats["action_mean"]) == 8
+
+
+class TestTrajectoryHashAudit:
+    def _episode(self, offset: float) -> dict:
+        state = (np.arange(12, dtype=np.float32).reshape(3, 4) + offset).astype(np.float32)
+        action = np.zeros((3, 2), dtype=np.float32)
+        reward = np.zeros(3, dtype=np.float32)
+        done = np.array([False, False, True], dtype=bool)
+        return {"state": state, "action": action, "reward": reward, "done": done}
+
+    def test_no_hash_duplicate_in_clean_splits(self):
+        from scripts.fglc.build_split import audit_trajectory_hashes
+
+        result = audit_trajectory_hashes({
+            "train_id": [self._episode(0.0), self._episode(10.0)],
+            "val_id": [self._episode(20.0)],
+        })
+        assert result["hash_intra_duplicate_count"] == 0
+        assert result["hash_inter_duplicate_count"] == 0
+        assert result["hash_collision_pairs"] == []
+
+    def test_hash_duplicate_detected_intra(self):
+        from scripts.fglc.build_split import audit_trajectory_hashes
+
+        dup = self._episode(0.0)
+        result = audit_trajectory_hashes({
+            "train_id": [dup, {"state": dup["state"].copy(), "action": dup["action"], "reward": dup["reward"], "done": dup["done"]}],
+        })
+        assert result["hash_intra_duplicate_count"] > 0
+        assert result["hash_inter_duplicate_count"] == 0
+        assert result["hash_collision_pairs"]
+
+    def test_hash_duplicate_detected_inter(self):
+        from scripts.fglc.build_split import audit_trajectory_hashes
+
+        dup = self._episode(0.0)
+        result = audit_trajectory_hashes({
+            "train_id": [dup],
+            "val_id": [{"state": dup["state"].copy(), "action": dup["action"], "reward": dup["reward"], "done": dup["done"]}],
+        })
+        assert result["hash_intra_duplicate_count"] == 0
+        assert result["hash_inter_duplicate_count"] > 0
+        assert result["hash_collision_pairs"]

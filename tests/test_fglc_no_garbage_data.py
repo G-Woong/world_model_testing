@@ -1,4 +1,4 @@
-"""Tests that all 9 garbage reject reasons fire correctly.
+"""Tests that all 10 garbage reject reasons fire correctly.
 
 Source: docs/STEP11_PLAN.md §F.3, §I.2 TASK D2
 Validates EpisodeRejectReason enum + validate_episode() function with
@@ -6,6 +6,8 @@ synthetic garbage datasets for each rejection case.
 """
 
 from __future__ import annotations
+
+import hashlib
 
 import numpy as np
 import pytest
@@ -145,8 +147,37 @@ def test_done_flood():
     assert result == EpisodeRejectReason.DONE_FLOOD
 
 
-def test_all_nine_reject_reasons_in_enum():
-    """All 9 reject reasons must be present in the enum."""
+def test_episode_duplicate_detected():
+    states, actions, rewards, dones = _valid_episode()
+    seen_hashes = {hashlib.sha1(states.tobytes()).hexdigest()}
+    result = validate_episode(
+        states,
+        actions,
+        rewards,
+        dones,
+        seen_state_hashes=seen_hashes,
+    )
+    assert result == EpisodeRejectReason.EPISODE_DUPLICATE
+
+
+def test_episode_duplicate_different_episode_passes():
+    states, actions, rewards, dones = _valid_episode()
+    other_states = states.copy()
+    other_states[0, 0] += 1.0
+    seen_hashes = {hashlib.sha1(other_states.tobytes()).hexdigest()}
+    result = validate_episode(
+        states,
+        actions,
+        rewards,
+        dones,
+        seen_state_hashes=seen_hashes,
+    )
+    assert result is None
+    assert len(seen_hashes) == 2
+
+
+def test_all_ten_reject_reasons_in_enum():
+    """All 10 reject reasons must be present in the enum."""
     expected = {
         "all_state_static",
         "all_action_zero",
@@ -157,6 +188,7 @@ def test_all_nine_reject_reasons_in_enum():
         "no_done_signal",
         "done_flood",
         "numerical_invalid",
+        "episode_duplicate",
     }
     actual = {r.value for r in EpisodeRejectReason}
     assert actual == expected, f"Enum mismatch: missing={expected-actual}, extra={actual-expected}"
