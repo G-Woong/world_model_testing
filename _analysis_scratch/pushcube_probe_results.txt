@@ -1,0 +1,25 @@
+PushCube-v1 mass OOD probe 결과 (2026-05-24)
+
+=== 핵심 수치 ===
+n=50 probe (--no-save, _analysis_scratch only)
+
+train_id:    state_delta_norm_mean=1.091208 std=0.036064
+ood_mass_low (mass=1.5): state_delta_norm_mean=1.108965 std=0.054460
+
+gap (abs):  0.017756 (threshold=0.01 → PASS)
+gap (signed): +0.017756 (stable positive direction)
+
+KS test: stat=0.3000, p=0.0217 → significant (p < 0.05) ✓
+t-test:  stat=-1.9029, p=0.0600 → NOT significant at 0.05
+
+=== 판정 ===
+PASS: gap >= 0.01 AND KS p < 0.05
+→ mass OOD severity CONFIRMED in PushCube-v1
+
+비교: PickCube-v1 mass gap = 0.004 (FAIL) vs PushCube-v1 mass gap = 0.018 (PASS)
+이유: PushCube는 cube pushing이 task-objective → contact rate 높음 → mass 효과 관찰 가능
+
+=== 다음 단계 ===
+1. PushCube-v1 전체 데이터 수집 (train_id 250ep + ood splits 각 50ep)
+2. quality_report.json OOD severity 재평가
+3. R3 smoke test (PickCube friction + PushCube mass 조합)

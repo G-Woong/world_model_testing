@@ -1,0 +1,3 @@
+train_id: contact_rate(tcp_dist<5cm)=0.0000, mean_tcp_dist=0.9990m
+ood_mass_low: contact_rate(tcp_dist<5cm)=0.0000, mean_tcp_dist=0.9992m
+ood_friction_low: contact_rate(tcp_dist<5cm)=0.0000, mean_tcp_dist=0.9992m

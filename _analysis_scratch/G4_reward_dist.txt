@@ -1,0 +1,5 @@
+train_id: reward mean=0.0504, std=0.0279, max=0.4036
+ood_mass_low: reward mean=0.0510, std=0.0284, max=0.1641
+ood_friction_low: reward mean=0.0502, std=0.0253, max=0.1321
+reward KS test (train_id vs ood_mass_low): stat=0.0264, p=1.0771e-01
+reward KS test (train_id vs ood_friction_low): stat=0.0297, p=4.9945e-02

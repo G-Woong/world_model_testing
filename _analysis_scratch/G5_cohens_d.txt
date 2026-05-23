@@ -1,0 +1,51 @@
+train_id: (12500, 42), mass: (2500, 42), friction: (2500, 42)
+
+=== Mass OOD: Top 10 dims by |Cohen d| ===
+  dim24: d=+1.0343
+  dim35: d=+0.2803
+  dim40: d=+0.2770
+  dim33: d=-0.2157
+  dim28: d=+0.2101
+  dim02: d=-0.2060
+  dim04: d=-0.1931
+  dim23: d=+0.1785
+  dim18: d=-0.1631
+  dim20: d=+0.1460
+
+=== Friction OOD: Top 10 dims by |Cohen d| ===
+  dim05: d=+0.2582
+  dim36: d=+0.2348
+  dim23: d=+0.2224
+  dim38: d=+0.1999
+  dim35: d=+0.1753
+  dim30: d=-0.1745
+  dim32: d=+0.1708
+  dim00: d=+0.1543
+  dim02: d=-0.1463
+  dim20: d=-0.1338
+
+=== Mass OOD: per-dim summary ===
+  |d| > 0.2: 6 dims
+  |d| > 0.5: 1 dims
+  |d| > 0.8: 1 dims (large effect)
+
+=== Friction OOD: per-dim summary ===
+  |d| > 0.2: 3 dims
+  |d| > 0.5: 0 dims
+  |d| > 0.8: 0 dims (large effect)
+
+=== Mass OOD: mean |Cohen d| per group ===
+  qpos(0-8): mean|d|=0.0948, max|d|=0.2060
+  qvel(9-17): mean|d|=0.0180, max|d|=0.0392
+  extra(18-28): mean|d|=0.1978, max|d|=1.0343
+  obj_pose(29-35): mean|d|=0.1263, max|d|=0.2803
+  tcp_to_obj(36-38): mean|d|=0.0550, max|d|=0.0968
+  obj_to_goal(39-41): mean|d|=0.1392, max|d|=0.2770
+
+=== Friction OOD: mean |Cohen d| per group ===
+  qpos(0-8): mean|d|=0.1119, max|d|=0.2582
+  qvel(9-17): mean|d|=0.0170, max|d|=0.0538
+  extra(18-28): mean|d|=0.0749, max|d|=0.2224
+  obj_pose(29-35): mean|d|=0.1138, max|d|=0.1753
+  tcp_to_obj(36-38): mean|d|=0.1548, max|d|=0.2348
+  obj_to_goal(39-41): mean|d|=0.0957, max|d|=0.1090

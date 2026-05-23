@@ -1,0 +1,3 @@
+train_id: object_pose_delta_norm_mean=0.020535, std=0.001356, min=0.016766, max=0.024466
+ood_mass_low: object_pose_delta_norm_mean=0.020671, std=0.001516, min=0.017490, max=0.024657
+ood_friction_low: object_pose_delta_norm_mean=0.019985, std=0.001288, min=0.017102, max=0.022868
