@@ -133,8 +133,9 @@ def test_compute_config_hash_str_and_path(tmp_path):
 def test_build_loop_id_format():
     loop_id = build_loop_id(datetime(2026, 5, 23, 15, 0, 0, tzinfo=timezone.utc))
 
-    assert re.match(r"^loop_\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}$", loop_id)
-    assert loop_id == "loop_2026-05-23T15-00-00"
+    assert re.match(r"^loop_\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-[0-9a-f]{4}$", loop_id)
+    assert loop_id.startswith("loop_2026-05-23T15-00-00-")
+    assert len(loop_id) == len("loop_2026-05-23T15-00-00-") + 4
 
 
 def test_build_run_id_format():

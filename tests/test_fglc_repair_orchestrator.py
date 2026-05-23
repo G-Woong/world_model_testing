@@ -70,7 +70,7 @@ def _runner(scenario, wall_clock=0.1):
 
 
 def _records(output_root):
-    ledger_path = next(output_root.glob("*.jsonl"))
+    ledger_path = next(output_root.glob("*/ledger.jsonl"))
     return [json.loads(line) for line in ledger_path.read_text(encoding="utf-8").splitlines()]
 
 

@@ -6,6 +6,7 @@ Source: docs/EXPERIMENT_LEDGER_SCHEMA.md (Ledger Line Schema + REQUIRED_KEYS)
 import hashlib
 import json
 import os
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -80,7 +81,8 @@ def compute_config_hash(config: dict[str, Any] | str | Path) -> str:
 def build_loop_id(now: datetime | None = None) -> str:
     if now is None:
         now = datetime.now(timezone.utc).replace(microsecond=0)
-    return f"loop_{now.strftime('%Y-%m-%dT%H-%M-%S')}"
+    suffix = uuid.uuid4().hex[:4]
+    return f"loop_{now.strftime('%Y-%m-%dT%H-%M-%S')}-{suffix}"
 
 
 def build_run_id(phase: str, descriptor: str, seed: int, key_params: dict[str, Any]) -> str:

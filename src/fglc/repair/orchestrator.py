@@ -226,8 +226,9 @@ def run_repair_loop(
 ) -> list[RepairIterationResult]:
     loop_id = build_loop_id(now() if now else None)
     config_hash = _hash_config(cfg.config_path)
-    ledger_path = cfg.output_root / f"{loop_id}.jsonl"
-    cfg.output_root.mkdir(parents=True, exist_ok=True)
+    loop_dir = cfg.output_root / loop_id
+    loop_dir.mkdir(parents=True, exist_ok=True)
+    ledger_path = loop_dir / "ledger.jsonl"
 
     sha = git_sha_fn() if git_sha_fn else git_sha()
     baseline = runner(
