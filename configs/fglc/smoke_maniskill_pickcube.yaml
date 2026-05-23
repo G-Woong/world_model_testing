@@ -23,6 +23,8 @@ dataset:
   ood_friction_value: 5.0      # joint dry friction, via art.joints[i].set_friction()
 
 model:
+  D_x: 42      # from dataset.D_x — must match
+  D_a: 8       # from dataset.D_a — must match
   K: 6
   d: 32
   h_dim: 128

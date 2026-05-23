@@ -105,6 +105,25 @@ def _fire_correction_large(metrics: Mapping[str, float]) -> list[FailureCauseId]
     return []
 
 
+def _fire_ood_too_hard(metrics: Mapping[str, float]) -> list[FailureCauseId]:
+    diff = metrics.get("ood_id_nll_diff")
+    if diff is None:
+        return []
+    # OOD_TOO_HARD: gap > 2.0 nat (taxonomy threshold)
+    if diff > 2.0:
+        return [FailureCauseId.OOD_TOO_HARD]
+    return []
+
+
+def _fire_eval_noise_high(metrics: Mapping[str, float]) -> list[FailureCauseId]:
+    ci = metrics.get("eval_ci95_over_effect_size")
+    if ci is None:
+        return []
+    if ci > 1.0:
+        return [FailureCauseId.EVAL_NOISE_HIGH]
+    return []
+
+
 def _fire_planner(metrics: Mapping[str, float]) -> list[FailureCauseId]:
     if metrics.get("planner_return_gain") is None:
         return []
@@ -130,6 +149,8 @@ def diagnose(metrics: Mapping[str, float], phase: str) -> list[FailureCauseId]:
         _fire_attention,
         _fire_correction_weak,
         _fire_correction_large,
+        _fire_ood_too_hard,
+        _fire_eval_noise_high,
         _fire_planner,
     ]:
         for cause_id in fire_fn(metrics):

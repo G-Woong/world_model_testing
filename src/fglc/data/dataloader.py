@@ -1,4 +1,7 @@
-"""DataLoader construction for FGLC synthetic data."""
+"""DataLoader construction for FGLC synthetic and ManiSkill data.
+
+Supports dataset.type: synthetic_toy | maniskill_state_only
+"""
 
 from __future__ import annotations
 
@@ -35,15 +38,36 @@ def make_dataloaders(config: dict) -> dict[str, DataLoader]:
     dataset_config: Mapping[str, object] = config["dataset"]
     trainer_config: Mapping[str, object] = config["trainer"]
 
+    batch_size = int(trainer_config["batch_size"])
+    train_horizon = int(trainer_config["train_horizon"])
+    dataset_type = str(dataset_config.get("type", "synthetic_toy"))
+
+    if dataset_type == "maniskill_state_only":
+        datasets = _make_maniskill_datasets(dataset_config)
+    else:
+        datasets = _make_synthetic_datasets(dataset_config, config)
+
+    return {
+        name: DataLoader(
+            _HorizonDataset(dataset, train_horizon),
+            batch_size=batch_size,
+            shuffle=(name == "train_id"),
+            num_workers=0,
+        )
+        for name, dataset in datasets.items()
+    }
+
+
+def _make_synthetic_datasets(
+    dataset_config: Mapping[str, object], config: dict
+) -> dict[str, Dataset]:
     D_x = int(dataset_config["D_x"])
     D_a = int(dataset_config["D_a"])
     episode_len = int(dataset_config["episode_len"])
     sigma = float(dataset_config["sigma"])
     seed = int(config.get("seed", 42))
-    batch_size = int(trainer_config["batch_size"])
-    train_horizon = int(trainer_config["train_horizon"])
 
-    datasets = {
+    return {
         "train_id": SyntheticToyDataset(
             n_episodes=int(dataset_config["n_episode_train"]),
             episode_len=episode_len,
@@ -80,12 +104,21 @@ def make_dataloaders(config: dict) -> dict[str, DataLoader]:
         ),
     }
 
-    return {
-        name: DataLoader(
-            _HorizonDataset(dataset, train_horizon),
-            batch_size=batch_size,
-            shuffle=(name == "train_id"),
-            num_workers=0,
-        )
-        for name, dataset in datasets.items()
+
+def _make_maniskill_datasets(
+    dataset_config: Mapping[str, object],
+) -> dict[str, Dataset]:
+    from fglc.data.maniskill_dataset import ManiSkillStateOnlyDataset
+
+    split_h5_keys = {
+        "train_id": "train_id_h5",
+        "val_id": "val_id_h5",
+        "test_id": "test_id_h5",
+        "ood_mass": "ood_mass_h5",
+        "ood_friction": "ood_friction_h5",
     }
+    datasets: dict[str, Dataset] = {}
+    for split, h5_key in split_h5_keys.items():
+        h5_path = str(dataset_config[h5_key])
+        datasets[split] = ManiSkillStateOnlyDataset(h5_path=h5_path)
+    return datasets

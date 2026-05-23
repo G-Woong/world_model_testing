@@ -33,6 +33,13 @@ data/*
 *.npy
 *.pkl
 *.pickle
+*.h5
+*.hdf5
+# Step 11: allow manifest/stats/quality metadata (not raw HDF5)
+!data/fglc/**/manifest.json
+!data/fglc/**/dataset_stats.json
+!data/fglc/**/quality_report.json
+!data/fglc/**/split_config.yaml
 
 # =========================
 # Training / evaluation outputs
