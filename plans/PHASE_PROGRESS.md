@@ -47,4 +47,6 @@
 - 2026-05-24T14:50:16Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
 - 2026-05-24T16:20:11Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
 - 2026-05-24T16:29:43Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
+- 2026-05-24T08:30:00Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2, R3 | SoT: reports/r3_smoke_two_axis_R1.md | FINDING: ood_gain NLL reversal is physics (gain=0.7 → -29% transition magnitude), not a bug. id_nll gate PASS both tasks.
 - 2026-05-24T16:55:00Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2, R3 | SoT: reports/r3_entry_audit_R1.md + reports/r3_readiness_action_gain_R1.md
+- 2026-05-24T17:00:09Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2, R3 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
