@@ -331,6 +331,52 @@ CANDIDATE_TABLE: dict[FailureCauseId, tuple[RepairCandidate, ...]] = {
             applicable_phases=("R7",),
         ),
     ),
+    FailureCauseId.CONFORMAL_QUANTILE_MISMATCH: (
+        RepairCandidate(
+            id="CONFORMAL_QUANTILE_MISMATCH_sigma_floor_up",
+            cause_id=FailureCauseId.CONFORMAL_QUANTILE_MISMATCH,
+            patch={"falsification": {"sigma_floor": 1e-2}},
+            cost_minutes=5,
+            risk=0.1,
+            expected_signal=0.5,
+            description="Increase sigma_floor to reduce FPR instability from near-zero σ.",
+            applicable_phases=("R4",),
+        ),
+    ),
+    FailureCauseId.BETA_GATE_DIRECTION_BLIND: (
+        RepairCandidate(
+            id="BETA_GATE_DIRECTION_BLIND_signed_bias_weight",
+            cause_id=FailureCauseId.BETA_GATE_DIRECTION_BLIND,
+            patch={"falsification": {"use_signed_bias": True}},
+            cost_minutes=5,
+            risk=0.1,
+            expected_signal=0.6,
+            description="Enable directional_bias_score as supplement to F_total for detection.",
+            applicable_phases=("R4",),
+        ),
+    ),
+    FailureCauseId.EASY_LOOKING_OOD_MISSED: (
+        RepairCandidate(
+            id="EASY_LOOKING_OOD_MISSED_cusum_window_up",
+            cause_id=FailureCauseId.EASY_LOOKING_OOD_MISSED,
+            patch={"falsification": {"sequence_window": 16}},
+            cost_minutes=5,
+            risk=0.1,
+            expected_signal=0.5,
+            description="Increase CUSUM window to accumulate sustained low-magnitude drift.",
+            applicable_phases=("R4",),
+        ),
+        RepairCandidate(
+            id="EASY_LOOKING_OOD_MISSED_signed_bias",
+            cause_id=FailureCauseId.EASY_LOOKING_OOD_MISSED,
+            patch={"falsification": {"use_signed_bias": True, "signed_bias_weight": 0.5}},
+            cost_minutes=5,
+            risk=0.1,
+            expected_signal=0.6,
+            description="Add signed directional bias score to detection; easy-looking OOD has consistent signed drift.",
+            applicable_phases=("R4",),
+        ),
+    ),
     FailureCauseId.IMPLEMENTATION_BUG_SUSPECTED: (
         RepairCandidate(
             id="IMPLEMENTATION_BUG_SUSPECTED_manual_blocker",

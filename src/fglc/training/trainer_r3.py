@@ -5,9 +5,12 @@ Source: docs/idea/10_LOSS_DESIGN.md Stage 1.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -226,6 +229,44 @@ class TrainerR3:
             total_nll += float(losses["dyn"].detach().cpu()) * batch_size
             total_count += batch_size
         return total_nll / max(total_count, 1)
+
+    def _config_hash(self) -> str:
+        payload = json.dumps(self.model_config, sort_keys=True).encode("utf-8")
+        return f"sha256:{hashlib.sha256(payload).hexdigest()[:16]}"
+
+    def save_state(self, path: Path | str) -> None:
+        """Save encoder/belief/dynamics/heads state_dict for R4 frozen reuse.
+
+        Source: docs/idea/12_TRAINING_STAGES.md Stage 2 (R4 freeze policy).
+        """
+        torch.save(
+            {
+                "encoder": self.encoder.state_dict(),
+                "belief": self.belief.state_dict(),
+                "dynamics": self.dynamics.state_dict(),
+                "reward_head": self.reward_head.state_dict(),
+                "value_head": self.value_head.state_dict(),
+                "config_hash": self._config_hash(),
+            },
+            path,
+        )
+
+    def load_state(self, path: Path | str, freeze: bool = True) -> None:
+        """Load R3 checkpoint and optionally freeze all parameters for R4 eval.
+
+        Source: docs/idea/12_TRAINING_STAGES.md Stage 2 (R4 freeze policy).
+        """
+        ckpt = torch.load(path, map_location=self.device)
+        self.encoder.load_state_dict(ckpt["encoder"])
+        self.belief.load_state_dict(ckpt["belief"])
+        self.dynamics.load_state_dict(ckpt["dynamics"])
+        self.reward_head.load_state_dict(ckpt["reward_head"])
+        self.value_head.load_state_dict(ckpt["value_head"])
+        if freeze:
+            for mod in [self.encoder, self.belief, self.dynamics, self.reward_head, self.value_head]:
+                for p in mod.parameters():
+                    p.requires_grad_(False)
+            self.modules.eval()
 
     @torch.no_grad()
     def evaluate_kstep_nll_slope(self, loader: DataLoader) -> float:

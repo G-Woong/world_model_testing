@@ -1,0 +1,49 @@
+dataset:
+  D_a: 8
+  D_x: 42
+  data_root: data/fglc/PickCube-v1
+  episode_len: 80
+  n_episode_ood_friction: 50
+  n_episode_ood_gain: 500
+  n_episode_ood_mass: 50
+  n_episode_train: 250
+  n_episode_val: 50
+  ood_friction_h5: data/fglc/PickCube-v1/raw/ood_friction_low.h5
+  ood_friction_value: 5.0
+  ood_gain_h5: data/fglc/PickCube-v1/raw/ood_gain_low.h5
+  ood_gain_value: 0.7
+  ood_mass_h5: data/fglc/PickCube-v1/raw/ood_mass_low.h5
+  ood_mass_value: 1.5
+  task: PickCube-v1
+  test_id_h5: data/fglc/PickCube-v1/raw/test_id.h5
+  train_id_h5: data/fglc/PickCube-v1/raw/train_id.h5
+  type: maniskill_state_only
+  val_id_h5: data/fglc/PickCube-v1/raw/val_id.h5
+device: cuda
+falsification:
+  alpha: 0.05
+  calibration_split: test_id
+  sequence_window: 8
+  sigma_floor: 0.001
+  signed_bias_weight: 0.0
+  use_signed_bias: false
+model:
+  D_a: 8
+  D_x: 42
+  K: 6
+  d: 32
+  dynamics_hidden: 64
+  encoder_hidden: 256
+  h_dim: 128
+phase: R4
+seed: 42
+trainer:
+  batch_size: 16
+  epochs: 30
+  learning_rate: 0.0003
+  loss_weights:
+    lambda_calibration: 0.0
+    lambda_reward: 1.0
+    lambda_value: 1.0
+  optimizer: adam
+  train_horizon: 8

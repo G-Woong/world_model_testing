@@ -32,6 +32,10 @@ class FailureCauseId(str, Enum):
     EVAL_NOISE_HIGH = "EVAL_NOISE_HIGH"
     BASELINE_MISMATCH = "BASELINE_MISMATCH"
     IMPLEMENTATION_BUG_SUSPECTED = "IMPLEMENTATION_BUG_SUSPECTED"
+    # R4 new causes (2026-05-24)
+    CONFORMAL_QUANTILE_MISMATCH = "CONFORMAL_QUANTILE_MISMATCH"
+    BETA_GATE_DIRECTION_BLIND = "BETA_GATE_DIRECTION_BLIND"
+    EASY_LOOKING_OOD_MISSED = "EASY_LOOKING_OOD_MISSED"
 
 
 @dataclass(frozen=True)
@@ -233,6 +237,51 @@ DETECTION_THRESHOLDS: dict[FailureCauseId, dict[str, float | None]] = {
     FailureCauseId.BASELINE_MISMATCH: {"baseline_nll_expected_sigma_max": 2.0},
     FailureCauseId.IMPLEMENTATION_BUG_SUSPECTED: {},
 }
+
+
+CAUSE_METADATA.update(
+    {
+        FailureCauseId.CONFORMAL_QUANTILE_MISMATCH: FailureCauseMeta(
+            cause_id=FailureCauseId.CONFORMAL_QUANTILE_MISMATCH,
+            meaning="empirical FPR on ID calibration deviates significantly from α.",
+            source_md_refs=("docs/idea/02_FALSIFICATION_THEORY.md",),
+            applicable_phases=("R4",),
+            detection_summary="beta_t_fpr_id not in [alpha/2, 2*alpha].",
+        ),
+        FailureCauseId.BETA_GATE_DIRECTION_BLIND: FailureCauseMeta(
+            cause_id=FailureCauseId.BETA_GATE_DIRECTION_BLIND,
+            meaning="β_t AUROC is below raw NLL AUROC, indicating gate is worse than baseline.",
+            source_md_refs=("docs/idea/02_FALSIFICATION_THEORY.md",),
+            applicable_phases=("R4",),
+            detection_summary="beta_t_auroc_* < raw_nll_auroc_* by > 0.05.",
+        ),
+        FailureCauseId.EASY_LOOKING_OOD_MISSED: FailureCauseMeta(
+            cause_id=FailureCauseId.EASY_LOOKING_OOD_MISSED,
+            meaning="magnitude-reducing OOD (gain=0.7, friction=5.0) yields lower F_total than ID.",
+            source_md_refs=(
+                "reports/R3_SMOKE_CLOSURE_REPORT.md",
+                "docs/FUTURE_OOD_DATA_EXPANSION_INSIGHTS.md",
+            ),
+            applicable_phases=("R4",),
+            detection_summary="mean(F_total_ood) < mean(F_total_id) for friction or gain axis.",
+        ),
+    }
+)
+
+DETECTION_THRESHOLDS.update(
+    {
+        FailureCauseId.CONFORMAL_QUANTILE_MISMATCH: {
+            "fpr_id_lo": None,  # dynamic: alpha/2
+            "fpr_id_hi": None,  # dynamic: 2*alpha
+        },
+        FailureCauseId.BETA_GATE_DIRECTION_BLIND: {
+            "beta_auroc_below_nll_auroc_margin": 0.05,
+        },
+        FailureCauseId.EASY_LOOKING_OOD_MISSED: {
+            "ood_f_mean_below_id_f_mean": 0.0,
+        },
+    }
+)
 
 
 def applicable_phases_for(phase: str) -> frozenset[FailureCauseId]:

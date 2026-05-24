@@ -28,6 +28,16 @@ CANONICAL_METRIC_KEYS: frozenset[str] = frozenset(
         "ood_mass_nll",
         "ood_friction_nll",
         "eval_ci95_over_effect_size",
+        # R4 falsification gate keys (2026-05-24)
+        "beta_t_auroc_friction",
+        "beta_t_auroc_gain",
+        "beta_t_fpr_id",
+        "beta_t_tpr_friction",
+        "beta_t_tpr_gain",
+        "conformal_threshold",
+        "residual_ece",
+        "raw_nll_auroc_friction",
+        "raw_nll_auroc_gain",
     }
 )
 

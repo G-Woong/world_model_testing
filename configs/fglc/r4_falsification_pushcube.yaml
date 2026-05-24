@@ -1,0 +1,56 @@
+phase: R4
+seed: 42
+device: cuda  # fallback to cpu if cuda unavailable
+
+# PushCube-v1 R4 falsification gate config
+# Source: docs/idea/02_FALSIFICATION_THEORY.md §B-C.
+
+dataset:
+  type: maniskill_state_only
+  task: PushCube-v1
+  D_x: 35
+  D_a: 8
+  data_root: data/fglc/PushCube-v1
+  train_id_h5:     data/fglc/PushCube-v1/raw/train_id.h5
+  val_id_h5:       data/fglc/PushCube-v1/raw/val_id.h5
+  test_id_h5:      data/fglc/PushCube-v1/raw/test_id.h5
+  ood_mass_h5:     data/fglc/PushCube-v1/raw/ood_mass_low.h5
+  ood_friction_h5: data/fglc/PushCube-v1/raw/ood_friction_low.h5
+  ood_gain_h5:     data/fglc/PushCube-v1/raw/ood_gain_low.h5
+  episode_len: 50
+  n_episode_train: 500
+  n_episode_val: 100
+  n_episode_ood_mass: 100
+  n_episode_ood_friction: 100
+  n_episode_ood_gain: 500
+  ood_mass_value: 1.5
+  ood_friction_value: 5.0
+  ood_gain_value: 0.7
+
+model:
+  D_x: 35
+  D_a: 8
+  K: 6
+  d: 32
+  h_dim: 128
+  encoder_hidden: 256
+  dynamics_hidden: 64
+
+trainer:
+  batch_size: 16
+  train_horizon: 8
+  epochs: 5
+  learning_rate: 3.0e-4
+  optimizer: adam
+  loss_weights:
+    lambda_reward: 1.0
+    lambda_value: 1.0
+    lambda_calibration: 0.0
+
+falsification:
+  alpha: 0.05
+  sigma_floor: 1.0e-3
+  sequence_window: 8
+  calibration_split: test_id
+  use_signed_bias: false
+  signed_bias_weight: 0.0
