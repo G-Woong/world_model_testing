@@ -37,11 +37,27 @@ PickCube mass OOD FAIL (gap=0.004, contact_rate=0.0%):
 - PushCube로 task 변경한 이유를 방법론 섹션에 설명.
 - **숨김 없음** — 이 보고서에서 기록으로 확인됨.
 
+## 실측 집계 결과 (2026-05-24 Stage 3 완료)
+
+| Agent | 판정 | 근거 |
+|---|---|---|
+| A (data-quality) | **PASS** | 900ep 모두 accept, n_rejected=0, NaN=0 |
+| B (split-leakage) | **PASS** | seeds 1042-1999 disjoint from PickCube 42-650, forbidden fields=0 |
+| C (ood-severity) | **FAIL** | mass gap=0.008 < 0.01. friction gap=0.124 PASS |
+| D (dynamics-forensics) | PENDING | contact_rate 미측정 |
+| E (novelty-relevance) | CONDITIONAL | friction 2-task evidence 유효; mass axis BLOCKED |
+| F (training-readiness) | **PASS** | D_x=35 확정, PickCube R3 smoke 가능 |
+| G (resource-budget) | **PASS** | 4분 수집, 18.5MB disk, VRAM < 300MB |
+
+## Negative Result 공시
+
+- PickCube mass OOD: FAIL (gap=0.004, contact_rate=0.0%)
+- PushCube mass OOD: FAIL (gap=0.008, random policy low contact + obs_mode mismatch)
+- **두 task 모두 random policy에서 mass OOD FAIL** — 논문에 명시 필수
+
 ## 최종 판정
 
-**PENDING** — Stage 4 Agent A~G 완료 후 채워질 것.
+**PATCH_REQUIRED** → 사용자 escalation 필요 (§N.2, §N.3).
 
-최종 판정 기준:
-- ANALYSIS_PASS: Agent A~G 모두 PASS/CONDITIONAL_PASS, negative result 공시 확인
-- PATCH_REQUIRED: 일부 FAIL → repair loop → 재수집
-- BLOCKED: contact_rate < 5% (PushCube도 부적합) → task 재고 → 사용자 escalation
+repair ledger: `outputs/repair/loop_pushcube_2026-05-24.jsonl` (iter=1, result=reject)
+R3 가능 경로: PickCube friction data 단독 (E.7), 사용자 결정 대기

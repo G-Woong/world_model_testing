@@ -1,601 +1,855 @@
-# Step 11-D7 — ManiSkill PickCube-v1 state-only 실제 데이터 수집 PLAN
+# FGLC R4 FALSIFICATION GATE Plan — standardized residual + conformal calibration + β_t gate
 
-> **Status**: PLAN ONLY — 수집 미실행. `outputs/phase_gates/R3.passed` 생성 금지.
+> **Status**: PLAN (Phase 1 read-only audit + Phase 3 user clarification 완료, ExitPlanMode 승인 대기)
 > **Branch**: `memory-redesign-2026-05-16`
-> **Date**: 2026-05-23
+> **Date**: 2026-05-24
+> **Supersedes**: 직전 R3 SMOKE EXECUTION plan (closure commit `4b3b8c0` 완료)
+> **Authority**: 사용자 메시지 "R4 FALSIFICATION GATE — standardized residual + conformal calibration + β_t gate"
+> **Predecessor artifacts**: `reports/R3_SMOKE_CLOSURE_REPORT.md` (R3 finding), `docs/FUTURE_OOD_DATA_EXPANSION_INSIGHTS.md` (easy-looking OOD)
 
 ---
 
-## Context
+## Context — 왜 R4가 필요한가
 
-Step 11 D0~D6은 모두 PASS — ManiSkill 의존성, PickCube-v1 state-only probe(`D_x=42, D_a=8`), OOD mass/friction API 확인, `collector.py / collect_maniskill.py / validators.py(9 reject reason) / manifest.py / stats.py / build_split.py / dataloader maniskill 분기 / R3 runner maniskill branch` 모두 구현·테스트 완료, **279 tests passed** (`docs/STEP11_RESULT_REPORT.md:18-47`).
+### R3 closure에서 닫힌 사실 (reports/R3_SMOKE_CLOSURE_REPORT.md §E + §G)
 
-D7만 PENDING. D7의 목적은 단순한 "episode 수집 성공"이 아니라, **FGLC novelty(`wrong-dynamics-hypothesis persistence → falsification → latent correction → planning recovery`)를 검증할 수 있는 고품질 ID/OOD 데이터**를 episode-level garbage gate, split-level integrity gate, OOD severity gate, novelty relevance gate 4중 검증으로 확보하는 것이다.
+- PickCube/PushCube R3 base WM 학습은 PASS (`id_nll = -0.16 / -1.20`).
+- 그러나 `ood_friction_nll` 및 `ood_gain_nll`가 `id_nll`보다 **더 음수** (역전).
+  - PickCube: gain Δ = −0.131, friction Δ = −0.084
+  - PushCube: gain Δ = −0.050, friction Δ = −0.011
+- 원인은 **transition magnitude 축소(physics)** 확증 — gain=0.7에서 ID 1.305 → OOD 0.924 (−29%), friction=5.0에서 ID → OOD −10%.
+- wiring bug H1~H3 모두 기각 (4 split hash 상이, dataloader split→h5 매핑 직접 검증, mass axis는 magnitude 변화 없어 역전 약함).
+- 결론: **raw Gaussian NLL은 transition magnitude 축소형 easy-looking OOD를 탐지하지 못한다**.
 
-본 PLAN은 사용자 결정 3건을 반영한다:
-1. **수집 단계 전략**: Probe → Pilot 180ep → Scaled 450ep (3단계 strict)
-2. **friction severity**: 코드 default `joint_friction=5.0` 유지 + quality_report에 SSoT 단위 분리 명시
-3. **GAP 처리**: PLAN과 함께 collector 패치 Codex task 1건 **선행**(D7 수집은 패치 후)
+### R4의 핵심 질문 (사용자 명시)
 
----
+> "raw NLL이 놓친 OOD를 standardized residual + conformal β_t gate가 탐지할 수 있는가?"
 
-## A. 현재 구현 상태 요약
+`02_FALSIFICATION_THEORY.md §B-C`의 수식:
 
-| 항목 | 상태 | 근거 |
-|---|---|---|
-| `D_x=42, D_a=8` 확정 | PASS | `src/fglc/data/maniskill_schema.py:3`, `configs/fglc/smoke_maniskill_pickcube.yaml:8-9` |
-| Validator 9 reject reason | PASS | `src/fglc/data/validators.py:20-29` (ALL_STATE_STATIC, ALL_ACTION_ZERO, NO_TRANSITION, REWARD_FLAT, EPISODE_TOO_SHORT, EPISODE_SHORT, NO_DONE_SIGNAL, DONE_FLOOD, NUMERICAL_INVALID) |
-| Collector / save_episodes_h5 | PASS | `src/fglc/data/collector.py:21-228`, gzip4 압축, eval_only attrs 별도 |
-| Manifest/stats/quality_report | PASS | `src/fglc/data/manifest.py:128-209` (`build_dataset_stats`, `verify_split_integrity`, `verify_ood_severity`) |
-| Dataset/DataLoader 분기 | PASS | `src/fglc/data/maniskill_dataset.py:67-69`, `src/fglc/data/dataloader.py:108-124` |
-| `collect_maniskill.py` 5 split CLI | PASS | `scripts/fglc/collect_maniskill.py:34-91` (`train_id, val_id, test_id, ood_mass_low, ood_friction_low`) |
-| `build_split.py` | PASS | `scripts/fglc/build_split.py:44-186` (manifest/dataset_stats/quality_report/split_config 4종 산출) |
-| `r3_smoke.py` 1-iter 가능 | PASS (mock fixture) | `tests/test_fglc_r3_runner_maniskill.py:20-177` |
-| 12 forbidden field 차단 | PASS | `src/fglc/schemas/visibility.py::FORBIDDEN_AGENT_FIELDS`, `tests/test_fglc_forbidden_field_sync.py` |
-| `.gitignore` raw HDF5 차단 | PASS | `.gitignore:30,36-42` (`data/*` + `*.h5/*.hdf5`) |
-| **GAP** `--probe/--pilot/--scaled` 명시 플래그 | **MISSING** | `collect_maniskill.py:79-91` — `--no-save`만 존재 |
-| **GAP** quarantine/temp 분리 경로 | **MISSING** | reject episode가 카운트만 누적 |
-| **GAP** trajectory hash duplicate 검사 | **MISSING** | `tests/test_fglc_split_integrity.py`에 검사 없음, seed-pool disjoint만 검증 |
-| **GAP** DATA_TOO_SMALL 직접 episode-count trigger | **MISSING** | `diagnose.py:38-48`는 `id_nll>0.5 AND stagnant_epochs>=10`에 종속 |
-| **GAP** `eval_ci95_over_effect_size`가 CANONICAL_METRIC_KEYS 미포함 | **MISSING** | `diagnose.py:10-31` vs `:117-123` 불일치 |
+```
+ρ_t^k = (z_{t+1}^k − μ_t^k) / σ_t^k                  # group별 standardized residual
+F_t^k = ||ρ_t^k||₂²                                  # χ²_d under H0
+F_t   = Σ_k F_t^k                                    # χ²_{K·d} under H0
+τ     = empirical (1−α)-quantile of F_t on ID        # conformal threshold (σ̂ 비의존)
+β_t   = sigmoid(MLP([F_1,…,F_K, F_t, h_t]))         # gate output ∈ (0,1)
+```
 
----
+### Phase 1 audit 결과 — 구조적 호환성 (POSITIVE)
 
-## B. 실제 수집 목표
+3 Explore agent 병렬 audit (Agent A: model μ/Σ, Agent B: repair/metrics/ledger, Agent C: 이론+R3 closure):
 
-| 목표 | 수치 / 조건 |
+| # | 항목 | 실측 | 비고 |
+|---|---|---|---|
+| 1 | `src/fglc/models/dynamics.py:32,46-47` | `mu, log_sigma = self.head(...).chunk(2, dim=-1)` — **이미 diagonal Gaussian σ_t export** | 추가 covariance head 불필요 |
+| 2 | latent shape | `K=6, d=32, h_dim=128` → `ρ_t ∈ R^{B×T×6×32}` | 메모리 부담 무시 가능 |
+| 3 | `src/fglc/training/trainer_r3.py` `torch.save` | **0건** | R4 frozen weight 검증 위해 save/load 추가 필수 |
+| 4 | `Evaluator.evaluate` (`src/fglc/evaluation/metrics.py:44-77`) | metric scalar dict만 반환, **per-step residual 미노출** | `evaluate_residuals` 메서드 추가 필요 |
+| 5 | `src/fglc/repair/taxonomy.py:26-27` | `SIGMA_CALIBRATION_FAILURE` + `BETA_GATE_COLLAPSE` 이미 R4 cause로 정의 | 재사용 가능 |
+| 6 | `src/fglc/repair/candidates.py:82-115` | `calibration_loss_weight`, `beta_reparameterize`, `beta_prior_scale` patch 이미 등록 | R4용 추가 patch 신설 시 같은 패턴 |
+| 7 | `src/fglc/repair/diagnose.py:10-32` `CANONICAL_METRIC_KEYS` | 18 key, `beta_mean`, `ece`, `ood_auroc` 이미 포함 | R4 metric은 frozenset 확장만 필요 |
+| 8 | `src/fglc/repair/ledger.py:17-37` REQUIRED_KEYS | 19개, `metrics_before/after`는 dict | R4 metric은 dict 내부 추가만으로 충분 |
+| 9 | `scripts/fglc/r3_smoke.py:38` `choices=["R2..R7"]` | R4 분기 이미 허용 | 새 runner 주입 패턴 사용 |
+| 10 | `src/fglc/data/dataloader.py:120-127` | `test_id` split이 이미 로딩되지만 `Evaluator.evaluate`(line 44)는 사용 안 함 | **calibration split으로 즉시 재사용** |
+| 11 | `src/fglc/schemas/visibility.py:18-31` FORBIDDEN_AGENT_FIELDS | 12개 — R4 input은 `ρ_t`(model 파생) + `h_t`(belief) → **금지 필드 위반 위험 0** | |
+| 12 | `outputs/repair/{pickcube,pushcube}_r3_2axis_2026-05-24/iter_0/` | `.pt`/`.ckpt` **0건** | R3 minimal rerun 필요 |
+| 13 | `.gitignore:47` | `outputs/*` 차단 | R4 artifact는 force-add 또는 `outputs/eval_reports/` 사용 결정 |
+
+### Phase 3 user clarification (이번 세션)
+
+| 결정점 | 사용자 응답 |
 |---|---|
-| 5-split 데이터셋 확보 | `train_id / val_id / test_id / ood_mass_low(mass=1.5) / ood_friction_low(joint_friction=5.0)` |
-| Pilot 단계 episode budget | 180ep (train 100 + val 20 + test 20 + ood_mass 20 + ood_friction 20) |
-| Scaled 단계 episode budget | 450ep (train 250 + val 50 + test 50 + ood_mass 50 + ood_friction 50) |
-| L-확장 트리거 | r3_smoke에서 `DATA_TOO_SMALL` 또는 `EVAL_NOISE_HIGH` 발화 시 900ep |
-| 4축 quality gate | (1) episode-level garbage, (2) split integrity, (3) OOD severity, (4) novelty relevance — 모두 PASS 또는 CONDITIONAL_PASS |
-| R3 smoke 1-iter ledger | `outputs/repair/smoke_maniskill_pickcube/iter_1/metrics.json` 생성, ID NLL ≤ 0.5 nat, OOD-ID gap ≥ 0.05 nat (4060 완화) |
-| `R2.passed` / `R3.passed` | **둘 다 미생성** — 본 D7은 R3 smoke까지만, gate sentinel은 별도 round |
+| Conformal calibration split | **test_id 전체 사용** (PickCube 50ep / PushCube 100ep) |
+| 양방향(gain=0.7+1.3) 평가 범위 | **단방향만**(gain=0.7 + friction=5.0); gain=1.3 readiness는 §L next step으로 분리 |
+| R3 checkpoint 정책 | **(plan default)** trainer_r3.py에 `save_state()` 추가 + R4 entry 시 R3 minimal rerun 1회 (5 epoch, ~2초/task). R3 closure artifact 무손, R4용 별도 디렉토리에 model.pt 생성 |
+| R4 PASS gate 기준 | **(plan default)** R3 closure §H.3 제안값 채택: AUROC≥0.85 (friction OR gain), FPR≤0.05, raw NLL 대비 AUROC gain ≥+0.20 |
+
+> default 2건은 사용자가 plan 검토 시 변경 가능. ExitPlanMode 전 명시.
+
+### 이론적 강제 조건 (must-have)
+
+| 코드 | 조건 | 출처 |
+|---|---|---|
+| M1 | group별 `ρ_t^k = (z_{t+1}^k−μ_t^k)/σ_t^k` | `02_FALSIFICATION §B` |
+| M2 | ID empirical (1−α)-quantile conformal threshold | `02 §C5`, R3 closure §H.2-2 |
+| M3 | signed residual + magnitude **양방향 feature** (구현, 평가는 단방향) | R3 closure §H.2-1 |
+| M4 | sequential aggregation (CUSUM/SPRT-like window) | R3 closure §H.2-3 |
+| M5 | R3 weights freeze | `12_TRAINING_STAGES §Stage 2` |
+| M6 | regime_id/ood_type/seed/template_id model input 금지 | `18_DATA_BENCHMARKS`, `visibility.py:18-31` |
+| M7 | σ floor (clamp) + ECE 측정 | `02 §C8` |
+| M8 | ablation: no-conformal (hard threshold) | `02 §C7` |
+
+### UNKNOWN (plan 진행 중 closing)
+
+- conformal α 정확 값: `02 §78` "1000개 ID 궤적" 권고만 있음, 정량 α=0.05 default 채택 (사용자 reject 시 수정)
+- R4 = Stage 2 전체인지 β-gate-only인지: `12_TRAINING_STAGES`에 R-번호 매핑 없음 → **R4 = β-gate-only** 해석 채택 (causal attention/correction은 R5/R6로 분리, R3 closure §L에서도 동일 분리)
+
+### 본 plan의 의도된 결과
+
+1. **Stage 2**: trainer_r3.py에 minimal `save_state/load_state` 추가, `Evaluator.evaluate_residuals` 신설 (R3 model API 호환 유지)
+2. **Stage 3**: `src/fglc/falsification/` 새 패키지 — residuals.py + conformal.py + gate.py
+3. **Stage 4**: tests 7종 추가 + 기존 4 tests regression PASS
+4. **Stage 5**: R3 minimal rerun(checkpoint 생성) → R4 smoke 실행 (PickCube + PushCube 각 1회)
+5. **Stage 6**: metric 분석 + R4 PASS/PATCH_REQUIRED/BLOCKED 판정
+6. **Stage 7**: 실패 시 repair loop (max 3 iter)
+7. **Stage 8**: 보고서 + commit (R4.passed sentinel은 사용자 명시 승인 시에만 생성)
 
 ---
 
-## C. 자원 계산 및 episode 수 확장안
-
-### bytes/transition 추정 (D_x=42, D_a=8 기준)
+## Stage 흐름
 
 ```
-state    float32 (T, 42)  → 42 × 4 = 168 B/step
-action   float32 (T,  8)  →  8 × 4 =  32 B/step
-reward   float32 (T,)     →           4 B/step
-done     bool    (T,)     →           1 B/step
-raw subtotal             ≈ 205 B/transition
-gzip4 compression (~25-35%) ≈ 55-70 B/transition (적용)
+Stage 0: R4 entry audit (read-only, ~10 min)
+   ↓ R3.passed 보존 / R4.passed 부재 / model μ/Σ 가용 확인
+Stage 1: R4 algorithm design closure (~10 min, 본 plan §"R4 Algorithm"에서 확정)
+   ↓
+Stage 2: trainer_r3 save/load + Evaluator.evaluate_residuals (~45 min)
+   ↓ R3 회귀 tests PASS
+Stage 3: falsification 패키지 구현 (~90 min)
+   ↓ residuals/conformal/gate 3 파일 + 단위 tests
+Stage 4: R4 tests 작성 (~30 min)
+   ↓ 7 신규 + 4 기존 PASS
+Stage 5: R3 minimal rerun + R4 smoke 실행 (~30 min, 2 task × 2 run)
+   ↓ metrics.json + ledger.jsonl 생성
+Stage 6: metric 분석 + 1차 판정 (~20 min)
+   ↓ PASS / PATCH_REQUIRED / BLOCKED
+Stage 7: repair loop (조건부, 최대 3 iter, ~0~90 min)
+   ↓ diagnose → candidate → patch → rerun → compare
+Stage 8: 보고서 + commit (~30 min)
 ```
 
-eval_only metadata는 attrs로 별도(episode당 ~12 키 × ~16 B ≈ 192 B), HDF5 group overhead ~500 B/episode.
-
-### avg T 추정 (probe로 실측 예정)
-
-ManiSkill `PickCube-v1`의 `max_episode_steps=50`이 default. Success early termination 가능. **probe Stage 0에서 mean_episode_len을 실측**하고, 보수 추정 `T_avg=70` (실패 episode 포함 시 50 cap 초과 가능성 고려).
-
-### bytes/episode
-
-```
-T=70 × 205 B raw     ≈ 14.4 KB/ep raw
-                     ≈   4.3 KB/ep gzip4
-+ attrs/overhead     ≈ 700 B/ep
-                     ≈ 5.0 KB/ep total (gzip4)
-```
-
-### 데이터셋 크기 예측
-
-| Option | Total ep | Raw size | Compressed size |
-|---|---|---|---|
-| Pilot S | 180 | 2.6 MB | 0.9 MB |
-| Scaled M | 450 | 6.5 MB | 2.3 MB |
-| Scaled L | 900 | 12.9 MB | 4.6 MB |
-
-→ **디스크 부담 무시 가능**(< 5 MB). 8 GB VRAM과도 무관.
-
-### 수집 wall-clock 예측
-
-ManiSkill `PickCube-v1` state-only CPU 추정 ~30~50ms/step:
-- 70 steps × 40ms = **2.8 s/ep**
-- 180 ep ≈ **8.4분**, 450 ep ≈ **21분**, 900 ep ≈ **42분**
-
-→ collector `--max-wall-minutes 20.0` default(`collect_maniskill.py:90`)로 split별 30~50ep 묶음 안전. Pilot/Scaled 전체는 `--max-wall-minutes 45` 또는 split별 호출로 분산.
-
-### 학습 시간 예측 (4060 8GB)
-
-`docs/ROADMAP/4060_SMOKE_REPAIR_PATH.md:42-78` 기준 `K=6, d=32, h_dim=128, T=8, batch=16`, R3 smoke `per-iter ≤30분, max-iter=5` → 합 ≤2.5h.
-
-### VRAM 예측
-
-`docs/ROADMAP/4060_SMOKE_REPAIR_PATH.md:54-62`: `batch(16) × T(8) × K(6) × d(32) ≈ 100 KB/sample`, **~200 MB total** (8 GB의 ~3%).
-
-### 결론
-
-- Pilot 180 → Scaled 450이 자원적으로 무리 없음.
-- L=900 확장도 디스크/시간/VRAM 모두 여유. 발화 트리거만 확보되면 즉시 가능.
+**총 wall-clock**: 약 4~6 hour (실패 없을 시 ~4 hour)
+**GPU**: RTX 4060 Ti 8 GB (R3 inference만, ~수백 MiB)
+**raw HDF5 변경**: 0 (절대 보존)
+**R3.passed 변경**: 0 (이미 존재, 건드리지 않음)
+**예상 commit**: 3개 (Stage 2+3 / Stage 4 / Stage 8)
 
 ---
 
-## D. split별 수집량 후보 (Pilot 180 / Scaled 450 확정, L=900 옵션)
+## R4 Algorithm (확정)
 
-| Split | Pilot (확정) | Scaled (확정) | L (옵션) |
-|---|---|---|---|
-| `train_id` (seed 42-91) | 100 | 250 | 500 |
-| `val_id` (seed 200-209) | 20 | 50 | 100 |
-| `test_id` (seed 300-309) | 20 | 50 | 100 |
-| `ood_mass_low` (seed 500-509, mass=1.5) | 20 | 50 | 100 |
-| `ood_friction_low` (seed 600-609, joint_friction=5.0) | 20 | 50 | 100 |
-| **Total** | **180** | **450** | **900** |
+### A. Residual (M1, M7)
 
-> Seed pool은 `collect_maniskill.py:34-75 SPLIT_DEFAULTS`에서 split마다 분리됨 (`train_id [42,92), val_id [200,210), test_id [300,310), ood_mass_low [500,510), ood_friction_low [600,610)`). Pilot 100ep는 train_id pool `[42,92)`의 50 seed를 retry해 100ep까지 채움(`max_retry=3`). Scaled 250ep는 pool 확장 필요 — Codex 패치 A에 `seed_pool` 확장 옵션 포함.
+```python
+# src/fglc/falsification/residuals.py
+def standardized_residual(z_next, mu, log_sigma, sigma_floor=1e-3):
+    """
+    z_next, mu, log_sigma: (B, T, K, d)
+    returns rho: (B, T, K, d) — element-wise (z_next − μ) / σ
+    """
+    sigma = torch.exp(log_sigma).clamp_min(sigma_floor)
+    return (z_next - mu) / sigma
+```
+
+### B. Group falsification scores
+
+```python
+def group_falsification_scores(rho):
+    """rho: (B, T, K, d) → F_per_group: (B, T, K)  = ||rho_k||₂²"""
+    return (rho ** 2).sum(dim=-1)
+
+def total_falsification_score(F_per_group):
+    """F_per_group: (B, T, K) → F_total: (B, T)"""
+    return F_per_group.sum(dim=-1)
+```
+
+### C. Conformal threshold (M2)
+
+```python
+# src/fglc/falsification/conformal.py
+def fit_threshold(scores_id, alpha=0.05):
+    """scores_id: (N_ID,) flat → returns scalar tau = (1−α) quantile"""
+    return torch.quantile(scores_id, 1.0 - alpha).item()
+
+def fit_per_group_thresholds(F_per_group_id, alpha=0.05):
+    """returns tau_per_k: (K,)"""
+    flat = F_per_group_id.reshape(-1, F_per_group_id.shape[-1])  # (N*T, K)
+    return torch.quantile(flat, 1.0 - alpha, dim=0)              # (K,)
+```
+
+### D. β_t gate (continuous score)
+
+R4 단계에서는 **β_t를 MLP로 학습하지 않고 conformal-only**로 정의한다. 이유: (i) R3 closure의 PASS gate 기준이 AUROC 중심이라 continuous score만으로 충분, (ii) MLP 학습은 R5+ Stage 2 freeze 정책과 충돌, (iii) plan 단순화.
+
+```python
+# src/fglc/falsification/gate.py
+def beta_t_continuous(F_total, tau):
+    """β_t = sigmoid((F_total − τ) / s)  with adaptive scale s = τ / 4"""
+    s = max(tau / 4.0, 1e-6)
+    return torch.sigmoid((F_total - tau) / s)             # (B, T)
+
+def beta_t_boolean(F_total, tau):
+    """β_t boolean = (F_total > τ)"""
+    return (F_total > tau).float()
+```
+
+> NOTE: M3 (signed feature) 구현은 `residuals.py`에 `signed_residual_mean(rho)` (per-group mean across d)와 `directional_bias_score(rho)` 함수로 별도 export. **이번 R4 평가에서는 evaluator metric에 포함만 하고 단방향 AUROC 비교에만 사용**. gain=1.3 데이터 readiness 후 R5/별도 phase에서 양방향 평가 정식 수행 (§L).
+
+### E. Sequential aggregation (M4)
+
+```python
+# src/fglc/falsification/gate.py
+def cusum_score(F_t_seq, tau, window=8):
+    """CUSUM-like: S_t = max(0, S_{t-1} + (F_t − τ)). Returns full sequence."""
+    excess = F_t_seq - tau                                # (B, T)
+    S = torch.zeros_like(excess)
+    S[:, 0] = excess[:, 0].clamp_min(0)
+    for t in range(1, F_t_seq.shape[1]):
+        S[:, t] = (S[:, t-1] + excess[:, t]).clamp_min(0)
+    return S                                              # (B, T)
+```
+
+### F. R4 metric schema (Evaluator 확장)
+
+`STAGE2_CANONICAL_METRIC_KEYS` 신설 (별도 frozenset, STAGE1 유지) (`src/fglc/evaluation/metrics.py`):
+
+```
+beta_t_auroc_friction     # AUROC over (ID test_id + ood_friction)
+beta_t_auroc_gain         # AUROC over (ID test_id + ood_gain)
+beta_t_fpr_id             # FPR on test_id at conformal threshold
+beta_t_tpr_friction       # TPR on ood_friction
+beta_t_tpr_gain           # TPR on ood_gain
+conformal_threshold       # scalar τ
+residual_ece              # σ calibration ECE on test_id
+raw_nll_auroc_friction    # baseline: raw NLL score AUROC vs friction
+raw_nll_auroc_gain        # baseline: raw NLL score AUROC vs gain
+```
+
+`CANONICAL_METRIC_KEYS` (`src/fglc/repair/diagnose.py:10-32`)에도 동일 9 key 추가 (failed_metric 가드 통과 위함).
+
+### G. Comparison vs raw NLL baseline (사용자 명시: 같은 episode/split)
+
+R4 smoke는 같은 forward pass에서:
+- `raw_nll_id`, `raw_nll_friction`, `raw_nll_gain` (기존 metric)
+- `beta_t_auroc_friction`, `beta_t_auroc_gain` (신규)
+- baseline AUROC: raw NLL score를 OOD vs ID에 적용한 AUROC
+
+같은 trajectory, 같은 model snapshot, 같은 split에서 두 score 모두 계산하여 공정 비교.
 
 ---
 
-## E. OOD axis / severity 설계
+## Stage 0 — R4 entry audit (read-only)
 
-| Axis | 값 | 단위 | SSoT 정합성 | 비고 |
+### 체크리스트
+
+1. `git status --short` clean (uncommitted noise 0)
+2. branch = `memory-redesign-2026-05-16`
+3. `outputs/phase_gates/R0~R3.passed` 4개 존재 (zero-byte)
+4. `outputs/phase_gates/R4.passed` **부재** 확인
+5. raw HDF5 12개 mtime 기록 (Stage 끝마다 비교)
+6. `reports/R3_SMOKE_CLOSURE_REPORT.md` 존재
+7. `docs/FUTURE_OOD_DATA_EXPANSION_INSIGHTS.md` 존재
+8. `outputs/repair/{pickcube,pushcube}_r3_2axis_2026-05-24/iter_0/metrics.json` 존재 (R4 sanity 비교용)
+9. `src/fglc/models/dynamics.py:46-47`에서 `(mu, log_sigma)` 둘 다 return 재확인
+
+### Stage 0 PASS 조건
+9개 항목 모두 expected. 격차 시 plan 갱신 후 재진입.
+
+---
+
+## Stage 1 — R4 algorithm design closure
+
+본 plan §"R4 Algorithm"을 design SoT로 채택. 별도 design 문서 생성 없음 (사용자 명시: "필요 시 docs/R4_FALSIFICATION_GATE_DESIGN_NOTES.md" → R4 report 내부 §D-F에서 통합 기술).
+
+---
+
+## Stage 2 — R3 model API 호환 확장
+
+### 2A. `src/fglc/training/trainer_r3.py` 수정 (~20 LOC)
+
+```python
+def save_state(self, path: Path) -> None:
+    """Save encoder/belief/dynamics/heads state_dict for R4 frozen reuse."""
+    torch.save({
+        "encoder": self.encoder.state_dict(),
+        "belief": self.belief.state_dict(),
+        "dynamics": self.dynamics.state_dict(),
+        "reward_head": self.reward_head.state_dict(),
+        "value_head": self.value_head.state_dict(),
+        "config_hash": self._config_hash,
+    }, path)
+
+def load_state(self, path: Path, freeze: bool = True) -> None:
+    """Load checkpoint, freeze for R4."""
+    ckpt = torch.load(path, map_location=self.device)
+    self.encoder.load_state_dict(ckpt["encoder"])
+    # ... (각 module load + .requires_grad_(False) for freeze)
+```
+
+### 2B. `src/fglc/evaluation/metrics.py::Evaluator` 확장 (~40 LOC)
+
+기존 `evaluate` 시그니처 변경 없음. 새 메서드 추가:
+
+```python
+@torch.no_grad()
+def evaluate_residuals(self, dataloader, model) -> dict[str, Tensor]:
+    """
+    Returns:
+      rho_per_group: (N_total_steps, K, d)   standardized residuals
+      F_per_group:   (N_total_steps, K)      group falsification scores
+      F_total:       (N_total_steps,)        total falsification score
+      raw_nll_step:  (N_total_steps,)        per-step Gaussian NLL for baseline
+    """
+    # 기존 _evaluate_nll와 동일한 forward 패턴, 단 residual 텐서 누적
+```
+
+### 2C. `STAGE2_CANONICAL_METRIC_KEYS` 신설
+
+`tests/test_fglc_r3_runner_maniskill.py:177`의 `test_evaluate_model_produces_canonical_keys`는 STAGE1 검증만 — 변경 없음. R4 runner는 STAGE2 set으로 검증.
+
+### 2D. Stage 2 검증
+
+```powershell
+& .venv\Scripts\python.exe -m pytest -q `
+    tests/test_fglc_r3_runner_maniskill.py `
+    tests/test_fglc_forbidden_field_sync.py `
+    tests/test_fglc_split_integrity.py `
+    tests/test_fglc_config_manifest_consistency.py
+```
+
+PASS 조건: 회귀 0건, 기존 R3 metric 정확히 동일 값 (deterministic seed 검증).
+
+### T-trigger
+- T3 fglc-code-reviewer (compact): trainer_r3.py + metrics.py 수정 후
+
+### Stage 2 commit (Stage 3과 묶기 권장 — 단독으로는 fragment)
+참조: Stage 3 commit message.
+
+---
+
+## Stage 3 — `src/fglc/falsification/` 패키지 구현
+
+### 3A. `src/fglc/falsification/__init__.py`
+```python
+"""R4 falsification gate package.
+
+References:
+- docs/idea/02_FALSIFICATION_THEORY.md §B-C (standardized residual + conformal)
+- reports/R3_SMOKE_CLOSURE_REPORT.md §H (R4 PASS gate proposal)
+"""
+from .residuals import standardized_residual, group_falsification_scores, total_falsification_score, signed_residual_mean, directional_bias_score
+from .conformal import fit_threshold, fit_per_group_thresholds, ece
+from .gate import beta_t_continuous, beta_t_boolean, cusum_score, auroc_from_scores
+```
+
+### 3B. `residuals.py` (~80 LOC)
+- `standardized_residual(z_next, mu, log_sigma, sigma_floor=1e-3)` (M1, M7)
+- `group_falsification_scores(rho)`
+- `total_falsification_score(F_per_group)`
+- `signed_residual_mean(rho)` → (B, T, K), per-group signed mean across d (M3 양방향 feature)
+- `directional_bias_score(rho)` → (B, T), Σ_k |E[ρ_k]| / √(Var[ρ_k]+ε)
+
+### 3C. `conformal.py` (~60 LOC)
+- `fit_threshold(scores_id, alpha)` (M2)
+- `fit_per_group_thresholds(F_per_group_id, alpha)`
+- `ece(rho_id, n_bins=10)` — diagonal Gaussian calibration ECE (M7)
+- `coverage(F_total, tau)` → fraction of (F_total ≤ τ)
+
+### 3D. `gate.py` (~70 LOC)
+- `beta_t_continuous(F_total, tau)` (D)
+- `beta_t_boolean(F_total, tau)` (D)
+- `cusum_score(F_t_seq, tau, window=8)` (M4 sequential aggregation)
+- `auroc_from_scores(scores_id, scores_ood)` — sklearn 미사용, torch native ranking
+
+### 3E. `src/fglc/evaluation/falsification_metrics.py` (~120 LOC)
+
+R4-specific metric aggregator:
+
+```python
+def compute_r4_metrics(
+    eval_data: dict[str, dict],  # split → {rho, F_per_group, F_total, raw_nll_step}
+    calibration_split: str = "test_id",
+    alpha: float = 0.05,
+) -> dict[str, float]:
+    """Returns R4 metric dict matching STAGE2_CANONICAL_METRIC_KEYS."""
+    # 1. fit tau from calibration split
+    # 2. compute beta_t boolean on all splits
+    # 3. compute AUROC for each OOD axis vs calibration ID
+    # 4. compute FPR on calibration split
+    # 5. compute TPR per OOD
+    # 6. compute residual ECE
+    # 7. compute raw NLL baseline AUROC for comparison
+```
+
+### 3F. `scripts/fglc/r4_falsification.py` (~150 LOC)
+
+`r3_smoke.py`의 패턴 차용:
+- CLI: `--phase R4 --config configs/fglc/r4_falsification_{pickcube,pushcube}.yaml --r3-checkpoint <path> --calibration-split test_id --alpha 0.05 --output-root outputs/r4_falsification/<task>`
+- 흐름: (i) R3 checkpoint load, (ii) freeze, (iii) `Evaluator.evaluate_residuals` on 4 splits (test_id calibration / val_id eval / ood_friction / ood_gain), (iv) `compute_r4_metrics` 호출, (v) metrics.json + ledger.jsonl 작성
+
+### 3G. `configs/fglc/r4_falsification_pickcube.yaml` 신설 (~50 LOC)
+기존 `smoke_maniskill_pickcube.yaml`을 base로 하되 새 section 추가:
+
+```yaml
+falsification:
+  alpha: 0.05                  # conformal FPR target
+  sigma_floor: 1.0e-3          # σ clamp
+  sequence_window: 8           # CUSUM window
+  calibration_split: test_id
+```
+
+`configs/fglc/r4_falsification_pushcube.yaml` 동일 구조.
+
+### 3H. `scripts/fglc/r3_export_checkpoint.py` (~80 LOC)
+R3 minimal rerun(5 epoch) → `trainer.save_state(<output>)` → R4용 ckpt 파일 생성. R3 closure metrics는 건드리지 않음.
+
+### T-trigger
+- T3 fglc-code-reviewer (compact): falsification 패키지 전체
+
+### Stage 2+3 commit (단일 atomic commit 권장)
+```
+feat(r4): add standardized residual conformal falsification gate
+
+- trainer_r3: state save/load + frozen reuse hook
+- evaluation/metrics: evaluate_residuals method + STAGE2_CANONICAL keys
+- falsification/{residuals,conformal,gate}: M1-M4,M7 implementation
+- evaluation/falsification_metrics: R4 metric aggregator
+- scripts/fglc/r4_falsification.py + scripts/fglc/r3_export_checkpoint.py
+- configs/fglc/r4_falsification_{pickcube,pushcube}.yaml
+```
+
+---
+
+## Stage 4 — R4 tests
+
+### 4A. `tests/test_fglc_falsification_residual.py` (~80 LOC)
+- `test_standardized_residual_shape`: rho.shape == (B, T, K, d)
+- `test_standardized_residual_finite`: NaN/Inf 0
+- `test_sigma_floor_applied`: σ < floor → clamped
+- `test_group_score_sum_equals_total`: Σ_k F^k == F_total
+
+### 4B. `tests/test_fglc_falsification_conformal.py` (~60 LOC)
+- `test_fit_threshold_id_only`: τ가 ID 데이터만으로 fit됨 (OOD 입력 시 ValueError 또는 docstring contract)
+- `test_threshold_quantile_property`: τ를 적용한 ID FPR ≈ α (±2σ tolerance)
+- `test_ece_diagonal_gaussian`: 잘 calibrated 한 σ에서 ECE ≈ 0
+
+### 4C. `tests/test_fglc_falsification_gate.py` (~70 LOC)
+- `test_beta_t_in_unit_interval`: 0 ≤ β_t ≤ 1
+- `test_beta_t_boolean_threshold`: F > τ ⟺ boolean = 1
+- `test_cusum_monotonic_under_drift`: CUSUM score grows under sustained drift
+
+### 4D. `tests/test_fglc_r4_runner_maniskill.py` (~120 LOC)
+- `test_r4_runner_loads_r3_checkpoint`: stub R3 ckpt + R4 runner 1-iter
+- `test_r4_metrics_contain_all_canonical_keys`: STAGE2 키 9개 모두 present
+- `test_r4_no_forbidden_field_in_input`: regime_id/ood_type/seed forbidden 검증
+
+### 4E. `tests/test_fglc_falsification_leakage.py` (~50 LOC)
+- conformal threshold가 OOD 데이터에서 fit되지 않음 (assertion 또는 explicit raise)
+- regime_id가 R4 evaluator forward path에 들어가지 않음 (mock dataloader로 검증)
+
+### 4F. `tests/test_fglc_falsification_repro.py` (~50 LOC)
+- 같은 seed + 같은 checkpoint → 같은 τ, 같은 AUROC
+
+### 4G. 기존 회귀
+```powershell
+& .venv\Scripts\python.exe -m pytest -q `
+    tests/test_fglc_forbidden_field_sync.py `
+    tests/test_fglc_split_integrity.py `
+    tests/test_fglc_ood_severity.py `
+    tests/test_fglc_r3_runner_maniskill.py `
+    tests/test_fglc_falsification_*.py `
+    tests/test_fglc_r4_runner_maniskill.py
+```
+
+PASS 조건: 기존 PASS + 신규 7 파일 (~17 tests) PASS.
+
+### Stage 4 commit
+```
+test(r4): add 7 falsification gate test files (residual / conformal / gate / runner / leakage / repro)
+```
+
+---
+
+## Stage 5 — R3 minimal rerun + R4 smoke 실행
+
+### 5A. R3 checkpoint 생성 (R3 closure 무손)
+
+```powershell
+$pickCkptRoot = "outputs/r4_falsification/pickcube"
+New-Item -ItemType Directory -Force -Path $pickCkptRoot | Out-Null
+
+& .venv\Scripts\python.exe scripts/fglc/r3_export_checkpoint.py `
+    --config configs/fglc/smoke_maniskill_pickcube.yaml `
+    --seed 42 `
+    --output $pickCkptRoot/r3_model.pt 2>&1 | Tee-Object -FilePath "$pickCkptRoot/r3_export.log"
+```
+
+PushCube 동일 (`outputs/r4_falsification/pushcube/`).
+
+**원칙**: R3 minimal rerun은 **R3 closure metrics.json/ledger.jsonl을 건드리지 않는다**. R4 디렉토리에 독립 artifact 생성.
+
+### 5B. R4 smoke 실행
+
+```powershell
+& .venv\Scripts\python.exe scripts/fglc/r4_falsification.py `
+    --phase R4 `
+    --config configs/fglc/r4_falsification_pickcube.yaml `
+    --r3-checkpoint outputs/r4_falsification/pickcube/r3_model.pt `
+    --calibration-split test_id `
+    --alpha 0.05 `
+    --seed 42 `
+    --descriptor pickcube_r4_falsification `
+    --output-root outputs/r4_falsification/pickcube 2>&1 | Tee-Object -FilePath outputs/r4_falsification/pickcube/r4_stdout.log
+```
+
+PushCube 동일.
+
+### 5C. Artifact 확인 (per task)
+- `outputs/r4_falsification/<task>/r3_model.pt`
+- `outputs/r4_falsification/<task>/iter_0/metrics.json`
+- `outputs/r4_falsification/<task>/iter_0/run_manifest.json`
+- `outputs/r4_falsification/<task>/iter_0/config.yaml`
+- `outputs/r4_falsification/<task>/loop_<id>/ledger.jsonl`
+- `outputs/r4_falsification/<task>/r4_stdout.log`
+
+### Stage 5 PASS 조건
+- 두 task 모두 종료 코드 0
+- artifact 6개 (per task) 모두 존재
+- raw HDF5 mtime 변경 없음
+- R3.passed sentinel 보존
+- R3 closure metrics.json hash 변경 없음
+
+### Stage 5 FAIL 분기
+- OOM → batch_size 8 임시 yaml (R3 inference만이라 발생 가능성 낮음)
+- import error → Stage 2-3 회귀
+- R3 checkpoint 호환 실패 → trainer load_state 수정
+- runner crash → stdout 분석 → Stage 7로
+
+---
+
+## Stage 6 — Metric 분석 + 1차 판정
+
+### 6A. R4 metric 검증 표
+
+| metric | 기대 | 점검 |
+|---|---|---|
+| `conformal_threshold` (τ) | finite, > 0 | json.load |
+| `beta_t_fpr_id` | ≤ 0.05 + 2σ tolerance | conformal coverage |
+| `beta_t_auroc_friction` | ≥ 0.85 (gate) | per task |
+| `beta_t_auroc_gain` | ≥ 0.85 (gate) | per task |
+| `beta_t_tpr_friction` | > 0.5 | informational |
+| `beta_t_tpr_gain` | > 0.5 | informational |
+| `residual_ece` | < 0.2 (M7) | σ calibration |
+| `beta_t_auroc_*` − `raw_nll_auroc_*` | ≥ +0.20 | gate (R3 closure §H.3) |
+| `vram_peak_mib` | < 6000 | ledger |
+| forbidden field leak (stdout grep) | 0 | grep |
+
+### 6B. 판정 매트릭스
+
+| 결과 | 판정 |
+|---|---|
+| 양 task에서 β_t AUROC ≥ 0.85 (friction OR gain) AND FPR ≤ 0.05 + 2σ AND raw NLL 대비 +0.20 | **PASS** → Stage 8 |
+| 한 task에서만 통과 또는 axis 한쪽만 통과 | **PARTIAL_PASS** → §L에 한계 명시 후 Stage 8 |
+| β_t AUROC < raw NLL AUROC 또는 FPR > 0.10 | **PATCH_REQUIRED** → Stage 7 |
+| residual NaN/Inf, 양 task 양 axis 모두 raw NLL과 동등 이하 | **BLOCKED** → Stage 8 보고만 |
+
+### T-trigger
+- T4 failure-interpretation-critic (deep): metric 분석 시
+- T4 claim-metric-alignment-auditor (compact): PASS 판정 직전
+
+---
+
+## Stage 7 — Repair loop (조건부, max 3 iter)
+
+### 7A. 진단 + 후보 적용
+
+`src/fglc/repair/diagnose.py::diagnose(metrics, phase="R4")` 호출 시 R4 cause 자동 검출:
+- `SIGMA_CALIBRATION_FAILURE` if `residual_ece > 0.2`
+- `BETA_GATE_COLLAPSE` if `beta_t_fpr_id > 0.10` or `beta_t_auroc_* < 0.55`
+- (신규 후보) `CONFORMAL_QUANTILE_MISMATCH` if `beta_t_fpr_id` ∉ [α/2, 2α]
+
+### 7B. 실패 케이스별 대응
+
+| # | 실패 | 진단 | 첫 candidate | 수정 범위 |
 |---|---|---|---|---|
-| mass | 1.5 | object_mass 배수 | OK (`docs/idea/18_DATA_BENCHMARKS.md:44`, mass ∈ {0.5, 1.5, 2.0}) | sweep은 R4+로 미룸 |
-| friction | 5.0 | joint dry friction | **단위 분리 명시 필요** — SSoT(`:44`)는 μ_kinetic ∈ {0.3, 0.7, 1.5}. 코드는 joint API. `quality_report.json`에 `friction_api: joint_dry_friction, ssot_unit: mu_kinetic, mapping: DEFERRED` 기록 | 4060 probe(2026-05-23)에서 L2 diff ~0.042/step 확인 |
-| latency | DEFERRED | step delay | R4+ 단계 | `04_PHASE_R3 gate`에 미요구 |
-| noise | DEFERRED | obs σ | R4+ (standardized mismatch/calibration용 2차) | conformal calibration에서 검토 |
-| action_gain | DEFERRED | gain factor | R4+ | — |
+| 1 | residual NaN/Inf | sentinel IMPLEMENTATION_BUG | manual_blocker | sigma_floor 증가 또는 R3 ckpt log_sigma 분포 점검 |
+| 2 | FPR >> α (false alarm 폭증) | SIGMA_CALIBRATION_FAILURE → CONFORMAL_QUANTILE_MISMATCH | sigma_floor 조정 (단 OOD 보지 않음) | falsification config |
+| 3 | AUROC < raw NLL AUROC (β_t 열등) | (신규) BETA_GATE_DIRECTION_BLIND | signed_residual feature 가중치 증가, CUSUM window 변경 | falsification_metrics.py |
+| 4 | gain AUROC만 낮음 (easy-looking 미탐) | (신규) EASY_LOOKING_OOD_MISSED | signed bias score 강화, magnitude-only → signed magnitude 조합 | gate.py |
+| 5 | metrics.json 없음 | runner crash | n/a | stdout 분석 |
+| 6 | forbidden field leak | n/a | immediate abort | input pipeline 수정 |
 
-**근거**: `docs/ROADMAP/04_PHASE_R3_BASE_WORLD_MODEL.md:35-42`가 R3 gate에서 mass/friction만 요구. latency/noise/gain은 R4+ (falsification gate) 단계 데이터로 분리.
+### 7C. Stop conditions
+- max 3 iter 후 모든 metric 개선 없으면 USER_ESCALATION
+- raw HDF5 mtime 변경 → immediate BLOCKED
+- forbidden field leak → immediate BLOCKED
+- R3 closure metrics.json hash 변경 감지 → immediate BLOCKED
 
----
+### 7D. 사용자 명시 의무
+"실패를 보고만 하고 끝내지 마라" — Stage 7은 진단→수정→재실행 루프 max 3회 시도하고, 모든 시도 실패해도 시도 기록을 보고서에 명시.
 
-## F. Episode-level garbage 차단 gate (수집 중 강제)
-
-`validate_episode()` (`src/fglc/data/validators.py:32-89`)가 매 episode마다 호출되어 9 reject reason 중 하나라도 발화하면 저장 금지. Pilot/Scaled에서 추가로 다음 layer 강제:
-
-1. **NaN/Inf**: `NUMERICAL_INVALID` 자동 차단 (`validators.py:60-64`).
-2. **no_done_signal**: `dones[-1]=True` 강제(`collector.py:148-149`) + `NO_DONE_SIGNAL`(`validators.py:84-85`).
-3. **constant_state**: `ALL_STATE_STATIC` (`std.max() < 1e-4`, `:67-68`).
-4. **zero_action**: `ALL_ACTION_ZERO` (`abs().max() < 1e-3`, `:71-72`).
-5. **abnormal_length**: `EPISODE_TOO_SHORT (T<2)` + `EPISODE_SHORT (T<10)` (`:51-56`).
-6. **NO_TRANSITION** (mean state-diff norm < 1e-4, `:74-77`).
-7. **REWARD_FLAT** (`std(rewards) < 1e-6`, `:80-81`).
-8. **DONE_FLOOD** (`all(dones[:-1])`, `:88-89`).
-9. **duplicate trajectory**: 신규 — Codex 패치 A에서 `hash(state.tobytes())` 기반 검사 추가 → `EPISODE_DUPLICATE` reject reason 확장.
-10. **success rate sanity**: split별 success rate가 train_id에서 ≥30% (Pilot), ≥40% (Scaled)이 아니면 quality_report에 `WARN_LOW_SUCCESS` 기록 (CONDITIONAL_PASS).
-
-`CollectionStats.rejection_counts` (`collector.py:36-42`) 누적 후 `quality_report.json`에 reject reason 분포 그대로 직렬화.
+### T-trigger
+- T3 implementation-risk-critic (compact): 패치 적용 후
+- T4 failure-interpretation-critic (deep): 3회 시도 모두 실패 시
 
 ---
 
-## G. Split-level integrity gate (수집 후 강제)
+## Stage 8 — 보고서 + commit
 
-1. **Seed pool disjoint**: `verify_split_integrity()` (`manifest.py:178-196`) — 이미 PASS 기대.
-2. **Trajectory hash duplicate**: Codex 패치 A에서 추가. `build_split.py` 안에서 episode별 `state.tobytes()` SHA1 해시 모아 split-내 중복 0, split-간 중복 0 검증.
-3. **Regime contamination**: ood_mass / ood_friction split의 eval_only attrs `regime_id`가 ID split과 disjoint한 정수 집합인지 검증. (코드 추가: build_split.py post-check)
-4. **D_x/D_a invariance**: 모든 split의 `dataset_stats.json::D_x==42, D_a==8` 검증 (`tests/test_fglc_split_integrity.py:106-149`).
-5. **Forbidden field audit**: `_HorizonDataset` (`dataloader.py:25-34`) 와 `assert_no_forbidden_fields` (`maniskill_dataset.py:61`) 가 12 forbidden 필드 부재 확인 — `tests/test_fglc_forbidden_field_sync.py` green 유지.
+### 8A. `reports/R4_FALSIFICATION_GATE_REPORT.md` (~250 LOC)
 
----
+12 섹션:
+A. Executive Summary (PASS / PARTIAL / PATCH / BLOCKED + 핵심 수치)
+B. R3 finding recap (OOD NLL 역전)
+C. raw NLL failure summary (per task per axis AUROC)
+D. R4 algorithm (residual / conformal / β_t)
+E. residual/conformal/β_t 구현 방식 (코드 발췌 + 파일 경로)
+F. calibration split (test_id, N, α)
+G. task/axis별 결과 (PickCube/PushCube × friction/gain × {AUROC, FPR, TPR, ECE})
+H. raw NLL vs β_t 비교 표
+I. easy-looking OOD 결과 (signed/CUSUM 효과)
+J. failure/repair 기록 (Stage 7 iter별)
+K. PASS/PARTIAL/PATCH/BLOCKED 판정 + 9 조건 표
+L. 다음 단계: R4.passed sentinel 생성 승인 요청 / gain=1.3 데이터 readiness / R5 causal attention 진입 검토
 
-## H. OOD severity / novelty relevance gate
+### 8B. (선택) `docs/R4_FALSIFICATION_GATE_DESIGN_NOTES.md`
+R4 보고서 §D-F에 통합 기술되므로 별도 생성 권장 안 함.
 
-### OOD severity (`verify_ood_severity`, `manifest.py:199-209`)
+### 8C. `plans/PHASE_PROGRESS.md` 업데이트 — **R4 판정 후만**
 
-- **임계**: `delta_min=0.01` on `state_delta_norm_mean` (split간 절대 차).
-- **PASS**: `|train_id.state_delta_norm_mean - ood.state_delta_norm_mean| ≥ 0.01` AND `≤ 0.5` (간단 sanity).
-- **OOD_TOO_EASY**: gap < 0.01 → `diagnose.py:51-61` AUROC<0.7과 연계, repair `OOD_TOO_EASY_shift_strength_2x`(`candidates.py:117-126`) 발화.
-- **OOD_TOO_HARD**: gap > 0.5 또는 R3 smoke에서 `ood_id_nll_diff > 2.0` → `candidates.py:141-170` (mass 1.5→1.3, friction 5.0→3.0, expand_coverage→200).
-
-### Novelty relevance (수동 + Agent D)
-
-다음 6개 질문에 모두 응답 가능해야 함:
-1. mass/friction shift가 단순 noise가 아닌 **physical dynamics hypothesis shift**인가?
-2. base WM 1-step prediction이 ID에서는 적합, OOD에서는 mismatch가 누적되는가?
-3. falsification gate(`β_t`)가 residual 차이를 감지할 가능성이 보이는가?
-4. latent correction(`δ_t^k`)이 필요한 group-wise 구조 차이가 관찰되는가?
-5. mass/friction shift가 action/value에 영향을 주는가(success rate 변동, episode length 변동)?
-6. wrong-dynamics-hypothesis persistence 구간이 multi-step에 걸쳐 존재하는가? (`04_BASE_WORLD_MODEL.md:46-49` 근거)
-
----
-
-## I. 팀 에이전트 구성과 산출물
-
-각 agent는 **수집 전 plan review + 수집 후 실측 review** 2회 보고. 각 보고서에 PASS/FAIL/CONDITIONAL_PASS 명시.
-
-| Agent | 역할 | 보고 경로 (사용자 명세 + 프로젝트 컨벤션) | PASS 조건 |
-|---|---|---|---|
-| **A. data-quality-gatekeeper** | episode 단위 garbage 차단, 9 reject reason 분포 분석 | `reports/data_quality_agent_report.md` + `docs/orchestration/agent_reports/2026-05/data_quality_d7_R0.md` | train_id accept rate ≥70%, reject 사유 모두 설명 가능 |
-| **B. split-leakage-auditor** | seed overlap / hash duplicate / regime contamination | `reports/split_leakage_agent_report.md` + `docs/orchestration/agent_reports/2026-05/split_leakage_d7_R0.md` | seed overlap=0, hash duplicate=0, regime contamination=0 |
-| **C. ood-severity-critic** | OOD severity gap 측정, OOD_TOO_EASY / TOO_HARD 발화 판정 | `reports/ood_severity_agent_report.md` + `docs/orchestration/agent_reports/2026-05/ood_severity_d7_R0.md` | gap ∈ [0.01, 0.5] (state_delta_norm), 또는 repair candidate 명시 |
-| **D. novelty-relevance-critic** | FGLC novelty 관련 6개 질문 답변 | `reports/novelty_relevance_agent_report.md` + `docs/orchestration/agent_reports/2026-05/novelty_relevance_d7_R0.md` | PASS / CONDITIONAL_PASS / FAIL 판정 + 근거 |
-| **E. training-readiness-auditor** | R3 runner 실제 데이터 1-iter forward + 1 epoch tiny train | `reports/training_readiness_agent_report.md` + `docs/orchestration/agent_reports/2026-05/training_readiness_d7_R0.md` | `outputs/repair/.../iter_1/metrics.json`, `ledger.jsonl`, `iter_1/` artifact 생성 확인 |
-| **F. resource-budget-auditor** | bytes/disk/time/VRAM 추정, 180/450/900 비교 | `reports/resource_budget_agent_report.md` + `docs/orchestration/agent_reports/2026-05/resource_budget_d7_R0.md` | recommended episode count + OOM fallback 순서 명시 |
-
-> Agent 호출 시점:
-> - **Pre-collection** (Probe 직후): A·B·F (계획 검증)
-> - **Post-Pilot 180** (수집 후): A·B·C·D·E·F (실측)
-> - **Post-Scaled 450** (수집 후): A·B·C·D·E·F (실측) + area-chair-synthesis-agent 1회 통합
-
----
-
-## J. 수집 전/중/후 체크포인트
-
-### J.1 수집 전 (Pre-flight)
-
-1. `git status` → 의도치 않은 staged 변경 없음 확인
-2. `pytest -q tests/test_fglc_no_garbage_data.py tests/test_fglc_split_integrity.py tests/test_fglc_ood_severity.py tests/test_fglc_r3_runner_maniskill.py tests/test_fglc_forbidden_field_sync.py` → 5개 핵심 데이터 테스트 green
-3. `data/fglc/PickCube-v1/raw/`가 `.gitignore`로 차단되는지 재확인 (`.gitignore:30,36-42`)
-4. temp/probe/quarantine/final 디렉터리 분리 — **Codex 패치 A 적용 후** 가능:
-   - `data/fglc/PickCube-v1/_probe/` (--no-save 기준)
-   - `data/fglc/PickCube-v1/_quarantine/` (reject 격리)
-   - `data/fglc/PickCube-v1/raw/` (final HDF5)
-5. seed list 생성: SPLIT_DEFAULTS(`collect_maniskill.py:34-75`) 그대로 사용, Scaled는 pool 확장.
-6. PickCube-v1 reset/step probe(`--no-save --n-episodes 3`) 확인 — D6에서 이미 PASS, 재현용 1회 더 권장.
-7. OOD mass/friction API 적용 확인: `ood_mass_low`에서 `set_object_mass(1.5)`, `ood_friction_low`에서 `set_joint_friction(5.0)` 호출 로그 확인.
-8. 디스크 예산 확인: `data/fglc/`에 ≥ 50 MB 여유.
-9. dry-run 수집 1ep: `python scripts/fglc/collect_maniskill.py --split train_id --n-episodes 1 --no-save --verbose`.
-
-### J.2 수집 중 (per-split)
-
-- `validate_episode()` 매 episode 호출.
-- reject → `_quarantine/<split>/<seed>_<reason>.h5`로 격리 저장 (Codex 패치 A로 추가).
-- `CollectionStats.rejection_counts`를 실시간 stdout (`--verbose`).
-- split별 `accepted, rejected, transitions, wall_clock` 출력.
-- `--max-wall-minutes 20.0` 초과 시 abort, partial save 차단.
-- `done`/`truncated` consistency 자동 검증 (`collector.py:148-149`).
-
-### J.3 수집 후 (build/audit)
-
-1. `python scripts/fglc/build_split.py --data-root data/fglc/PickCube-v1/raw --output-dir data/fglc/PickCube-v1` 실행.
-2. 산출물 4종 생성 확인:
-   - `data/fglc/PickCube-v1/manifest.json`
-   - `data/fglc/PickCube-v1/dataset_stats.json`
-   - `data/fglc/PickCube-v1/quality_report.json`
-   - `data/fglc/PickCube-v1/split_config.yaml`
-3. `verify_split_integrity()` PASS (seed disjoint).
-4. **Trajectory hash audit**(패치 A 후 build_split 내장 또는 별도 스크립트) duplicate=0.
-5. `verify_ood_severity()` PASS / CONDITIONAL_PASS / FAIL.
-6. Agent A·B·C·D·E·F 보고.
-7. raw HDF5 git staged 없음 확인 (`git status -s data/fglc/PickCube-v1/raw/` → 빈 출력).
-8. `manifest.json / dataset_stats.json / quality_report.json / split_config.yaml`만 staging 가능 검토 (사용자 승인 후 commit).
-
----
-
-## K. 저장 / manifest / report 구조
-
+PASS 시 Override History 1줄 append:
 ```
-data/fglc/PickCube-v1/
-├── _probe/                          (gitignore, --no-save 흔적 없음)
-├── _quarantine/                     (gitignore, reject 격리, 패치 A 후)
-│   ├── train_id/
-│   │   └── seed42_ALL_STATE_STATIC.h5
-│   └── ...
-├── raw/                             (gitignore, *.h5)
-│   ├── train_id.h5
-│   ├── val_id.h5
-│   ├── test_id.h5
-│   ├── ood_mass_low.h5
-│   └── ood_friction_low.h5
-├── manifest.json                    (negation, commit 가능)
-├── dataset_stats.json               (negation, commit 가능)
-├── quality_report.json              (negation, commit 가능)
-└── split_config.yaml                (negation, commit 가능)
-
-reports/                             (신규, gitignore 미지정 — PLAN에 추가 권장)
-├── data_quality_agent_report.md
-├── split_leakage_agent_report.md
-├── ood_severity_agent_report.md
-├── novelty_relevance_agent_report.md
-├── training_readiness_agent_report.md
-└── resource_budget_agent_report.md
-
-docs/orchestration/agent_reports/2026-05/
-├── data_quality_d7_R0.md
-├── split_leakage_d7_R0.md
-├── ood_severity_d7_R0.md
-├── novelty_relevance_d7_R0.md
-├── training_readiness_d7_R0.md
-├── resource_budget_d7_R0.md
-└── synthesis/
-    └── d7_collection_synthesis_R0.md   (area-chair-synthesis-agent)
+- 2026-05-XXTHH:MM:00Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2, R3 | SoT: reports/R4_FALSIFICATION_GATE_REPORT.md | NOTE: R4 falsification gate gate-ready (PASS). R4.passed sentinel은 사용자 명시 승인 후 생성.
 ```
 
-**quality_report.json 신규 필드**:
-- `friction_api: "joint_dry_friction"`
-- `friction_ssot_unit: "mu_kinetic"`
-- `friction_ssot_value_used: 5.0`
-- `friction_mapping: "DEFERRED — see docs/idea/18_DATA_BENCHMARKS.md:44"`
+R4.passed sentinel은 **사용자 명시 승인 없이 생성 금지** (사용자 명시).
+
+### 8D. commit (총 3개)
+
+**commit 1 (Stage 2+3 종료 시)**: `feat(r4): add standardized residual conformal falsification gate` (위 §"Stage 2+3 commit" 참조)
+
+**commit 2 (Stage 4 종료 시)**: `test(r4): add 7 falsification gate test files`
+
+**commit 3 (Stage 8 종료 시)**: `docs(r4): report falsification gate results and repair analysis`
+
+commit 대상:
+- src/fglc/falsification/*.py
+- src/fglc/evaluation/falsification_metrics.py
+- src/fglc/training/trainer_r3.py
+- src/fglc/evaluation/metrics.py
+- src/fglc/repair/{taxonomy,diagnose,candidates}.py (필요 시)
+- scripts/fglc/r4_falsification.py
+- scripts/fglc/r3_export_checkpoint.py
+- configs/fglc/r4_falsification_*.yaml
+- tests/test_fglc_falsification_*.py
+- tests/test_fglc_r4_runner_maniskill.py
+- reports/R4_FALSIFICATION_GATE_REPORT.md
+- (R4 PASS 시) plans/PHASE_PROGRESS.md
+- (R4 PASS 시 + 사용자 명시 승인 시) outputs/phase_gates/R4.passed
+
+commit 금지:
+- raw HDF5
+- model checkpoint (.pt) — `.gitignore: outputs/*` 차단
+- ledger.jsonl, metrics.json — 동일 차단
+- hook log
+- R3.passed sentinel
+- **R4.passed sentinel (사용자 명시 승인 없이)**
+- unrelated docs
+
+### T-trigger
+- T4 area-chair-synthesis-agent (deep): 최종 보고서 작성 시 (Agent A~G 7개 audit 종합)
+- T5 reviewer-2-attack-agent (deep): R4 report 작성 후 reviewer 공격 시뮬
 
 ---
 
-## L. R3 smoke와 repair loop 연결
+## Critical Files
+
+### Read-only (전 stage)
+- `data/fglc/PickCube-v1/raw/*.h5` (6 파일) — **mtime 보존 의무**
+- `data/fglc/PushCube-v1/raw/*.h5` (6 파일) — **mtime 보존 의무**
+- `docs/idea/02_FALSIFICATION_THEORY.md` (R4 이론 SoT)
+- `docs/idea/04_BASE_WORLD_MODEL.md` (μ/σ shape SoT)
+- `docs/idea/10_LOSS_DESIGN.md`, `12_TRAINING_STAGES.md`, `21_METRICS.md`, `18_DATA_BENCHMARKS.md`
+- `docs/idea/22_NOVELTY_AND_THREATS.md` (AdaWM/CIRCA 차별화)
+- `src/fglc/schemas/visibility.py::FORBIDDEN_AGENT_FIELDS` (12 forbidden)
+- `outputs/phase_gates/R0~R3.passed` (보호)
+- `outputs/repair/{pickcube,pushcube}_r3_2axis_2026-05-24/iter_0/metrics.json` (R3 closure SoT, hash 보존)
+- `reports/R3_SMOKE_CLOSURE_REPORT.md`
+- `docs/FUTURE_OOD_DATA_EXPANSION_INSIGHTS.md`
+
+### Stage 2에서 수정
+- `src/fglc/training/trainer_r3.py` (+save_state/load_state, ~20 LOC)
+- `src/fglc/evaluation/metrics.py` (+evaluate_residuals, +STAGE2_CANONICAL_METRIC_KEYS, ~50 LOC)
+
+### Stage 3에서 신규 생성
+- `src/fglc/falsification/__init__.py`
+- `src/fglc/falsification/residuals.py` (~80 LOC)
+- `src/fglc/falsification/conformal.py` (~60 LOC)
+- `src/fglc/falsification/gate.py` (~70 LOC)
+- `src/fglc/evaluation/falsification_metrics.py` (~120 LOC)
+- `scripts/fglc/r4_falsification.py` (~150 LOC)
+- `scripts/fglc/r3_export_checkpoint.py` (~80 LOC)
+- `configs/fglc/r4_falsification_pickcube.yaml`
+- `configs/fglc/r4_falsification_pushcube.yaml`
+
+### Stage 3에서 수정 (선택, repair loop 확장 시)
+- `src/fglc/repair/taxonomy.py` (신규 R4 cause: CONFORMAL_QUANTILE_MISMATCH, BETA_GATE_DIRECTION_BLIND, EASY_LOOKING_OOD_MISSED)
+- `src/fglc/repair/candidates.py` (대응 patch)
+- `src/fglc/repair/diagnose.py::CANONICAL_METRIC_KEYS` 확장 (R4 9 key)
+
+### Stage 4에서 신규
+- `tests/test_fglc_falsification_residual.py`
+- `tests/test_fglc_falsification_conformal.py`
+- `tests/test_fglc_falsification_gate.py`
+- `tests/test_fglc_r4_runner_maniskill.py`
+- `tests/test_fglc_falsification_leakage.py`
+- `tests/test_fglc_falsification_repro.py`
+
+### Stage 5에서 생성 (자동, gitignored)
+- `outputs/r4_falsification/{pickcube,pushcube}/r3_model.pt`
+- `outputs/r4_falsification/{pickcube,pushcube}/iter_0/{config.yaml,metrics.json,run_manifest.json}`
+- `outputs/r4_falsification/{pickcube,pushcube}/loop_*/ledger.jsonl`
+- `outputs/r4_falsification/{pickcube,pushcube}/r4_stdout.log`
+
+### Stage 8에서 생성/수정
+- `reports/R4_FALSIFICATION_GATE_REPORT.md` (신규)
+- (조건부 PASS 시) `plans/PHASE_PROGRESS.md` 1줄 append
+- (조건부 사용자 승인 시) `outputs/phase_gates/R4.passed` zero-byte
+
+---
+
+## 기존 utility 재사용
+
+- `scripts/fglc/r3_smoke.py` (R4 runner의 CLI 패턴 참조)
+- `src/fglc/repair/{orchestrator,diagnose,candidates,ranker,compare,ledger}.py` (Stage 7 repair loop)
+- `src/fglc/training/trainer_r3.py` (R3 inference 재사용)
+- `src/fglc/models/{encoder,belief,dynamics,heads}.py` (μ/σ export 활용)
+- `src/fglc/data/dataloader.py` (test_id 자동 로딩 활용)
+- `src/fglc/evaluation/metrics.py::Evaluator` (베이스 확장)
+
+---
+
+## 자원 예산
+
+| Stage | 파일 변경 | disk delta | wall-clock | GPU |
+|---|---|---|---|---|
+| 0 | 0 | 0 | 10 min | 0 |
+| 1 | 0 | 0 | 10 min | 0 |
+| 2 | 2 수정 | ~3 KB | 45 min | 0 |
+| 3 | 9 신규 + 3 수정 | ~30 KB | 90 min | 0 |
+| 4 | 6 신규 | ~25 KB | 30 min | 0 |
+| 5 | artifacts 생성 | ~10 MB (2 ckpt + 4 metrics) | 30 min | RTX 4060 Ti 8 GB |
+| 6 | 0 | 0 | 20 min | 0 |
+| 7 | 조건부 | 변동 | 0~90 min | 변동 |
+| 8 | 1 신규 + 1 수정 | ~25 KB | 30 min | 0 |
+| **합계** | **~20 파일 + artifacts** | **~10 MB** | **4~6 hour** | **base inference만** |
+
+---
+
+## Team Agent 호출 매트릭스 (CLAUDE.md T-trigger)
+
+| Stage | T-trigger | Agent | 모드 | 호출 시점 |
+|---|---|---|---|---|
+| 2 (post-edit) | T3 | fglc-code-reviewer | compact | trainer_r3.py + metrics.py 수정 후 |
+| 3 (post-edit) | T3 | fglc-code-reviewer | compact | falsification 패키지 전체 후 |
+| 5 (실패 시) | T2 | frcgw-test-runner | compact | smoke FAIL 시 pytest re-run |
+| 6 (해석 전) | T4 | failure-interpretation-critic | deep | metric 분석 시 |
+| 6 (acceptance 전) | T4 | claim-metric-alignment-auditor | compact | PASS 판정 직전 |
+| 7 (repair iter) | T3 | implementation-risk-critic | compact | 각 patch 적용 후 |
+| 8 (final) | T4 | area-chair-synthesis-agent | deep | R4 report 작성 시 |
+| 8 (post-report) | T5 | reviewer-2-attack-agent | deep | R4 report 완료 후 reviewer 공격 시뮬 |
+
+호출 명령: `/agent-team-review compact` 또는 `deep`
+
+산출 경로:
+- 개별: `docs/orchestration/agent_reports/2026-05/<agent>_r4_falsification_R1.md`
+- synthesis: `docs/orchestration/agent_reports/synthesis/2026-05/r4_falsification_synthesis_R1.md`
+
+---
+
+## 절대 금지 (전 stage 공통)
+
+- ❌ R5/R6/R7 진입 (causal attention / correction / planner)
+- ❌ latency/noise/mass repair 새 데이터 수집
+- ❌ raw HDF5 (`data/fglc/*/raw/*.h5`) 수정 또는 commit
+- ❌ `outputs/phase_gates/R3.passed` 수정/삭제
+- ❌ **`outputs/phase_gates/R4.passed` 사용자 명시 승인 없이 생성**
+- ❌ R3 closure metrics.json/ledger.jsonl 수정 (R3 closure 무손)
+- ❌ `docs/idea/` 무단 수정
+- ❌ `src/fglc/schemas/visibility.py::FORBIDDEN_AGENT_FIELDS` 무단 수정
+- ❌ regime_id / true_* / oracle_action / counterfactual_reward / split_id / ood_type / seed / template_id가 R4 model input에 들어가는 것
+- ❌ conformal threshold τ를 OOD 데이터 보고 정하기
+- ❌ β_t가 raw NLL보다 성공한다고 사전 단정
+- ❌ raw NLL 역전 결과를 실패로 숨김
+- ❌ 실패 보고만 하고 종료 (Stage 7 repair loop max 3 iter 시도 의무)
+- ❌ Stage 3 외 부수 리팩터링 (예: encoder/belief 수정)
+- ❌ baseline / ablation grid 진입 (R9/R10)
+- ❌ threshold 완화로 test FAIL을 PASS로 위장
+- ❌ 양방향(gain=1.3) 데이터를 이번 R4 작업에서 수집 (사용자 명시: 별도 작업으로 분리)
+- ❌ Codex에 위 금지 경로 위임
+
+---
+
+## 검증 절차 (각 stage 종료 시)
 
 ```powershell
-& ".venv\Scripts\python.exe" scripts\fglc\r3_smoke.py `
-  --phase R3 --config configs\fglc\smoke_maniskill_pickcube.yaml `
-  --seed 42 --descriptor smoke_maniskill_pickcube `
-  --max-iter 1 --max-wall-clock-minutes 60 `
-  --output-root outputs\repair
-```
+# 1. raw HDF5 무손
+Get-Item data/fglc/PickCube-v1/raw/*.h5 | Select Name, Length, LastWriteTime
+Get-Item data/fglc/PushCube-v1/raw/*.h5 | Select Name, Length, LastWriteTime
 
-기록 확인:
-- `outputs/repair/smoke_maniskill_pickcube/iter_1/metrics.json` 키: `id_nll, ood_mass_nll, ood_friction_nll, val_nll, ood_auroc, attention_entropy, corrected_nll_gain, planner_return_gain, stagnant_epochs, train_nll` (`scripts/fglc/r3_smoke.py:14-22`, `src/fglc/repair/diagnose.py:10-31`).
-- `outputs/repair/smoke_maniskill_pickcube/ledger.jsonl` 행 1개 이상.
+# 2. phase gate 보호
+Test-Path C:\Users\computer\Desktop\ICLR_WM_claude-code\outputs\phase_gates\R3.passed  # True 유지
+Test-Path C:\Users\computer\Desktop\ICLR_WM_claude-code\outputs\phase_gates\R4.passed  # False 유지 (사용자 승인 전)
 
-`diagnose.py` 발화 매핑:
-- `id_nll > 0.5 AND stagnant_epochs >= 10` → `DATA_TOO_SMALL` → `DATA_TOO_SMALL_episode_x2 (num_episodes=200)` (`candidates.py:37-46`)
-- `ood_auroc < 0.7` → `OOD_TOO_EASY` → `OOD_TOO_EASY_shift_strength_2x (ood_shift_scale=2.0)` (`candidates.py:117-126`)
-- `ood_id_nll_diff > 2.0` → `OOD_TOO_HARD` → mass 1.5→1.3 / friction 5.0→3.0 / expand_coverage→200 (`candidates.py:141-170`)
-- `eval_ci95_over_effect_size > 1.0` → `EVAL_NOISE_HIGH` (**주의**: 이 메트릭이 `CANONICAL_METRIC_KEYS`에 없음 — 패치 A에 추가 또는 패치 B로 후속 처리)
+# 3. R3 closure artifact 보호
+Get-FileHash outputs/repair/pickcube_r3_2axis_2026-05-24/iter_0/metrics.json
+Get-FileHash outputs/repair/pushcube_r3_2axis_2026-05-24/iter_0/metrics.json
+# (Stage 0와 Stage 8에서 동일해야 함)
 
-실패는 결론이 아니라 다음 repair candidate로 전환:
-- DATA_TOO_SMALL → Scaled 450 또는 L 900으로 확장
-- OOD_TOO_EASY → friction을 mass 단위로 통일(SSoT) 또는 shift_scale 2x
-- OOD_TOO_HARD → severity 완화 (1.3, 3.0)
-- EVAL_NOISE_HIGH → multi-seed (seed 42, 43, 44) 평균화
+# 4. tests
+& .venv\Scripts\python.exe -m pytest -q `
+    tests/test_fglc_forbidden_field_sync.py `
+    tests/test_fglc_split_integrity.py `
+    tests/test_fglc_ood_severity.py `
+    tests/test_fglc_r3_runner_maniskill.py `
+    tests/test_fglc_falsification_*.py `
+    tests/test_fglc_r4_runner_maniskill.py
 
----
+# 5. R4 metrics.json 키 (Stage 5 후)
+Get-ChildItem outputs/r4_falsification -Recurse -Filter metrics.json |
+  ForEach-Object { & .venv\Scripts\python.exe -c "import json,sys; m=json.load(open(sys.argv[1])); print(sys.argv[1], sorted(m.keys()))" $_.FullName }
+# 기대: beta_t_auroc_friction, beta_t_auroc_gain, beta_t_fpr_id, beta_t_tpr_friction, beta_t_tpr_gain, conformal_threshold, residual_ece, raw_nll_auroc_friction, raw_nll_auroc_gain + 기존 R3 키
 
-## M. Codex 패치 A (선행) — collector / build_split 최소 보강
+# 6. ledger REQUIRED_KEYS
+Get-ChildItem outputs/r4_falsification -Recurse -Filter ledger.jsonl |
+  ForEach-Object { Get-Content $_.FullName | Select-Object -First 1 | & .venv\Scripts\python.exe -c "import json,sys; d=json.loads(sys.stdin.read()); print(len(d), sorted(d.keys()))" }
+# 기대: 19개
 
-> 사용자 결정 3에 따라 **D7 수집 전에** 1건의 Codex task를 선행. `scripts/run_codex_task.ps1`로 위임. T3 audit 필수.
+# 7. forbidden field leak 검사
+Select-String -Path outputs/r4_falsification/*/r4_stdout.log -Pattern "regime_id|true_mass|true_friction|true_latency|true_action_gain|oracle_action|counterfactual_reward|split_id|ood_type|template_id"
+# 기대: 매치 0건
 
-### TASK_11D7A_COLLECTOR_PATCH.md (`.agent_tasks/codex_queue/`)
-
-```
-TASK_NAME: 11D7A_COLLECTOR_PATCH
-BACKGROUND:
-  Step 11-D7 실제 수집 전 collector/build_split에 quarantine, trajectory hash duplicate
-  검사, mode 분기를 추가한다. 기존 9 reject reason과 SPLIT_DEFAULTS는 보존.
-
-GOAL:
-  (1) collect_maniskill.py에 --mode {probe,pilot,scaled} 명시 플래그 추가
-      (--no-save와 호환). --quarantine-dir 옵션 추가.
-  (2) collector.py에 reject episode를 quarantine 경로로 격리 저장하는 기능 추가
-      (HDF5 파일명: <seed>_<reason>.h5). default off.
-  (3) validators.py에 EPISODE_DUPLICATE reject reason 추가 (state.tobytes() SHA1 기준,
-      split 내 중복 차단).
-  (4) build_split.py에 trajectory hash duplicate audit 추가 (split-내, split-간 모두).
-      quality_report.json에 hash_duplicate_count, hash_collision_pairs 기록.
-  (5) build_split.py가 quality_report.json에 friction_api / friction_ssot_unit /
-      friction_ssot_value_used / friction_mapping 4 필드 기록.
-  (6) diagnose.py CANONICAL_METRIC_KEYS에 eval_ci95_over_effect_size 추가.
-
-FILES_ALLOWED:
-  - scripts/fglc/collect_maniskill.py
-  - scripts/fglc/build_split.py
-  - src/fglc/data/collector.py
-  - src/fglc/data/validators.py
-  - src/fglc/data/manifest.py
-  - src/fglc/repair/diagnose.py
-  - tests/test_fglc_no_garbage_data.py
-  - tests/test_fglc_split_integrity.py
-
-FILES_FORBIDDEN:
-  - src/fglc/schemas/visibility.py
-  - docs/idea/*
-  - docs/ROADMAP/*
-  - .claude/*
-  - CLAUDE.md
-  - .mcp.json
-  - data/*
-  - outputs/*
-
-REQUIRED_IMPLEMENTATION:
-  (위 6개 항목 그대로)
-
-REQUIRED_TESTS:
-  - tests/test_fglc_no_garbage_data.py에 EPISODE_DUPLICATE 케이스 추가 (10번째 reason)
-  - tests/test_fglc_split_integrity.py에 trajectory hash duplicate 검사 케이스 추가
-  - 279 + 신규 ≥ 281 tests passed
-
-ACCEPTANCE_CRITERIA:
-  - pytest -q tests/ 전체 PASS
-  - collect_maniskill.py --help 출력에 --mode/--quarantine-dir 등장
-  - quality_report.json에 friction_api 4 필드 + hash_duplicate_count 등장
-
-COMMIT_MESSAGE:
-  feat(d7): collector quarantine + trajectory hash + friction unit annotation
-            (Step 11-D7-A precursor)
-
-STOP_CONDITION:
-  허용된 파일 외 어떤 파일도 수정 금지. tests 전부 PASS 미달성 시 abort.
-
-RELATED_AGENT_REPORT_IDS:
-  - docs/orchestration/agent_reports/2026-05/impl_risk_11d7a_R0.md
-```
-
-T3 audit는 `implementation-risk-critic` + `fglc-code-reviewer`로 수행 후 `/codex-result-audit`. PASS 시에만 accept commit.
-
----
-
-## N. 실행 명령 후보 (Codex 패치 A 적용 후)
-
-### Stage 0 — Probe (각 split 3~5ep, --no-save)
-
-```powershell
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split train_id        --n-episodes 5 --no-save --verbose
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split val_id          --n-episodes 3 --no-save --verbose
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split test_id         --n-episodes 3 --no-save --verbose
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split ood_mass_low     --ood-mass 1.5     --n-episodes 5 --no-save --verbose
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split ood_friction_low --ood-friction 5.0 --n-episodes 5 --no-save --verbose
-```
-
-**Probe Stage 0 gate**: shape 검증(D_x=42, D_a=8), `dones[-1]==True`, success 1건 이상, mass/friction 적용 로그. Agent A·B·F 사전 보고. **FAIL 시 Pilot 진입 금지**.
-
-### Stage 1 — Pilot 180ep
-
-```powershell
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split train_id         --n-episodes 100
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split val_id           --n-episodes 20
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split test_id          --n-episodes 20
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split ood_mass_low      --ood-mass 1.5     --n-episodes 20
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split ood_friction_low  --ood-friction 5.0 --n-episodes 20
-
-& ".venv\Scripts\python.exe" scripts\fglc\build_split.py --data-root data\fglc\PickCube-v1\raw --output-dir data\fglc\PickCube-v1
-```
-
-**Pilot Stage 1 gate**: Agent A·B·C·D·E·F 실측 보고. PASS 또는 CONDITIONAL_PASS 시 Scaled. FAIL 시 repair candidate 적용 후 재수집.
-
-### Stage 2 — Scaled 450ep (Pilot 데이터 retention + 추가 수집)
-
-> Pilot 180 데이터는 폐기하지 않고 Scaled 450에 흡수. 즉 추가로 수집할 양은 270ep.
-
-```powershell
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split train_id         --n-episodes 150  # Pilot 100 + 추가 150 = 250
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split val_id           --n-episodes 30   # 20+30 = 50
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split test_id          --n-episodes 30   # 20+30 = 50
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split ood_mass_low      --ood-mass 1.5     --n-episodes 30  # 20+30 = 50
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split ood_friction_low  --ood-friction 5.0 --n-episodes 30  # 20+30 = 50
-
-& ".venv\Scripts\python.exe" scripts\fglc\build_split.py --data-root data\fglc\PickCube-v1\raw --output-dir data\fglc\PickCube-v1
-```
-
-> **주의**: collect_maniskill.py가 기존 HDF5에 append 가능한지 사전 확인 필요. 불가하면 Stage 2는 누계 수치(250/50/50/50/50)로 fresh 재수집. Codex 패치 A의 STOP_CONDITION에 append 모드 검토 추가 권장.
-
-### Stage 3 — L=900 (조건부, DATA_TOO_SMALL 또는 EVAL_NOISE_HIGH 발화 시)
-
-```powershell
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split train_id         --n-episodes 250
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split val_id           --n-episodes 50
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split test_id          --n-episodes 50
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split ood_mass_low      --ood-mass 1.5     --n-episodes 50
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split ood_friction_low  --ood-friction 5.0 --n-episodes 50
-```
-
-### R3 smoke (Pilot 후, Scaled 후 각 1회)
-
-```powershell
-& ".venv\Scripts\python.exe" scripts\fglc\r3_smoke.py `
-  --phase R3 --config configs\fglc\smoke_maniskill_pickcube.yaml `
-  --seed 42 --descriptor smoke_maniskill_pickcube `
-  --max-iter 1 --max-wall-clock-minutes 60 `
-  --output-root outputs\repair
+# 8. git status
+git status --short
 ```
 
 ---
 
-## O. PASS / PATCH_REQUIRED / BLOCKED 판정 기준
+## Final Rule
 
-### COLLECTION_PLAN_PASS
+본 plan의 목표는 **R3 closure에서 발견된 raw NLL OOD 탐지 실패를 standardized residual + conformal β_t gate가 보완할 수 있는지 friction + action_gain 단방향에서 검증하는 것**이다.
 
-다음을 모두 충족:
-- [ ] Codex 패치 A merge + T3 audit PASS
-- [ ] 279 + 신규 ≥ 281 tests passed
-- [ ] Probe Stage 0에서 5 split 모두 shape / done / OOD 적용 OK
-- [ ] Agent A·B·F 사전 보고에서 disk/time/seed-pool/forbidden audit PASS
-- [ ] Pilot 180ep 4 quality gate(garbage / integrity / severity / novelty) 모두 PASS 또는 CONDITIONAL_PASS
-- [ ] R3 smoke 1-iter `metrics.json` + `ledger.jsonl` + `iter_1/` artifact 생성
-- [ ] Scaled 450ep 4 quality gate 모두 PASS 또는 CONDITIONAL_PASS
-- [ ] area-chair-synthesis-agent 통합 보고 PASS
-
-### COLLECTION_PATCH_REQUIRED
-
-다음 중 하나라도 발생:
-- Probe에서 mass/friction effect 약함 → severity 조정 (mass→2.0 또는 friction→3.0 검토)
-- Pilot에서 OOD_TOO_EASY 발화 → `OOD_TOO_EASY_shift_strength_2x` 적용
-- Pilot에서 OOD_TOO_HARD 발화 → `severity_down_mass / severity_down_friction` 적용
-- Pilot에서 train_id reject rate > 30% → validator 임계 재조정 사용자 승인 필요
-- Scaled에서 EVAL_NOISE_HIGH → multi-seed average 추가
-- `eval_ci95_over_effect_size` CANONICAL_METRIC_KEYS 등록 누락 → 패치 B
-
-### COLLECTION_BLOCKED
-
-다음 중 하나라도 발생:
-- Probe에서 ManiSkill `PickCube-v1` reset/step 실패 → R1 dependency 재검증
-- OOD mass/friction API가 episode마다 적용되지 않음 → collector wrapper 재구현 필요
-- raw HDF5가 git staged 됨 → 즉시 `.gitignore` 점검 + `git rm --cached`
-- forbidden field가 dataloader에 노출됨 → 즉시 중단, `visibility.py` 점검
-- split seed pool overlap 감지 → SPLIT_DEFAULTS 재설계
-- Novelty relevance agent FAIL → mass/friction shift가 domain randomization 수준일 가능성, R3 진행 금지
-- Codex 패치 A T3 audit FAIL → merge abort, PLAN 재설계
-
----
-
-## P. 사용자 승인 필요 항목 (수집 진행 전 명시 동의 필요)
-
-1. **Codex 패치 A 위임 시작**: TASK_11D7A_COLLECTOR_PATCH 파일 작성 + `run_codex_task.ps1 -Mode run` 실행 승인.
-2. **Probe Stage 0 실행**: 5 split 16~21ep no-save 수집 실행 승인.
-3. **Pilot Stage 1 실행** (Probe PASS 후): 180ep 5-split 수집 + build_split + 6 agent 보고 실행 승인.
-4. **Scaled Stage 2 실행** (Pilot PASS 후): 추가 270ep 또는 fresh 450ep 수집 실행 승인. (append 가능 여부 사전 확인 결과에 따라)
-5. **L 900 확장** (DATA_TOO_SMALL 또는 EVAL_NOISE_HIGH 발화 시): 추가 450ep 수집 실행 승인.
-6. **manifest.json / dataset_stats.json / quality_report.json / split_config.yaml만 commit**: raw HDF5 미포함 검증 후 commit 승인.
-7. **R3.passed 미생성 확정**: D7 PLAN 종료 시점에도 R3 phase gate sentinel 절대 생성하지 않음을 사용자 재확인.
-
----
-
-## Verification Plan
-
-### End-to-end smoke verification (코드 수정 시)
-
-```powershell
-# 1. 핵심 데이터 테스트
-& ".venv\Scripts\python.exe" -m pytest -q `
-  tests\test_fglc_no_garbage_data.py `
-  tests\test_fglc_split_integrity.py `
-  tests\test_fglc_ood_severity.py `
-  tests\test_fglc_r3_runner_maniskill.py `
-  tests\test_fglc_forbidden_field_sync.py
-
-# 2. Probe (--no-save)
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split train_id --n-episodes 3 --no-save --verbose
-
-# 3. Pilot 1 split sanity (실제 저장 1ep만)
-& ".venv\Scripts\python.exe" scripts\fglc\collect_maniskill.py --split train_id --n-episodes 1 --output data\fglc\PickCube-v1\raw\_sanity_train_id.h5
-
-# 4. build_split
-& ".venv\Scripts\python.exe" scripts\fglc\build_split.py --data-root data\fglc\PickCube-v1\raw --output-dir data\fglc\PickCube-v1
-
-# 5. R3 smoke 1-iter
-& ".venv\Scripts\python.exe" scripts\fglc\r3_smoke.py --phase R3 --config configs\fglc\smoke_maniskill_pickcube.yaml --seed 42 --descriptor smoke_maniskill_pickcube --max-iter 1 --max-wall-clock-minutes 30 --output-root outputs\repair
-
-# 6. gitignore 검증
-git status -s data\fglc\PickCube-v1\raw\   # 빈 출력이어야 함
-git status -s outputs\repair\               # 빈 출력이어야 함 (.gitkeep 제외)
-
-# 7. forbidden field
-& ".venv\Scripts\python.exe" -m pytest -q tests\test_fglc_forbidden_field_sync.py
+```
+read correct context (3 Explore agent audit + 이론 + R3 closure)
+preserve scientific contract (R3.passed/R3 closure artifact/raw HDF5/forbidden 12 보존)
+implement smallest valid step (M1-M4,M7 + 단방향 평가 + 7 tests)
+test before scaling (Stage 4 tests PASS → R3 ckpt → R4 smoke → metric 검증)
+report blockers honestly (β_t 우월성을 사전 단정하지 않고 실측 보고; PARTIAL/BLOCKED 격하 금지)
 ```
 
-### Critical files (수정 대상 — 패치 A에서만)
+### 판정 기준 (R3 closure §H.3 default)
 
-- `scripts/fglc/collect_maniskill.py`
-- `scripts/fglc/build_split.py`
-- `src/fglc/data/collector.py`
-- `src/fglc/data/validators.py`
-- `src/fglc/data/manifest.py`
-- `src/fglc/repair/diagnose.py`
-- `tests/test_fglc_no_garbage_data.py`
-- `tests/test_fglc_split_integrity.py`
+- **PASS**: 양 task에서 β_t AUROC ≥ 0.85 (friction OR gain) AND β_t FPR ≤ 0.05 + 2σ AND raw NLL 대비 AUROC gain ≥ +0.20 + 모든 Stage 0~8 완주 + 모든 invariant 보존
+- **PARTIAL_PASS**: 한 task 또는 한 axis만 통과 — §L에 한계 명시 후 commit
+- **PATCH_REQUIRED**: Stage 7 repair loop max 3 iter 후에도 위 기준 미달
+- **BLOCKED**: residual NaN/Inf 반복 해결 불가, R3 ckpt 호환 실패, forbidden field leak, raw HDF5 손상
 
-### Reused existing utilities (재사용 권장)
+### 사용자 plan 검토 시 변경 가능한 default
 
-- `validate_episode()` — `src/fglc/data/validators.py:32-89` (9 reject reason)
-- `build_dataset_stats()` — `src/fglc/data/manifest.py:128-167`
-- `verify_split_integrity()` — `src/fglc/data/manifest.py:178-196`
-- `verify_ood_severity()` — `src/fglc/data/manifest.py:199-209`
-- `CollectionStats` — `src/fglc/data/collector.py:36-42`
-- `_make_maniskill_datasets()` — `src/fglc/data/dataloader.py:108-124`
-- `FORBIDDEN_AGENT_FIELDS` runtime guard — `src/fglc/schemas/visibility.py`
-- `EpisodeRejectReason` enum — `src/fglc/data/validators.py:20-29`
-- `R3SmokeRunner` / `run_repair_loop` — `scripts/fglc/r3_smoke.py:87`
+1. R3 checkpoint 저장 방식: trainer_r3.py 수정 + R3 minimal rerun (default) ↔ R3 trainer 변경 없이 R4 evaluator 안에서 매번 R3 학습 ↔ 다른 방식
+2. R4 PASS gate 정량 기준: §H.3 제안값 (default) ↔ 더 보수적 (AUROC≥0.90) ↔ 더 공격적 (AUROC≥0.80)
+3. conformal α 값: 0.05 (default) ↔ 다른 값
+4. STAGE2_CANONICAL_METRIC_KEYS 분리 vs STAGE1 확장: 분리 권장 (default) ↔ STAGE1 확장
+5. β_t MLP 학습 vs conformal-only: conformal-only (default, 더 단순) ↔ MLP 학습 (Stage 2 freeze 정책과 충돌, 비권장)
 
-### Absolute do-not
-
-- ❌ `outputs/phase_gates/R3.passed` 생성 금지
-- ❌ `outputs/phase_gates/R2.passed` 생성 금지
-- ❌ raw HDF5 (`data/fglc/PickCube-v1/raw/*.h5`) git staging 금지
-- ❌ `src/fglc/schemas/visibility.py::FORBIDDEN_AGENT_FIELDS` 수정 금지
-- ❌ `docs/idea/*` / `docs/ROADMAP/*` 수정 금지 (`-AllowDocsIdea` / `-AllowDocsRoadmap` 없이)
-- ❌ TD-MPC2 / DreamerV3 / HiP-RSSM / PLSM / ReDRAW / AdaWM 등 R10 baseline 사전 구현 금지
-- ❌ RGB-D / DROID / BridgeData 확장 금지
-- ❌ 90ep만으로 R3 gate 충족 주장 금지
-- ❌ negative result(예: ID NLL 안 떨어짐) 발생 시 숨김 금지 — repair candidate로 전환
-
----
-
-## Open UNKNOWNs (BLOCKER 후보)
-
-1. **mean_episode_len 실측**: Probe Stage 0에서 측정 후 본 PLAN의 자원 계산 보정.
-2. **collect_maniskill.py append 가능 여부**: Stage 2에서 기존 raw HDF5에 추가 가능한지, 아니면 fresh 재수집인지. 패치 A에서 결정.
-3. **`eval_ci95_over_effect_size` 실제 R3 metrics에 등장 여부**: `diagnose.py:10-31` CANONICAL_METRIC_KEYS에 없어 발화 누락 가능 — 패치 A에서 추가.
-4. **R3SmokeRunner ledger.jsonl schema**: `scripts/fglc/r3_smoke.py:87`이 `run_repair_loop`로 위임 — `src/fglc/repair/orchestrator.py` 추가 조사 필요. PLAN 진행에 차단 요인은 아님.
-5. **PickCube-v1 success rate (mass=1.0)**: train_id에서 ≥30% (Pilot 기준) 충족 여부 미확인 — Probe Stage 0 측정 후 결론.
-6. **friction=5.0 → joint dry friction 물리 효과**: probe(2026-05-23)에서 L2 diff ~0.042/step 보고됨(`docs/STEP11_RESULT_REPORT.md:93`) — Pilot에서 state_delta_norm gap 재측정.
+본 plan은 ExitPlanMode 승인 후 Stage 0부터 순차 진행한다.
