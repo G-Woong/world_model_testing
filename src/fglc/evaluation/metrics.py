@@ -21,6 +21,7 @@ STAGE1_CANONICAL_METRIC_KEYS: frozenset[str] = frozenset(
         "kstep_nll_slope",
         "ood_mass_nll",
         "ood_friction_nll",
+        "ood_gain_nll",   # action_gain OOD axis (2026-05-24)
         "ood_id_nll_diff",
     }
 )
@@ -45,6 +46,11 @@ class Evaluator:
         id_nll = self.trainer.evaluate_nll(dataloaders["val_id"])
         ood_mass_nll = self.trainer.evaluate_nll(dataloaders["ood_mass"])
         ood_friction_nll = self.trainer.evaluate_nll(dataloaders["ood_friction"])
+        ood_gain_nll = (
+            self.trainer.evaluate_nll(dataloaders["ood_gain"])
+            if "ood_gain" in dataloaders
+            else float("nan")
+        )
         ood_mean = (ood_mass_nll + ood_friction_nll) / 2.0
 
         metrics: dict[str, float | int] = {
@@ -58,6 +64,7 @@ class Evaluator:
             ),
             "ood_mass_nll": float(ood_mass_nll),
             "ood_friction_nll": float(ood_friction_nll),
+            "ood_gain_nll": float(ood_gain_nll),  # action_gain OOD axis (2026-05-24)
             "ood_id_nll_diff": float(ood_mean - id_nll),
             "epoch": int(self.trainer.epoch),
             "wall_clock_minutes": float(self.trainer.wall_clock_minutes),

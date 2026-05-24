@@ -36,7 +36,7 @@ def _make_stub_h5(path: str, n_episodes: int = 4, T: int = 20, D_x: int = 42, D_
 @pytest.fixture()
 def stub_h5_dir_and_config():
     with tempfile.TemporaryDirectory() as tmpdir:
-        splits = ("train_id", "val_id", "test_id", "ood_mass", "ood_friction")
+        splits = ("train_id", "val_id", "test_id", "ood_mass", "ood_friction", "ood_gain")
         for split in splits:
             _make_stub_h5(os.path.join(tmpdir, f"{split}.h5"), n_episodes=4)
 
@@ -53,14 +53,17 @@ def stub_h5_dir_and_config():
                 "n_episode_val": 4,
                 "n_episode_ood_mass": 4,
                 "n_episode_ood_friction": 4,
+                "n_episode_ood_gain": 4,
                 "data_root": tmpdir,
                 "train_id_h5": os.path.join(tmpdir, "train_id.h5"),
                 "val_id_h5": os.path.join(tmpdir, "val_id.h5"),
                 "test_id_h5": os.path.join(tmpdir, "test_id.h5"),
                 "ood_mass_h5": os.path.join(tmpdir, "ood_mass.h5"),
                 "ood_friction_h5": os.path.join(tmpdir, "ood_friction.h5"),
+                "ood_gain_h5": os.path.join(tmpdir, "ood_gain.h5"),
                 "ood_mass_value": 1.5,
                 "ood_friction_value": 5.0,
+                "ood_gain_value": 0.7,
             },
             "model": {
                 "D_x": 42,
@@ -93,14 +96,14 @@ def stub_h5_dir_and_config():
 
 class TestR3RunnerManiSkill:
     def test_make_dataloaders_maniskill_branch(self, stub_h5_dir_and_config):
-        """make_dataloaders returns 5 DataLoaders for maniskill_state_only config."""
+        """make_dataloaders returns 6 DataLoaders for maniskill_state_only config (including ood_gain)."""
         from torch.utils.data import DataLoader
 
         from fglc.data.dataloader import make_dataloaders
 
         _, config = stub_h5_dir_and_config
         loaders = make_dataloaders(config)
-        assert set(loaders.keys()) >= {"train_id", "val_id", "ood_mass", "ood_friction"}
+        assert set(loaders.keys()) >= {"train_id", "val_id", "ood_mass", "ood_friction", "ood_gain"}
         assert all(isinstance(v, DataLoader) for v in loaders.values())
 
     def test_one_batch_forward_no_nan(self, stub_h5_dir_and_config):

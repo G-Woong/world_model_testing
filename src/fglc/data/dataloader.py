@@ -113,6 +113,7 @@ def _make_maniskill_datasets(
     NOTE (2026-05-24): n_episode_train / n_episode_val / n_episode_ood_* fields
     in dataset_config are advisory and NOT used here. Runtime episode count is
     determined by the h5 file itself. SoT: data/fglc/<task>/manifest.json.
+    Supports 6 splits including ood_gain action_gain axis (R3 smoke 2-axis evaluation).
     """
     from fglc.data.maniskill_dataset import ManiSkillStateOnlyDataset
 
@@ -122,9 +123,12 @@ def _make_maniskill_datasets(
         "test_id": "test_id_h5",
         "ood_mass": "ood_mass_h5",
         "ood_friction": "ood_friction_h5",
+        "ood_gain": "ood_gain_h5",   # action_gain OOD axis (2026-05-24)
     }
     datasets: dict[str, Dataset] = {}
     for split, h5_key in split_h5_keys.items():
-        h5_path = str(dataset_config[h5_key])
-        datasets[split] = ManiSkillStateOnlyDataset(h5_path=h5_path)
+        h5_path_val = dataset_config.get(h5_key)
+        if h5_path_val is None:
+            continue
+        datasets[split] = ManiSkillStateOnlyDataset(h5_path=str(h5_path_val))
     return datasets
