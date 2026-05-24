@@ -1,0 +1,69 @@
+phase: R3
+seed: 42
+device: cuda  # fallback to cpu if cuda unavailable
+
+# PushCube-v1 smoke config (forked from smoke_maniskill_pickcube.yaml 2026-05-24)
+# Source: plans/fglc-step-vectorized-iverson.md §K TASK Q3
+# WARNING: D_x is UNKNOWN (estimated 35~42 via obs_mode="state" probe).
+#   Confirm actual D_x via Q5 preflight or Q6 first step (state_dict mode probe).
+#   Update D_x fields below before Stage 3 full collection.
+
+dataset:
+  type: maniskill_state_only
+  task: PushCube-v1
+  D_x: 42       # PLACEHOLDER — confirm via Q5/Q6 state_dict probe before use
+  D_a: 8        # estimated from PickCube (Panda EEF), confirm via Q6
+  data_root: data/fglc/PushCube-v1
+  train_id_h5:       data/fglc/PushCube-v1/raw/train_id.h5
+  val_id_h5:         data/fglc/PushCube-v1/raw/val_id.h5
+  test_id_h5:        data/fglc/PushCube-v1/raw/test_id.h5
+  ood_mass_h5:       data/fglc/PushCube-v1/raw/ood_mass_low.h5
+  ood_friction_h5:   data/fglc/PushCube-v1/raw/ood_friction_low.h5
+  episode_len: 50
+  n_episode_train: 100
+  n_episode_val: 20
+  n_episode_ood_mass: 20
+  n_episode_ood_friction: 20
+  # OOD params (recorded in manifest, NOT in model input)
+  ood_mass_value: 1.5          # kg, CONFIRMED via probe 2026-05-24 (gap=0.018, KS p=0.022)
+  ood_friction_value: 5.0      # joint dry friction (same as PickCube, confirm for PushCube)
+
+# S2 split sizes (from pushcube_audit_R1.md §5)
+# train_id: 500ep, val/test/ood×2: 100ep each = 900ep total
+seed_pool:
+  train_id: "1042-1541"       # 500 seeds, disjoint from PickCube (42-650)
+  val_id: "1600-1699"         # 100 seeds
+  test_id: "1700-1799"        # 100 seeds
+  ood_mass_low: "1800-1899"   # 100 seeds
+  ood_friction_low: "1900-1999"  # 100 seeds
+
+model:
+  D_x: 42       # PLACEHOLDER — must match dataset.D_x after Q6 confirmation
+  D_a: 8
+  K: 6
+  d: 32
+  h_dim: 128
+  encoder_hidden: 256
+  dynamics_hidden: 64
+
+trainer:
+  batch_size: 16
+  train_horizon: 8
+  epochs: 5
+  learning_rate: 3.0e-4
+  optimizer: adam
+  loss_weights:
+    lambda_reward: 1.0
+    lambda_value: 1.0
+    lambda_calibration: 0.0  # smoke gate disabled
+
+metric:
+  primary: id_nll
+  gate_threshold_id_nll: 0.5
+  gate_threshold_ood_id_gap: 0.05
+
+# OOD severity threshold (same as PickCube)
+ood_severity:
+  primary_axis: mass
+  threshold_delta_min: 0.01
+  threshold_ks_p_max: 0.05

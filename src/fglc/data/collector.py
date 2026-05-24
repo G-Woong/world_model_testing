@@ -63,11 +63,24 @@ def _scalar(x) -> float:
     return float(x)
 
 
-def _apply_ood(env, ood_params: dict[str, Any]) -> None:
-    """Apply OOD physical parameters after env.reset()."""
+def _apply_ood(env, ood_params: dict[str, Any], task: str = "PickCube-v1") -> None:
+    """Apply OOD physical parameters after env.reset().
+
+    Mass API differs by task: PickCube uses inner.cube, PushCube uses inner.obj.
+    Falls back to actor name search when neither attribute exists.
+    """
     inner = env.unwrapped
     if "object_mass" in ood_params:
-        inner.cube.set_mass(float(ood_params["object_mass"]))
+        mass_val = float(ood_params["object_mass"])
+        if hasattr(inner, "cube"):
+            inner.cube.set_mass(mass_val)
+        elif hasattr(inner, "obj"):
+            inner.obj.set_mass(mass_val)
+        else:
+            for actor in inner.scene.get_all_actors():
+                if any(kw in actor.name.lower() for kw in ("cube", "box", "obj")):
+                    actor.set_mass(mass_val)
+                    break
     if "joint_friction" in ood_params and ood_params["joint_friction"] > 0.0:
         robot = inner.agent.robot
         art = robot._objs[0]
@@ -123,7 +136,7 @@ def collect_episodes(
             env = gym.make(config.task, obs_mode="state_dict")
             obs, _ = env.reset(seed=seed)
             if config.ood_params:
-                _apply_ood(env, config.ood_params)
+                _apply_ood(env, config.ood_params, task=config.task)
 
             states: list[np.ndarray] = []
             actions: list[np.ndarray] = []

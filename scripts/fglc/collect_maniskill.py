@@ -32,54 +32,107 @@ def _parse_seed_pool(s: str) -> list[int]:
     return seeds
 
 
-SPLIT_DEFAULTS = {
-    "train_id": {
-        "n_episodes": 250,                 # Scaled target; Pilot used 50
-        "seed_pool": list(range(42, 292)), # 250 seeds for Scaled 250ep
-        "regime_id": 0,
-        "ood_type": "id",
-        "ood_params": {},
-        "output": "data/fglc/PickCube-v1/raw/train_id.h5",
+# Task-aware split defaults.
+# PickCube seeds: 42-650 (max=649). PushCube seeds: 1042-1999 (min=1042). Disjoint.
+TASK_SPLIT_DEFAULTS: dict[str, dict] = {
+    "PickCube-v1": {
+        "train_id": {
+            "n_episodes": 250,
+            "seed_pool": list(range(42, 292)),
+            "regime_id": 0,
+            "ood_type": "id",
+            "ood_params": {},
+            "output": "data/fglc/PickCube-v1/raw/train_id.h5",
+        },
+        "val_id": {
+            "n_episodes": 50,
+            "seed_pool": list(range(200, 250)),
+            "regime_id": 1,
+            "ood_type": "id",
+            "ood_params": {},
+            "output": "data/fglc/PickCube-v1/raw/val_id.h5",
+        },
+        "test_id": {
+            "n_episodes": 50,
+            "seed_pool": list(range(300, 350)),
+            "regime_id": 2,
+            "ood_type": "id",
+            "ood_params": {},
+            "output": "data/fglc/PickCube-v1/raw/test_id.h5",
+        },
+        "ood_mass_low": {
+            "n_episodes": 50,
+            "seed_pool": list(range(500, 550)),
+            "regime_id": 10,
+            "ood_type": "ood_mass",
+            "ood_params": {"object_mass": 1.5},
+            "output": "data/fglc/PickCube-v1/raw/ood_mass_low.h5",
+        },
+        "ood_friction_low": {
+            "n_episodes": 50,
+            "seed_pool": list(range(600, 650)),
+            "regime_id": 20,
+            "ood_type": "ood_friction",
+            "ood_params": {"joint_friction": 5.0},
+            "output": "data/fglc/PickCube-v1/raw/ood_friction_low.h5",
+        },
     },
-    "val_id": {
-        "n_episodes": 50,                  # Scaled target; Pilot used 10
-        "seed_pool": list(range(200, 250)),# 50 seeds for Scaled 50ep
-        "regime_id": 1,
-        "ood_type": "id",
-        "ood_params": {},
-        "output": "data/fglc/PickCube-v1/raw/val_id.h5",
-    },
-    "test_id": {
-        "n_episodes": 50,                  # Scaled target; Pilot used 10
-        "seed_pool": list(range(300, 350)),# 50 seeds for Scaled 50ep
-        "regime_id": 2,
-        "ood_type": "id",
-        "ood_params": {},
-        "output": "data/fglc/PickCube-v1/raw/test_id.h5",
-    },
-    "ood_mass_low": {
-        "n_episodes": 50,                  # Scaled target; Pilot used 10
-        "seed_pool": list(range(500, 550)),# 50 seeds for Scaled 50ep
-        "regime_id": 10,
-        "ood_type": "ood_mass",
-        "ood_params": {"object_mass": 1.5},
-        "output": "data/fglc/PickCube-v1/raw/ood_mass_low.h5",
-    },
-    "ood_friction_low": {
-        "n_episodes": 50,                  # Scaled target; Pilot used 10
-        "seed_pool": list(range(600, 650)),# 50 seeds for Scaled 50ep
-        "regime_id": 20,
-        "ood_type": "ood_friction",
-        "ood_params": {"joint_friction": 5.0},
-        "output": "data/fglc/PickCube-v1/raw/ood_friction_low.h5",
+    "PushCube-v1": {
+        "train_id": {
+            "n_episodes": 500,              # S2: 900ep total
+            "seed_pool": list(range(1042, 1542)),
+            "regime_id": 0,
+            "ood_type": "id",
+            "ood_params": {},
+            "output": "data/fglc/PushCube-v1/raw/train_id.h5",
+        },
+        "val_id": {
+            "n_episodes": 100,
+            "seed_pool": list(range(1600, 1700)),
+            "regime_id": 1,
+            "ood_type": "id",
+            "ood_params": {},
+            "output": "data/fglc/PushCube-v1/raw/val_id.h5",
+        },
+        "test_id": {
+            "n_episodes": 100,
+            "seed_pool": list(range(1700, 1800)),
+            "regime_id": 2,
+            "ood_type": "id",
+            "ood_params": {},
+            "output": "data/fglc/PushCube-v1/raw/test_id.h5",
+        },
+        "ood_mass_low": {
+            "n_episodes": 100,
+            "seed_pool": list(range(1800, 1900)),
+            "regime_id": 10,
+            "ood_type": "ood_mass",
+            "ood_params": {"object_mass": 1.5},
+            "output": "data/fglc/PushCube-v1/raw/ood_mass_low.h5",
+        },
+        "ood_friction_low": {
+            "n_episodes": 100,
+            "seed_pool": list(range(1900, 2000)),
+            "regime_id": 20,
+            "ood_type": "ood_friction",
+            "ood_params": {"joint_friction": 5.0},
+            "output": "data/fglc/PushCube-v1/raw/ood_friction_low.h5",
+        },
     },
 }
+
+# Backward-compatible alias (PickCube-v1 only)
+SPLIT_DEFAULTS = TASK_SPLIT_DEFAULTS["PickCube-v1"]
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Collect ManiSkill state-only episodes")
-    parser.add_argument("--task", default="PickCube-v1")
-    parser.add_argument("--split", default="train_id", choices=list(SPLIT_DEFAULTS.keys()))
+    parser.add_argument("--task", default="PickCube-v1", choices=list(TASK_SPLIT_DEFAULTS.keys()))
+    # --split choices are all unique split names across all tasks (union)
+    _all_splits = list(dict.fromkeys(
+        k for td in TASK_SPLIT_DEFAULTS.values() for k in td
+    ))
+    parser.add_argument("--split", default="train_id", choices=_all_splits)
     parser.add_argument("--n-episodes", type=int, default=None)
     parser.add_argument("--seed-pool", type=str, default=None,
                         help="comma-separated or range: 42,43 or 42-91")
@@ -106,7 +159,8 @@ def main() -> None:
     parser.add_argument("--max-wall-minutes", type=float, default=20.0)
     args = parser.parse_args()
 
-    defaults = SPLIT_DEFAULTS[args.split].copy()
+    task_splits = TASK_SPLIT_DEFAULTS.get(args.task, SPLIT_DEFAULTS)
+    defaults = task_splits[args.split].copy()
     n_episodes = args.n_episodes or defaults["n_episodes"]
     seed_pool = _parse_seed_pool(args.seed_pool) if args.seed_pool else defaults["seed_pool"]
     ood_params = defaults["ood_params"].copy()

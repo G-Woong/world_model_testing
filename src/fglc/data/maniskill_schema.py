@@ -109,15 +109,56 @@ REGIME_ID: dict[str, int] = {
     "ood_latency": 30,
 }
 
-# OOD params per split (for PickCube-v1, 2026-05-23 probe confirmed APIs)
-OOD_PARAMS: dict[str, dict[str, Any]] = {
-    "train_id": {"object_mass": 0.064, "joint_friction": 0.0},
-    "val_id": {"object_mass": 0.064, "joint_friction": 0.0},
-    "test_id": {"object_mass": 0.064, "joint_friction": 0.0},
-    "ood_mass_low": {"object_mass": 1.5, "joint_friction": 0.0},
-    "ood_friction_low": {"object_mass": 0.064, "joint_friction": 5.0},
+# Task-aware OOD params per split.
+# PickCube-v1: probe 2026-05-23 confirmed APIs.
+# PushCube-v1: probe 2026-05-24 confirmed (gap=0.018, KS p=0.022 PASS).
+TASK_OOD_PARAMS: dict[str, dict[str, dict[str, Any]]] = {
+    "PickCube-v1": {
+        "train_id": {"object_mass": 0.064, "joint_friction": 0.0},
+        "val_id": {"object_mass": 0.064, "joint_friction": 0.0},
+        "test_id": {"object_mass": 0.064, "joint_friction": 0.0},
+        "ood_mass_low": {"object_mass": 1.5, "joint_friction": 0.0},
+        "ood_friction_low": {"object_mass": 0.064, "joint_friction": 5.0},
+    },
+    "PushCube-v1": {
+        "train_id": {"object_mass": 0.064, "joint_friction": 0.0},
+        "val_id": {"object_mass": 0.064, "joint_friction": 0.0},
+        "test_id": {"object_mass": 0.064, "joint_friction": 0.0},
+        "ood_mass_low": {"object_mass": 1.5, "joint_friction": 0.0},
+        "ood_friction_low": {"object_mass": 0.064, "joint_friction": 5.0},
+    },
 }
 
-# Default ID physical params (PickCube-v1 probe 2026-05-23)
+# Backward-compatible alias (PickCube-v1 only)
+OOD_PARAMS: dict[str, dict[str, Any]] = TASK_OOD_PARAMS["PickCube-v1"]
+
+# Default ID physical params (probe 2026-05-23)
 ID_MASS_DEFAULT: float = 0.064      # kg, SAPIEN default cube mass
 ID_JOINT_FRICTION_DEFAULT: float = 0.0  # dry friction coefficient (default=0)
+
+
+def get_task_dims(task: str) -> tuple[int, int]:
+    """1-episode probe to detect D_x and D_a for a given task. No-save.
+
+    Used only during data collection setup — never called during model inference.
+    Requires mani_skill installed.
+
+    Returns:
+        (D_x, D_a): state and action dimensions for the task.
+    """
+    import warnings
+    warnings.filterwarnings("ignore")
+
+    import numpy as np
+    import gymnasium as gym
+    import mani_skill.envs  # noqa: F401
+
+    from fglc.data.collector import _flat_obs
+
+    env = gym.make(task, obs_mode="state_dict")
+    obs, _ = env.reset(seed=42)
+    a = env.action_space.sample()
+    D_x = len(_flat_obs(obs))
+    D_a = len(np.array(a, dtype=np.float32).flatten())
+    env.close()
+    return D_x, D_a
