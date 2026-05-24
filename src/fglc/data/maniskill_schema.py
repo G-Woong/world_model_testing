@@ -107,6 +107,7 @@ REGIME_ID: dict[str, int] = {
     "ood_mass_low": 10,
     "ood_friction_low": 20,
     "ood_latency": 30,
+    "ood_gain_low": 40,
 }
 
 # Task-aware OOD params per split.
@@ -119,6 +120,7 @@ TASK_OOD_PARAMS: dict[str, dict[str, dict[str, Any]]] = {
         "test_id": {"object_mass": 0.064, "joint_friction": 0.0},
         "ood_mass_low": {"object_mass": 1.5, "joint_friction": 0.0},
         "ood_friction_low": {"object_mass": 0.064, "joint_friction": 5.0},
+        "ood_gain_low": {"action_gain": 0.7},
     },
     "PushCube-v1": {
         "train_id": {"object_mass": 0.064, "joint_friction": 0.0},
@@ -126,6 +128,7 @@ TASK_OOD_PARAMS: dict[str, dict[str, dict[str, Any]]] = {
         "test_id": {"object_mass": 0.064, "joint_friction": 0.0},
         "ood_mass_low": {"object_mass": 1.5, "joint_friction": 0.0},
         "ood_friction_low": {"object_mass": 0.064, "joint_friction": 5.0},
+        "ood_gain_low": {"action_gain": 0.7},
     },
 }
 

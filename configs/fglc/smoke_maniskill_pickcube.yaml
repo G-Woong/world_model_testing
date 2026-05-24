@@ -21,6 +21,17 @@ dataset:
   # OOD params (recorded in manifest, NOT in model input)
   ood_mass_value: 1.5          # kg, via cube.set_mass()
   ood_friction_value: 5.0      # joint dry friction, via art.joints[i].set_friction()
+  ood_gain_h5: data/fglc/PickCube-v1/raw/ood_gain_low.h5
+  n_episode_ood_gain: 10
+  ood_gain_value: 0.7
+
+seed_pool:
+  train_id: "42-291"
+  val_id: "200-249"
+  test_id: "300-349"
+  ood_mass_low: "500-549"
+  ood_friction_low: "600-649"
+  ood_gain_low: "700-1199"
 
 model:
   D_x: 42      # from dataset.D_x — must match

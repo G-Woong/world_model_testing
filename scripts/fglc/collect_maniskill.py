@@ -76,6 +76,14 @@ TASK_SPLIT_DEFAULTS: dict[str, dict] = {
             "ood_params": {"joint_friction": 5.0},
             "output": "data/fglc/PickCube-v1/raw/ood_friction_low.h5",
         },
+        "ood_gain_low": {
+            "n_episodes": 500,
+            "seed_pool": list(range(700, 1200)),
+            "regime_id": 40,
+            "ood_type": "ood_gain",
+            "ood_params": {"action_gain": 0.7},
+            "output": "data/fglc/PickCube-v1/raw/ood_gain_low.h5",
+        },
     },
     "PushCube-v1": {
         "train_id": {
@@ -118,6 +126,14 @@ TASK_SPLIT_DEFAULTS: dict[str, dict] = {
             "ood_params": {"joint_friction": 5.0},
             "output": "data/fglc/PushCube-v1/raw/ood_friction_low.h5",
         },
+        "ood_gain_low": {
+            "n_episodes": 500,
+            "seed_pool": list(range(2000, 2500)),
+            "regime_id": 40,
+            "ood_type": "ood_gain",
+            "ood_params": {"action_gain": 0.7},
+            "output": "data/fglc/PushCube-v1/raw/ood_gain_low.h5",
+        },
     },
 }
 
@@ -138,6 +154,7 @@ def main() -> None:
                         help="comma-separated or range: 42,43 or 42-91")
     parser.add_argument("--ood-mass", type=float, default=None, help="object_mass override")
     parser.add_argument("--ood-friction", type=float, default=None, help="joint_friction override")
+    parser.add_argument("--ood-gain", type=float, default=None, help="action_gain override")
     parser.add_argument("--output", type=str, default=None, help="HDF5 output path")
     parser.add_argument("--no-save", action="store_true", help="probe mode: collect but don't save")
     parser.add_argument(
@@ -168,6 +185,8 @@ def main() -> None:
         ood_params["object_mass"] = args.ood_mass
     if args.ood_friction is not None:
         ood_params["joint_friction"] = args.ood_friction
+    if args.ood_gain is not None:
+        ood_params["action_gain"] = args.ood_gain
     output = args.output or defaults["output"]
 
     from fglc.data.collector import CollectionConfig, collect_episodes, save_episodes_h5

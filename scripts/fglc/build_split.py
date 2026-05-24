@@ -21,6 +21,7 @@ SPLIT_DEFAULTS = {
     "test_id":         {"regime_id": 2,  "ood_type": "id",          "ood_params": {},                     "h5_name": "test_id.h5",         "seed_pool": list(range(300, 310))},
     "ood_mass_low":    {"regime_id": 10, "ood_type": "ood_mass",    "ood_params": {"object_mass": 1.5},   "h5_name": "ood_mass_low.h5",    "seed_pool": list(range(500, 510))},
     "ood_friction_low":{"regime_id": 20, "ood_type": "ood_friction","ood_params": {"joint_friction": 5.0},"h5_name": "ood_friction_low.h5","seed_pool": list(range(600, 610))},
+    "ood_gain_low":    {"regime_id": 40, "ood_type": "ood_gain",    "ood_params": {"action_gain": 0.7},    "h5_name": "ood_gain_low.h5",    "seed_pool": list(range(700, 710))},
 }
 
 

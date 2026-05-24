@@ -146,6 +146,11 @@ def collect_episodes(
 
             for _step in range(config.max_episode_steps):
                 a = env.action_space.sample()
+                gain = float(config.ood_params.get("action_gain", 1.0))
+                if gain != 1.0:
+                    a = np.clip(a * gain,
+                                env.action_space.low,
+                                env.action_space.high).astype(np.float32)
                 obs_next, r, term, trunc, info = env.step(a)
                 states.append(_flat_obs(obs))
                 actions.append(np.array(a, dtype=np.float32))
