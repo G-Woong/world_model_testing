@@ -50,3 +50,5 @@
 - 2026-05-24T08:30:00Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2, R3 | SoT: reports/r3_smoke_two_axis_R1.md | FINDING: ood_gain NLL reversal is physics (gain=0.7 → -29% transition magnitude), not a bug. id_nll gate PASS both tasks.
 - 2026-05-24T16:55:00Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2, R3 | SoT: reports/r3_entry_audit_R1.md + reports/r3_readiness_action_gain_R1.md
 - 2026-05-24T17:00:09Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2, R3 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
+- 2026-05-24T17:49:02Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2, R3 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
+- 2026-05-24T18:30:00Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2, R3 | SoT: reports/R3_SMOKE_CLOSURE_REPORT.md + docs/FUTURE_OOD_DATA_EXPANSION_INSIGHTS.md | NOTE: R3 단계 공식 종료 (CLOSED). OOD NLL 역전은 wiring bug가 아닌 transition magnitude 축소(physics)로 확증. easy-looking vs hard OOD 분류 insight 별도 문서화. R4 falsification gate 진입 준비 완료.
