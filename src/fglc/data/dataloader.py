@@ -108,6 +108,12 @@ def _make_synthetic_datasets(
 def _make_maniskill_datasets(
     dataset_config: Mapping[str, object],
 ) -> dict[str, Dataset]:
+    """Build ManiSkill datasets from h5 paths.
+
+    NOTE (2026-05-24): n_episode_train / n_episode_val / n_episode_ood_* fields
+    in dataset_config are advisory and NOT used here. Runtime episode count is
+    determined by the h5 file itself. SoT: data/fglc/<task>/manifest.json.
+    """
     from fglc.data.maniskill_dataset import ManiSkillStateOnlyDataset
 
     split_h5_keys = {

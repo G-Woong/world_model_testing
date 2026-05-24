@@ -19,15 +19,20 @@ dataset:
   ood_mass_h5:       data/fglc/PushCube-v1/raw/ood_mass_low.h5
   ood_friction_h5:   data/fglc/PushCube-v1/raw/ood_friction_low.h5
   episode_len: 50
-  n_episode_train: 100
-  n_episode_val: 20
-  n_episode_ood_mass: 20
-  n_episode_ood_friction: 20
+  # === DATA SoT NOTE (2026-05-24) ===
+  # n_episode_* fields below are ADVISORY only. ManiSkill dataloader
+  # (_make_maniskill_datasets) loads full h5 by path; runtime episode count
+  # is determined by the h5 file (SoT: data/fglc/PushCube-v1/manifest.json).
+  # These values are synced with manifest.json n_episodes for reviewer clarity.
+  n_episode_train: 500          # was 100 — synced with manifest train_id n_episodes
+  n_episode_val: 100            # was 20 — synced with manifest val_id n_episodes
+  n_episode_ood_mass: 100       # was 20 — synced with manifest ood_mass_low n_episodes
+  n_episode_ood_friction: 100   # was 20 — synced with manifest ood_friction_low n_episodes
   # OOD params (recorded in manifest, NOT in model input)
   ood_mass_value: 1.5          # kg, CONFIRMED via probe 2026-05-24 (gap=0.018, KS p=0.022)
   ood_friction_value: 5.0      # joint dry friction (same as PickCube, confirm for PushCube)
   ood_gain_h5: data/fglc/PushCube-v1/raw/ood_gain_low.h5
-  n_episode_ood_gain: 20
+  n_episode_ood_gain: 500       # was 20 — synced with manifest ood_gain_low n_episodes
   ood_gain_value: 0.7
 
 # S2 split sizes (from pushcube_audit_R1.md §5)

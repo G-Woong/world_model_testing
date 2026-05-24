@@ -14,15 +14,20 @@ dataset:
   ood_mass_h5: data/fglc/PickCube-v1/raw/ood_mass_low.h5
   ood_friction_h5: data/fglc/PickCube-v1/raw/ood_friction_low.h5
   episode_len: 80       # estimated from probe (may vary)
-  n_episode_train: 50
-  n_episode_val: 10
-  n_episode_ood_mass: 10
-  n_episode_ood_friction: 10
+  # === DATA SoT NOTE (2026-05-24) ===
+  # n_episode_* fields below are ADVISORY only. ManiSkill dataloader
+  # (_make_maniskill_datasets) loads full h5 by path; runtime episode count
+  # is determined by the h5 file (SoT: data/fglc/PickCube-v1/manifest.json).
+  # These values are synced with manifest.json n_episodes for reviewer clarity.
+  n_episode_train: 250          # was 50 — synced with manifest train_id n_episodes
+  n_episode_val: 50             # was 10 — synced with manifest val_id n_episodes
+  n_episode_ood_mass: 50        # was 10 — synced with manifest ood_mass_low n_episodes
+  n_episode_ood_friction: 50    # was 10 — synced with manifest ood_friction_low n_episodes
   # OOD params (recorded in manifest, NOT in model input)
   ood_mass_value: 1.5          # kg, via cube.set_mass()
   ood_friction_value: 5.0      # joint dry friction, via art.joints[i].set_friction()
   ood_gain_h5: data/fglc/PickCube-v1/raw/ood_gain_low.h5
-  n_episode_ood_gain: 10
+  n_episode_ood_gain: 500       # was 10 — synced with manifest ood_gain_low n_episodes
   ood_gain_value: 0.7
 
 seed_pool:
