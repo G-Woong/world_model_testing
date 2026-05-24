@@ -1,4 +1,4 @@
-task: PickCube-v1
+task: PushCube-v1
 splits:
   train_id:
     seed_pool:
