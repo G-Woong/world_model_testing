@@ -21,7 +21,7 @@
 | Phase | Status | Blocker |
 |---|---|---|
 | R2 | PASS | sentinel 생성됨 |
-| R3 | PENDING | ManiSkill state-only 단계 완료 후 별도 phase-check (synthetic만으로 R3 gate 통과 간주 불가) |
+| R3 | PENDING | action_gain EXECUTION Stage 0~5 완주 2026-05-24. friction+action_gain 2-axis PASS. sentinel 미생성 — 사용자 `/fglc-phase-check --pass R3` 대기. SoT: reports/r3_readiness_action_gain_R1.md |
 | R4~R16 | PENDING | 해당 phase 구현 후 |
 
 ---
@@ -35,3 +35,12 @@
 - 2026-05-23T22:45:36Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-23_precompact_handoff.md
 - 2026-05-23T22:57:30Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-23_precompact_handoff.md
 - 2026-05-23T23:48:28Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-23_precompact_handoff.md
+- 2026-05-24T00:33:06Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
+- 2026-05-24T09:40:54Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
+- 2026-05-24T11:55:45Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
+- 2026-05-24T12:13:28Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
+- 2026-05-24T12:39:41Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
+- 2026-05-24T13:16:45Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
+- 2026-05-24T14:15:29Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
+- 2026-05-24T14:43:00Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
+- 2026-05-24T14:50:16Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
