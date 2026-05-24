@@ -2,7 +2,7 @@
   "checkpoint_0_dependency": "PASS",
   "checkpoint_1_schema": "PASS",
   "checkpoint_2_dynamics": "PASS",
-  "checkpoint_3_split": "PASS",
+  "checkpoint_3_split": "WARN",
   "checkpoint_4_ood_sev": "FAIL",
   "checkpoint_5_learnability": "SKIP",
   "checkpoint_6_repair_metric": "SKIP",

@@ -16,6 +16,12 @@ import json
 import os
 import sys
 
+# Ensure repo root is on sys.path when running as a script (not via pytest)
+_THIS_FILE = os.path.abspath(__file__)
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_THIS_FILE)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
 from scripts.fglc.collect_maniskill import TASK_SPLIT_DEFAULTS as _COLLECTOR_DEFAULTS
 
 
