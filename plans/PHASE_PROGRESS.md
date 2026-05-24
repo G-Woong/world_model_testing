@@ -13,6 +13,7 @@
 | R0 | PASS | 2026-05-22 15:59 | `/fglc-phase-check --pass R0` | R0 cleanup/contract reset 완료 |
 | R1 | PASS | 2026-05-23 18:59 | `/fglc-phase-check --pass R1` | TASK 10A 감사 완료. 4조건 충족: import smoke PASS, visibility.py 12 forbidden fields, RepairRunner Protocol, 159 tests passed. synthetic toy 경로 의존성 결정(h5py/mani-skill 불필요). |
 | R2 | PASS | 2026-05-23 19:17 | `/fglc-phase-check --pass R2` | TASK 10B 완료. SyntheticToyDataset(4 splits) + make_dataloaders + smoke_4060.yaml CD-8 + 6 dataset tests. 165 tests passed. forbidden field 0건. |
+| R3 | PASS | 2026-05-24 16:55 | manual sentinel (zero-byte) | friction+action_gain 2-axis PASS + train_id config/manifest sync. 91 tests passed. SoT: reports/r3_readiness_action_gain_R1.md + reports/r3_entry_audit_R1.md |
 
 ---
 
@@ -21,7 +22,7 @@
 | Phase | Status | Blocker |
 |---|---|---|
 | R2 | PASS | sentinel 생성됨 |
-| R3 | PENDING | action_gain EXECUTION Stage 0~5 완주 2026-05-24. friction+action_gain 2-axis PASS. sentinel 미생성 — 사용자 `/fglc-phase-check --pass R3` 대기. SoT: reports/r3_readiness_action_gain_R1.md |
+| R3 | PASS | sentinel 생성됨 (2026-05-24 16:55) |
 | R4~R16 | PENDING | 해당 phase 구현 후 |
 
 ---
@@ -44,3 +45,6 @@
 - 2026-05-24T14:15:29Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
 - 2026-05-24T14:43:00Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
 - 2026-05-24T14:50:16Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
+- 2026-05-24T16:20:11Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
+- 2026-05-24T16:29:43Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2 | SoT: docs/orchestration/session_reports/2026-05/2026-05-24_precompact_handoff.md
+- 2026-05-24T16:55:00Z | branch: memory-redesign-2026-05-16 | passed_gates: R0, R1, R2, R3 | SoT: reports/r3_entry_audit_R1.md + reports/r3_readiness_action_gain_R1.md
